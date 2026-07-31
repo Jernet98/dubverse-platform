@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="Dubverse: proyectos de fandoblaje sin anuncios, organizados por estudio y proyecto.">
+  <title>DUBVERSE — Fandoblaje sin anuncios</title>
+  <link rel="icon" href="assets/dubverse-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="site-header">
+    <a class="brand" href="#/" aria-label="Inicio de Dubverse">
+      <img src="assets/dubverse-logo.png" alt="DUBVERSE">
+    </a>
+    <button class="menu-button" id="menuButton" aria-label="Abrir menú">☰</button>
+    <nav id="mainNav">
+      <a href="#/">Inicio</a>
+      <a href="#/catalogo">Catálogo</a>
+      <a href="#/estudios">Estudios</a>
+      <a href="#/acerca">Acerca</a>
+    </nav>
+    <button class="search-trigger" id="searchTrigger" aria-label="Buscar">⌕</button>
+  </header>
+
+  <main id="app" aria-live="polite">
+    <div class="loading-screen"><span></span><p>Preparando Dubverse…</p></div>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <img src="assets/dubverse-logo.png" alt="DUBVERSE">
+      <p>Fandoblaje hecho por amor al arte. Sin anuncios.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#/catalogo">Catálogo</a>
+      <a href="#/estudios">Estudios</a>
+      <a href="#/acerca">Aviso</a>
+    </div>
+  </footer>
+
+  <dialog id="searchDialog" class="search-dialog">
+    <form method="dialog" class="search-shell">
+      <div class="search-top">
+        <input id="globalSearch" type="search" placeholder="Buscar anime, película o estudio…" autocomplete="off">
+        <button value="cancel" aria-label="Cerrar">×</button>
+      </div>
+      <div id="searchResults" class="search-results"></div>
+    </form>
+  </dialog>
+
+  <template id="projectCardTemplate">
+    <article class="project-card">
+      <a class="project-card-link">
+        <div class="poster-wrap">
+          <img class="poster" loading="lazy" alt="">
+          <span class="project-type"></span>
+          <span class="play-pill">▶</span>
+        </div>
+        <div class="project-card-copy">
+          <h3></h3>
+          <p></p>
+        </div>
+      </a>
+    </article>
+  </template>
+  <script src="data.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
