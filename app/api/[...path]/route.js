@@ -211,12 +211,21 @@ export async function POST(request, context) {
   try {
     const path = await getSegments(context);
 
-    if (path[0] === 'setup') {
-      const body = await bodyJson(request);
-      if (!verifyAdminKey(body.key)) throw new AppError(401, 'ADMIN_ACCESS_KEY incorrecta.');
-      const result = await seedDatabase(getSql(), { reset: booleanValue(body.reset) });
-      return json({ ok: true, ...result });
-    }
+if (path[0] === 'setup') {
+  if (process.env.SETUP_ENABLED !== 'true') {
+    throw new AppError(404, 'Ruta no encontrada.');
+  }
+
+  const body = await bodyJson(request);
+
+  if (!verifyAdminKey(body.key)) {
+    throw new AppError(401, 'ADMIN_ACCESS_KEY incorrecta.');
+  }
+
+  const result = await seedDatabase(getSql(), { reset: false });
+
+  return json({ ok: true, ...result });
+}
     if (path[0] === 'admin' && path[1] === 'login') {
       const body = await bodyJson(request);
       if (!verifyAdminKey(body.key)) throw new AppError(401, 'Clave incorrecta.');
