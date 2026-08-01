@@ -32,7 +32,7 @@ export default function HomePage() {
           <a href="#/catalogo">Catálogo</a>
           <a href="#/estudios">Estudios</a>
           <a href="#/acerca">Aviso</a>
-          <a href="/admin">Panel</a>
+       
         </div>
       </footer>
 
