@@ -19,12 +19,35 @@ async function loadBase(){
 }
 
 function projectCard(project){
-  const node = cardTemplate.content.firstElementChild.cloneNode(true);
-  const a = $('.project-card-link',node); a.href = `#/proyecto/${project.id}`;
-  const img = $('.poster',node); img.src = project.poster || '/assets/dubverse-icon.png'; img.alt = project.title;
-  $('.project-type',node).textContent = typeLabel(project.type);
-  $('h3',node).textContent = project.title;
-  $('p',node).textContent = `${project.episodeCount} ${project.episodeCount===1?'episodio':'episodios'} · ${statusLabel(project.status)}`;
+  const node = document.createElement('article');
+  node.className = 'project-card';
+
+  node.innerHTML = `
+    <a class="project-card-link" href="#/proyecto/${encodeURIComponent(project.id)}">
+      <div class="poster-wrap">
+        <img
+          class="poster"
+          loading="lazy"
+          alt="${esc(project.title)}"
+        />
+        <span class="project-type">${esc(typeLabel(project.type))}</span>
+        <span class="play-pill">▶</span>
+      </div>
+
+      <div class="project-card-copy">
+        <h3>${esc(project.title)}</h3>
+        <p>
+          ${project.episodeCount}
+          ${project.episodeCount === 1 ? 'episodio' : 'episodios'}
+          · ${esc(statusLabel(project.status))}
+        </p>
+      </div>
+    </a>
+  `;
+
+  const img = $('.poster', node);
+  img.src = project.poster || '/assets/dubverse-icon.png';
+
   return node;
 }
 
