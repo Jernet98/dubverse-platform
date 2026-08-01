@@ -32,7 +32,21 @@ export default function AdminPage() {
           <button id="logoutButton" className="logout">Salir</button>
         </aside>
         <main className="panel-main">
-          <header className="panel-top"><div><span className="kicker">DUBVERSE ADMIN</span><h1 id="tabTitle">Resumen</h1></div><div className="panel-top-actions"><a href="/setup" target="_blank">Configuración ↗</a><a href="/" target="_blank">Ver sitio ↗</a></div></header>
+
+<header className="panel-top">
+  <div>
+    <span className="kicker">DUBVERSE ADMIN</span>
+    <h1 id="tabTitle">Resumen</h1>
+  </div>
+
+  <div className="panel-top-actions">
+    <a href="/" target="_blank" rel="noopener noreferrer">
+      Ver sitio ↗
+    </a>
+  </div>
+</header>
+
+          
           <div id="flash" className="flash hidden"></div>
           <section id="content"><div className="loading">Cargando panel…</div></section>
         </main>
