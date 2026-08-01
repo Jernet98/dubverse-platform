@@ -1,0 +1,13 @@
+PARCHE PARA EL 404 DE DUBVERSE
+
+Este parche agrega los archivos que faltaron al subir el proyecto a GitHub:
+- app/page.jsx
+- app/layout.jsx
+- app/setup/page.jsx
+- app/api/[...path]/route.js
+- data/seed.json
+- database/schema.sql
+
+En GitHub: Add file > Upload files.
+Arrastra las carpetas app, data y database que están dentro de esta carpeta.
+No subas el ZIP cerrado.
