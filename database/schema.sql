@@ -1,4 +1,4 @@
--- Esquema objetivo para Neon PostgreSQL. Mantiene la misma forma lógica que el prototipo SQLite.
+-- Esquema de Dubverse para Neon PostgreSQL.
 CREATE TABLE IF NOT EXISTS settings (
   key text PRIMARY KEY,
   value jsonb NOT NULL
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS projects (
   published boolean NOT NULL DEFAULT false,
   featured boolean NOT NULL DEFAULT false,
   legacy_path text,
+  deleted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS studios (
   logo text,
   socials jsonb NOT NULL DEFAULT '{}'::jsonb,
   published boolean NOT NULL DEFAULT true,
+  deleted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -55,11 +57,27 @@ CREATE TABLE IF NOT EXISTS episodes (
   archive_file text,
   status text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','UPLOADING','PROCESSING','READY','PUBLISHED','ERROR','RETIRED')),
   published boolean NOT NULL DEFAULT false,
+  deleted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(project_id, season, number)
 );
 
+CREATE TABLE IF NOT EXISTS admin_login_attempts (
+  key_hash text PRIMARY KEY,
+  failures integer NOT NULL DEFAULT 0,
+  locked_until timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE studios ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
 CREATE INDEX IF NOT EXISTS projects_visibility_idx ON projects(published, featured);
+CREATE INDEX IF NOT EXISTS projects_deleted_idx ON projects(deleted_at);
+CREATE INDEX IF NOT EXISTS studios_deleted_idx ON studios(deleted_at);
 CREATE INDEX IF NOT EXISTS episodes_project_idx ON episodes(project_id, season, number);
 CREATE INDEX IF NOT EXISTS episodes_archive_idx ON episodes(archive_identifier);
+CREATE INDEX IF NOT EXISTS episodes_deleted_idx ON episodes(deleted_at);
+CREATE INDEX IF NOT EXISTS admin_login_attempts_updated_idx ON admin_login_attempts(updated_at);

@@ -4,19 +4,34 @@ export default function HomePage() {
   return (
     <>
       <link rel="stylesheet" href="/styles.css" />
-      <div className="noise"></div>
+      <div className="noise" aria-hidden="true"></div>
+
       <header className="site-header">
         <a className="brand" href="#/" aria-label="Inicio de Dubverse">
           <img src="/assets/dubverse-logo.png" alt="DUBVERSE" />
         </a>
-        <button className="menu-button" id="menuButton" aria-label="Abrir menú">☰</button>
-        <nav id="mainNav">
+
+        <button
+          className="menu-button"
+          id="menuButton"
+          type="button"
+          aria-label="Abrir menú"
+          aria-controls="mainNav"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+
+        <nav id="mainNav" aria-label="Navegación principal">
           <a href="#/">Inicio</a>
           <a href="#/catalogo">Catálogo</a>
           <a href="#/estudios">Estudios</a>
           <a href="#/acerca">Acerca</a>
         </nav>
-        <button className="search-trigger" id="searchTrigger" aria-label="Buscar">⌕</button>
+
+        <button className="search-trigger" id="searchTrigger" type="button" aria-label="Buscar">
+          ⌕
+        </button>
       </header>
 
       <main id="app" aria-live="polite">
@@ -32,7 +47,6 @@ export default function HomePage() {
           <a href="#/catalogo">Catálogo</a>
           <a href="#/estudios">Estudios</a>
           <a href="#/acerca">Aviso</a>
-          <a href="/admin">Panel</a>
         </div>
       </footer>
 
@@ -46,18 +60,6 @@ export default function HomePage() {
         </form>
       </dialog>
 
-      <template id="projectCardTemplate">
-        <article className="project-card">
-          <a className="project-card-link">
-            <div className="poster-wrap">
-              <img className="poster" loading="lazy" alt="" />
-              <span className="project-type"></span>
-              <span className="play-pill">▶</span>
-            </div>
-            <div className="project-card-copy"><h3></h3><p></p></div>
-          </a>
-        </article>
-      </template>
       <Script src="/app.js" strategy="afterInteractive" />
     </>
   );
