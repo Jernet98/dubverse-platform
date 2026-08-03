@@ -230,13 +230,57 @@ function studios() {
 
 function about() {
   app.innerHTML = `
-    <header class="page-header"><span class="eyebrow">Sobre Dubverse</span><h1>Una plataforma comunitaria, no un negocio.</h1></header>
-    <section class="section section-tight"><div class="about-panel">
-      <p><strong>Dubverse organiza y presenta proyectos de fandoblaje realizados por sus respectivos equipos.</strong> La plataforma no incluye publicidad propia ni busca monetizar el material.</p>
-      <p>Los créditos, responsables y enlaces de cada proyecto se conservan en su ficha. El contenido audiovisual se aloja en proveedores externos, principalmente Archive.org.</p>
-      <p>Los titulares de derechos pueden solicitar la revisión o retiro de material mediante los canales de contacto del proyecto. El panel permite ocultar o retirar un episodio sin destruir el resto del catálogo.</p>
-      <p>La versión anterior estaba formada por numerosos HTML y carpetas. Esta versión genera todo desde una sola base de datos, por lo que crear un proyecto o episodio ya no requiere editar código.</p>
-    </div></section>
+    <header class="page-header">
+      <span class="eyebrow">Sobre DUBVERSE</span>
+      <h1>¿Quiénes somos?</h1>
+    </header>
+
+    <section class="section section-tight">
+      <div class="about-panel">
+        <p>
+          En <strong>DUBVERSE</strong>, nos dedicamos con pasión a ofrecer
+          fandoblajes de calidad, hechos por fans para fans. Traemos a ti
+          versiones dobladas de animes, películas y series, creadas con amor
+          y dedicación.
+        </p>
+
+        <p>
+          La inspiración para crear esta página nació al ver cómo muchos
+          estudios y personas dedicadas al fandoblaje no tenían un espacio
+          donde alojar sus proyectos. Esto hacía que su trabajo pasara
+          desapercibido, a pesar del esfuerzo que ponían.
+        </p>
+
+        <p>
+          Nuestra misión es clara: brindar un espacio para compartir
+          fandoblajes en español latino que puedan ser disfrutados por todos,
+          de manera gratuita y sin fines de lucro. Cada proyecto alojado aquí
+          representa el talento y la dedicación de quienes aman esta forma de
+          arte.
+        </p>
+
+        <p>
+          Nos definen la creatividad, la pasión y el deseo de dar vida a los
+          personajes en nuestro idioma. Aquí podrás encontrar doblajes no
+          profesionales —realizados por aficionados— de animes, películas y
+          series, siempre con el mayor respeto al material original.
+        </p>
+
+        <p>
+          El propósito de <strong>DUBVERSE</strong> es alojar y dar visibilidad
+          a estos trabajos para que todos puedan disfrutar del esfuerzo de cada
+          estudio o persona involucrada. Todo esto nace del amor por el arte y
+          sin intención de lucro, siendo conscientes de la situación legal de
+          los fandoblajes y dejando claro que nuestra meta no es perjudicar los
+          derechos de los autores, sino rendir homenaje a sus obras.
+        </p>
+
+        <p>
+          Gracias por formar parte de esta comunidad.
+          <strong>¡DUBVERSE es de fans para fans!</strong>
+        </p>
+      </div>
+    </section>
   `;
 }
 
