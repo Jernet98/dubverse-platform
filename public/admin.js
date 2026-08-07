@@ -23,6 +23,26 @@ const titles = {
   trash: 'Papelera'
 };
 
+const EPISODE_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: 'Borrador' },
+  { value: 'UPLOADING', label: 'Subiendo' },
+  { value: 'PROCESSING', label: 'Procesando' },
+  { value: 'READY', label: 'Listo' },
+  { value: 'PUBLISHED', label: 'Publicado' },
+  { value: 'ERROR', label: 'Error' },
+  { value: 'RETIRED', label: 'Retirado' }
+];
+const PROJECT_TYPE_OPTIONS = [
+  { value: 'SERIES', label: 'Serie' },
+  { value: 'MOVIE', label: 'Película' },
+  { value: 'OVA', label: 'OVA' },
+  { value: 'SPECIAL', label: 'Especial' },
+  { value: 'MANGA_COMIC_DUB', label: 'Manga / Comic Dub' }
+];
+const STUDIO_SOCIAL_KEYS = ['website', 'facebook', 'youtube', 'instagram', 'tiktok', 'twitter', 'x', 'discord', 'twitch'];
+const episodeStatusLabel = status => EPISODE_STATUS_OPTIONS.find(option => option.value === status)?.label || status;
+const projectTypeLabel = type => PROJECT_TYPE_OPTIONS.find(option => option.value === type)?.label || type;
+
 let flashTimer = null;
 
 async function api(path, options = {}) {
@@ -204,7 +224,7 @@ function projects() {
     $('#projectRows').innerHTML = rows.map(project => `
       <tr>
         <td><div class="record-cell"><img class="thumb" src="${esc(project.poster || '/assets/dubverse-icon.png')}" alt=""><div><div class="record-title">${esc(project.title)}</div><div class="record-sub">${esc(project.id)}</div></div></div></td>
-        <td>${badge(project.type)}</td>
+        <td>${badge(projectTypeLabel(project.type))}</td>
         <td>${badge(project.status, project.status === 'FINISHED' ? 'green' : 'yellow')}</td>
         <td>${project.studios?.length || 0}</td><td>${project.episodeCount}</td>
         <td>${project.published ? badge('Publicado', 'green') : badge('Oculto', 'red')}</td>
@@ -227,11 +247,11 @@ function episodes() {
   $('#content').innerHTML = `
     <div class="toolbar">
       <input id="tableSearch" type="search" placeholder="Buscar episodio o proyecto" />
-      <select id="statusFilter"><option value="">Todos los estados</option>${['DRAFT', 'UPLOADING', 'PROCESSING', 'READY', 'PUBLISHED', 'ERROR', 'RETIRED'].map(status => `<option>${status}</option>`).join('')}</select>
+      <select id="statusFilter"><option value="">Todos los estados</option>${EPISODE_STATUS_OPTIONS.map(status => `<option value="${status.value}">${status.label}</option>`).join('')}</select>
       <button id="newEpisode" type="button">+ Nuevo episodio</button>
     </div>
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Episodio</th><th>Proyecto</th><th>Proveedor</th><th>Estado</th><th>Visible</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Episodio</th><th>Proyecto</th><th>Proveedor</th><th>Estado</th><th>Visible</th><th>Última modificación</th><th>Acciones</th></tr></thead>
       <tbody id="episodeRows"></tbody>
     </table></div>`;
 
@@ -243,14 +263,15 @@ function episodes() {
       <tr>
         <td><div class="record-title">T${episode.season} · E${String(episode.number).padStart(2, '0')} — ${esc(episode.title)}</div><div class="record-sub">${esc(episode.id)}</div></td>
         <td>${esc(episode.project_title)}</td><td>${badge(episode.provider)}</td>
-        <td>${badge(episode.status, ['PUBLISHED', 'READY'].includes(episode.status) ? 'green' : episode.status === 'ERROR' ? 'red' : 'yellow')}</td>
+        <td>${badge(episodeStatusLabel(episode.status), ['PUBLISHED', 'READY'].includes(episode.status) ? 'green' : episode.status === 'ERROR' ? 'red' : 'yellow')}</td>
         <td>${episode.published ? badge('Sí', 'green') : badge('No', 'red')}</td>
+        <td><span class="modified-date">${esc(dateLabel(episode.updatedAt || episode.updated_at))}</span></td>
         <td><div class="row-actions">
           <button class="action-btn edit-episode" data-id="${esc(episode.id)}">Editar</button>
           ${episode.provider === 'ARCHIVE' && episode.archive_identifier ? `<button class="action-btn check-archive" data-id="${esc(episode.id)}">Revisar Archive</button>` : ''}
           <button class="action-btn danger trash-episode" data-id="${esc(episode.id)}">Papelera</button>
         </div></td>
-      </tr>`).join('') || '<tr><td colspan="6" class="empty">Sin resultados</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="7" class="empty">Sin resultados</td></tr>';
     bindEpisodeRows();
   };
 
@@ -268,7 +289,7 @@ function bindEpisodeRows() {
     button.textContent = 'Revisando…';
     try {
       const result = await api(`/api/admin/archive/status/${encodeURIComponent(button.dataset.id)}`);
-      flash(`Archive: ${result.status}`);
+      flash(`Archive: ${episodeStatusLabel(result.status)}`);
       await navigate('episodes');
     } catch (error) {
       flash(error.message, 'error');
@@ -321,7 +342,7 @@ function upload() {
           <div class="step"><h3>Prepara el episodio</h3><p>Créalo como borrador en “Episodios”.</p></div>
           <div class="step"><h3>Abre Dubverse Uploader</h3><p>El programa manda el MP4 directamente a Archive.org. Las claves no pasan por Vercel.</p></div>
           <div class="step"><h3>Espera el procesamiento</h3><p>Archive seguirá trabajando aunque cierres la página.</p></div>
-          <div class="step"><h3>Revisa y publica</h3><p>Cuando aparezca READY, activa Publicado y cambia el estado a PUBLISHED.</p></div>
+          <div class="step"><h3>Revisa y publica</h3><p>Cuando aparezca Listo, activa Publicado y cambia el estado a Publicado.</p></div>
         </div></div>
         <div class="panel-card"><h2>Crear episodio para el cargador</h2><button id="quickEpisode" type="button">+ Preparar nuevo episodio</button></div>
       </div>
@@ -359,7 +380,7 @@ async function importArchive() {
       method: 'POST',
       body: JSON.stringify({ projectId, season, number, title, provider: 'ARCHIVE', archiveIdentifier, status: 'PROCESSING', published: false })
     });
-    flash('Episodio creado como PROCESSING');
+    flash('Episodio creado como Procesando');
     await navigate('episodes');
   } catch (error) {
     flash(error.message, 'error');
@@ -468,6 +489,46 @@ function studioChecks(selected = []) {
   return `<fieldset class="field full studio-selector"><legend>Estudios relacionados</legend><div>${state.studios.map(studio => `<label><input type="checkbox" name="studioIds" value="${esc(studio.id)}" ${selectedIds.has(studio.id) ? 'checked' : ''}><span>${esc(studio.name)}</span></label>`).join('') || '<small>Primero crea un estudio.</small>'}</div></fieldset>`;
 }
 
+function studioSocialFields(socials = {}) {
+  const otherSocials = Object.fromEntries(Object.entries(socials).filter(([key]) => !STUDIO_SOCIAL_KEYS.includes(key)));
+  return [
+    field('socialWebsite', 'Sitio web oficial', socials.website || '', 'url'),
+    field('socialFacebook', 'Facebook', socials.facebook || '', 'url'),
+    field('socialYoutube', 'YouTube', socials.youtube || '', 'url'),
+    field('socialInstagram', 'Instagram', socials.instagram || '', 'url'),
+    field('socialTiktok', 'TikTok', socials.tiktok || '', 'url'),
+    field('socialTwitter', 'X / Twitter', socials.twitter || socials.x || '', 'url'),
+    field('socialDiscord', 'Discord', socials.discord || '', 'url'),
+    field('socialTwitch', 'Twitch', socials.twitch || '', 'url'),
+    field('socialsExtra', 'Otras redes (JSON: nombre y URL)', Object.keys(otherSocials).length ? JSON.stringify(otherSocials, null, 2) : '', 'textarea', true)
+  ].join('');
+}
+
+function studioSocialsFromBody(body) {
+  let socials = {};
+  const extra = String(body.socialsExtra || '').trim();
+  if (extra) {
+    try {
+      const parsed = JSON.parse(extra);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+      socials = parsed;
+    } catch {
+      throw new Error('“Otras redes” debe contener un objeto JSON válido con nombre y URL.');
+    }
+  }
+  const fields = {
+    website: 'socialWebsite', facebook: 'socialFacebook', youtube: 'socialYoutube', instagram: 'socialInstagram',
+    tiktok: 'socialTiktok', twitter: 'socialTwitter', discord: 'socialDiscord', twitch: 'socialTwitch'
+  };
+  for (const [key, formKey] of Object.entries(fields)) {
+    const value = String(body[formKey] || '').trim();
+    if (value) socials[key] = value;
+    delete body[formKey];
+  }
+  delete body.socialsExtra;
+  return socials;
+}
+
 function resetEditor(kind, id) {
   editor = { kind, id, uploading: 0, pendingUrls: new Set() };
   $('#editorStatus').textContent = '';
@@ -569,10 +630,13 @@ function openProject(project = null) {
   $('#editorKicker').textContent = 'Proyecto';
   fields.innerHTML =
     field('title', 'Título', project?.title || '') +
-    field('type', 'Tipo', project?.type || 'SERIES', 'select', false, ['SERIES', 'MOVIE', 'OVA', 'SPECIAL']) +
+    field('type', 'Tipo', project?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
     field('alternateTitle', 'Título alternativo', project?.alternateTitle || project?.alternate_title || '') +
     field('status', 'Estado', project?.status || 'ONGOING', 'select', false, ['ONGOING', 'FINISHED', 'PAUSED', 'CANCELLED']) +
     field('synopsis', 'Sinopsis', project?.synopsis || '', 'textarea', true) +
+    field('projectDirector', 'Director/a del proyecto', project?.projectDirector || project?.project_director || '', 'text', true) +
+    field('dubbingInfo', 'Información del fandoblaje', project?.dubbingInfo || project?.dubbing_info || '', 'textarea', true) +
+    field('credits', 'Créditos / agradecimientos', project?.credits || '', 'textarea', true) +
     field('genres', 'Géneros separados por coma', (project?.genres || []).join(', '), 'text', true) +
     imageField('poster', 'Portada', project?.poster || '', 'posters') +
     imageField('banner', 'Banner', project?.banner || '', 'banners') +
@@ -592,6 +656,7 @@ function openStudio(studio = null) {
     field('director', 'Dirección / administración', studio?.director || '') +
     field('description', 'Descripción', studio?.description || '', 'textarea', true) +
     imageField('logo', 'Logo', studio?.logo || '', 'studios', true) +
+    studioSocialFields(studio?.socials || {}) +
     field('published', 'Publicado', studio?.published ?? true, 'checkbox');
   dialog.showModal();
   bindImageUploads();
@@ -601,7 +666,8 @@ function openEpisode(episode = null) {
   resetEditor('episodes', episode?.id || null);
   $('#editorTitle').textContent = episode ? 'Editar episodio' : 'Nuevo episodio';
   $('#editorKicker').textContent = 'Episodio';
-  const projectOptions = state.projects.map(project => ({ value: project.id, label: project.title }));
+  const availableProjects = episode ? state.projects : state.projects.filter(project => project.status === 'ONGOING');
+  const projectOptions = availableProjects.map(project => ({ value: project.id, label: project.title }));
   fields.innerHTML =
     field('projectId', 'Proyecto', episode?.project_id || projectOptions[0]?.value, 'select', false, projectOptions) +
     field('provider', 'Proveedor', episode?.provider || 'ARCHIVE', 'select', false, ['ARCHIVE', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']) +
@@ -612,9 +678,13 @@ function openEpisode(episode = null) {
     field('archiveIdentifier', 'Identificador Archive.org', episode?.archive_identifier || '') +
     field('archiveFile', 'Archivo dentro del item', episode?.archive_file || '') +
     field('videoUrl', 'URL de reproducción', episode?.video_url || '', 'text', true) +
-    field('status', 'Estado', episode?.status || 'DRAFT', 'select', false, ['DRAFT', 'UPLOADING', 'PROCESSING', 'READY', 'PUBLISHED', 'ERROR', 'RETIRED']) +
+    field('status', 'Estado', episode?.status || 'DRAFT', 'select', false, EPISODE_STATUS_OPTIONS) +
     field('published', 'Publicado', episode?.published || false, 'checkbox');
   dialog.showModal();
+  if (!episode && !projectOptions.length) {
+    $('#editorStatus').textContent = 'No hay proyectos en emisión disponibles para crear un episodio.';
+    $('#saveEditor').disabled = true;
+  }
 }
 
 async function closeEditor() {
@@ -641,6 +711,15 @@ $('#editorForm').addEventListener('submit', async event => {
   if (editor.kind === 'projects') body.studioIds = $$('input[name="studioIds"]:checked', fields).map(input => input.value);
   if (body.genres) body.genres = body.genres.split(',').map(item => item.trim()).filter(Boolean);
   ['season', 'number'].forEach(key => { if (key in body) body[key] = Number(body[key]); });
+
+  if (editor.kind === 'studios') {
+    try {
+      body.socials = studioSocialsFromBody(body);
+    } catch (error) {
+      $('#editorStatus').textContent = error.message;
+      return flash(error.message, 'error');
+    }
+  }
 
   const saveButton = $('#saveEditor');
   saveButton.disabled = true;
