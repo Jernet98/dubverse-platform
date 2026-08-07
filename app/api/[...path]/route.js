@@ -6,7 +6,6 @@ import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdmi
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
-import { ensureSchema } from '@/lib/schema';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,18 +20,8 @@ const LOGIN_MAX_FAILURES = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
-let schemaPromise = null;
-
 async function readySql() {
-  const sql = getSql();
-  if (!schemaPromise) {
-    schemaPromise = ensureSchema(sql).catch(error => {
-      schemaPromise = null;
-      throw error;
-    });
-  }
-  await schemaPromise;
-  return sql;
+  return getSql();
 }
 
 function json(payload, status = 200, headers = {}) {
