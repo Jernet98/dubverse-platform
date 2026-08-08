@@ -7,7 +7,7 @@ export default function HomePage() {
       <div className="noise" aria-hidden="true"></div>
 
       <header className="site-header">
-        <a className="brand" href="#/" aria-label="Inicio de Dubverse">
+        <a className="brand" href="/" aria-label="Inicio de Dubverse">
           <img src="/assets/dubverse-logo.png" alt="DUBVERSE" />
         </a>
 
@@ -23,10 +23,10 @@ export default function HomePage() {
         </button>
 
         <nav id="mainNav" aria-label="Navegación principal">
-          <a href="#/">Inicio</a>
-          <a href="#/catalogo">Catálogo</a>
-          <a href="#/estudios">Estudios</a>
-          <a href="#/acerca">Acerca</a>
+          <a href="/">Inicio</a>
+          <a href="/catalogo">Catálogo</a>
+          <a href="/estudios">Estudios</a>
+          <a href="/acerca">Acerca</a>
         </nav>
 
         <button className="search-trigger" id="searchTrigger" type="button" aria-label="Buscar">
@@ -44,9 +44,9 @@ export default function HomePage() {
           <p>Fandoblaje hecho por amor al arte. Sin anuncios propios.</p>
         </div>
         <div className="footer-links">
-          <a href="#/catalogo">Catálogo</a>
-          <a href="#/estudios">Estudios</a>
-          <a href="#/acerca">Aviso</a>
+          <a href="/catalogo">Catálogo</a>
+          <a href="/estudios">Estudios</a>
+          <a href="/acerca">Aviso</a>
         </div>
       </footer>
 

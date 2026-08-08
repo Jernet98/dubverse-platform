@@ -6,13 +6,12 @@ import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdmi
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
-import { ensureSchema } from '@/lib/schema';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const PROJECT_TYPES = new Set(['SERIES', 'MOVIE', 'OVA', 'SPECIAL']);
+const PROJECT_TYPES = new Set(['SERIES', 'MOVIE', 'OVA', 'SPECIAL', 'MANGA_COMIC_DUB']);
 const PROJECT_STATUSES = new Set(['ONGOING', 'FINISHED', 'PAUSED', 'CANCELLED']);
 const EPISODE_PROVIDERS = new Set(['ARCHIVE', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']);
 const EPISODE_STATUSES = new Set(['DRAFT', 'UPLOADING', 'PROCESSING', 'READY', 'PUBLISHED', 'ERROR', 'RETIRED']);
@@ -21,18 +20,8 @@ const LOGIN_MAX_FAILURES = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
-let schemaPromise = null;
-
 async function readySql() {
-  const sql = getSql();
-  if (!schemaPromise) {
-    schemaPromise = ensureSchema(sql).catch(error => {
-      schemaPromise = null;
-      throw error;
-    });
-  }
-  await schemaPromise;
-  return sql;
+  return getSql();
 }
 
 function json(payload, status = 200, headers = {}) {
@@ -84,6 +73,29 @@ function genresValue(value) {
 function studioIdsValue(value) {
   if (!Array.isArray(value)) return null;
   return [...new Set(value.map(item => String(item).trim()).filter(Boolean))];
+}
+
+function optionalText(value, label, maxLength = 20000) {
+  const text = String(value || '').trim();
+  if (text.length > maxLength) throw new AppError(400, `${label} supera el máximo de ${maxLength} caracteres.`);
+  return text;
+}
+
+function socialsValue(value) {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) throw new AppError(400, 'Las redes sociales deben ser un objeto válido.');
+  const socials = {};
+  for (const [rawKey, rawUrl] of Object.entries(value)) {
+    const key = String(rawKey || '').trim().toLowerCase();
+    const url = String(rawUrl || '').trim();
+    if (!key || !url) continue;
+    if (!/^[a-z0-9_-]{1,40}$/.test(key)) throw new AppError(400, `Nombre de red no permitido: ${key}.`);
+    let parsed;
+    try { parsed = new URL(url); } catch { throw new AppError(400, `URL no válida para ${key}.`); }
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new AppError(400, `La URL de ${key} debe usar http o https.`);
+    socials[key] = parsed.toString();
+  }
+  return socials;
 }
 
 function assertWriteOrigin(request) {
@@ -273,14 +285,31 @@ async function adminTrash(sql) {
 
 async function replaceProjectStudios(sql, projectId, studioIds) {
   if (studioIds === null) return;
-  const queries = [sql`DELETE FROM project_studios WHERE project_id = ${projectId}`];
-  for (const studioId of studioIds) {
-    queries.push(sql`INSERT INTO project_studios (project_id, studio_id, role, notes)
-      SELECT ${projectId}, ${studioId}, 'Fandoblaje', ''
-      WHERE EXISTS (SELECT 1 FROM studios WHERE id = ${studioId} AND deleted_at IS NULL)
-      ON CONFLICT (project_id, studio_id) DO NOTHING`);
+  const currentRows = await sql`
+    SELECT ps.studio_id, s.deleted_at
+    FROM project_studios ps
+    JOIN studios s ON s.id = ps.studio_id
+    WHERE ps.project_id = ${projectId}
+  `;
+  const currentIds = new Set(currentRows.map(row => row.studio_id));
+  const desiredIds = new Set(studioIds);
+  const queries = [];
+
+  for (const relation of currentRows) {
+    if (!relation.deleted_at && !desiredIds.has(relation.studio_id)) {
+      queries.push(sql`DELETE FROM project_studios WHERE project_id = ${projectId} AND studio_id = ${relation.studio_id}`);
+    }
   }
-  await sql.transaction(queries);
+
+  for (const studioId of studioIds) {
+    if (!currentIds.has(studioId)) {
+      queries.push(sql`INSERT INTO project_studios (project_id, studio_id, role, notes)
+        SELECT ${projectId}, ${studioId}, 'Fandoblaje', ''
+        WHERE EXISTS (SELECT 1 FROM studios WHERE id = ${studioId} AND deleted_at IS NULL)
+        ON CONFLICT (project_id, studio_id) DO NOTHING`);
+    }
+  }
+  if (queries.length) await sql.transaction(queries);
 }
 
 function trashTable(kind) {
@@ -333,6 +362,26 @@ export async function GET(request, context) {
     }
 
     if (path[0] === 'studios' && path.length === 1) return json(await publicStudios(sql));
+
+    if (path[0] === 'studios' && path[1]) {
+      const studioRows = await sql`
+        SELECT * FROM studios
+        WHERE id = ${path[1]} AND published = true AND deleted_at IS NULL
+      `;
+      if (!studioRows.length) throw new AppError(404, 'Estudio no encontrado.');
+      const projects = await sql`
+        SELECT p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
+        FROM project_studios ps
+        JOIN projects p ON p.id = ps.project_id
+        LEFT JOIN episodes e ON e.project_id = p.id
+        WHERE ps.studio_id = ${path[1]}
+          AND p.published = true
+          AND p.deleted_at IS NULL
+        GROUP BY p.id
+        ORDER BY p.featured DESC, p.title
+      `;
+      return json(mapStudio(studioRows[0], { projects: projects.map(row => mapProject(row)) }));
+    }
 
     if (path[0] === 'episodes' && path[1]) {
       const rows = await sql`
@@ -507,10 +556,14 @@ export async function POST(request, context) {
       const status = enumValue(body.status, PROJECT_STATUSES, 'ONGOING');
       const studioIds = studioIdsValue(body.studioIds) || [];
       const queries = [sql`INSERT INTO projects (
-          id, type, title, alternate_title, synopsis, status, genres, poster, banner,
+          id, type, title, alternate_title, synopsis, project_director, dubbing_info, credits,
+          status, genres, poster, banner,
           published, featured, deleted_at, updated_at
         ) VALUES (
           ${id}, ${type}, ${title}, ${String(body.alternateTitle || '')}, ${String(body.synopsis || '')},
+          ${optionalText(body.projectDirector, 'La dirección del proyecto', 240)},
+          ${optionalText(body.dubbingInfo, 'La información del fandoblaje')},
+          ${optionalText(body.credits, 'Los créditos')},
           ${status}, ${JSON.stringify(genresValue(body.genres))}::jsonb, ${String(body.poster || '') || null},
           ${String(body.banner || '') || null}, ${booleanValue(body.published)}, ${booleanValue(body.featured)}, NULL, now()
         )`];
@@ -529,7 +582,7 @@ export async function POST(request, context) {
       const id = slugify(body.id || name);
       await sql`INSERT INTO studios (id, name, director, description, logo, socials, published, deleted_at, updated_at)
         VALUES (${id}, ${name}, ${String(body.director || '')}, ${String(body.description || '')},
-          ${String(body.logo || '') || null}, ${JSON.stringify(body.socials || {})}::jsonb,
+          ${String(body.logo || '') || null}, ${JSON.stringify(socialsValue(body.socials))}::jsonb,
           ${body.published === undefined ? true : booleanValue(body.published)}, NULL, now())`;
       return json({ ok: true, id }, 201);
     }
@@ -596,6 +649,9 @@ export async function PATCH(request, context) {
           title = ${title},
           alternate_title = ${body.alternateTitle !== undefined ? String(body.alternateTitle) : old.alternate_title},
           synopsis = ${body.synopsis !== undefined ? String(body.synopsis) : old.synopsis},
+          project_director = ${body.projectDirector !== undefined ? optionalText(body.projectDirector, 'La dirección del proyecto', 240) : old.project_director},
+          dubbing_info = ${body.dubbingInfo !== undefined ? optionalText(body.dubbingInfo, 'La información del fandoblaje') : old.dubbing_info},
+          credits = ${body.credits !== undefined ? optionalText(body.credits, 'Los créditos') : old.credits},
           type = ${type}, status = ${status},
           genres = ${JSON.stringify(body.genres !== undefined ? genresValue(body.genres) : old.genres)}::jsonb,
           poster = ${poster}, banner = ${banner},
@@ -618,7 +674,7 @@ export async function PATCH(request, context) {
           director = ${body.director !== undefined ? String(body.director) : old.director},
           description = ${body.description !== undefined ? String(body.description) : old.description},
           logo = ${logo},
-          socials = ${JSON.stringify(body.socials !== undefined ? body.socials : old.socials)}::jsonb,
+          socials = ${JSON.stringify(body.socials !== undefined ? socialsValue(body.socials) : old.socials)}::jsonb,
           published = ${body.published !== undefined ? booleanValue(body.published) : old.published},
           updated_at = now()
         WHERE id = ${id}`;

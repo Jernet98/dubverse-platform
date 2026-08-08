@@ -7,10 +7,13 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS projects (
   id text PRIMARY KEY,
   legacy_key text,
-  type text NOT NULL CHECK (type IN ('SERIES','MOVIE','OVA','SPECIAL')),
+  type text NOT NULL CHECK (type IN ('SERIES','MOVIE','OVA','SPECIAL','MANGA_COMIC_DUB')),
   title text NOT NULL,
   alternate_title text NOT NULL DEFAULT '',
   synopsis text NOT NULL DEFAULT '',
+  project_director text NOT NULL DEFAULT '',
+  dubbing_info text NOT NULL DEFAULT '',
+  credits text NOT NULL DEFAULT '',
   status text NOT NULL DEFAULT 'ONGOING' CHECK (status IN ('ONGOING','FINISHED','PAUSED','CANCELLED')),
   genres jsonb NOT NULL DEFAULT '[]'::jsonb,
   poster text,
@@ -71,8 +74,36 @@ CREATE TABLE IF NOT EXISTS admin_login_attempts (
 );
 
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_director text NOT NULL DEFAULT '';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS dubbing_info text NOT NULL DEFAULT '';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS credits text NOT NULL DEFAULT '';
 ALTER TABLE studios ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 ALTER TABLE episodes ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+DO $migration$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'projects'::regclass
+      AND conname = 'projects_type_check'
+      AND pg_get_constraintdef(oid) NOT LIKE '%MANGA_COMIC_DUB%'
+  ) THEN
+    ALTER TABLE projects DROP CONSTRAINT projects_type_check;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'projects'::regclass
+      AND conname = 'projects_type_check'
+  ) THEN
+    ALTER TABLE projects
+      ADD CONSTRAINT projects_type_check
+      CHECK (type IN ('SERIES','MOVIE','OVA','SPECIAL','MANGA_COMIC_DUB'));
+  END IF;
+END
+$migration$;
 
 CREATE INDEX IF NOT EXISTS projects_visibility_idx ON projects(published, featured);
 CREATE INDEX IF NOT EXISTS projects_deleted_idx ON projects(deleted_at);
