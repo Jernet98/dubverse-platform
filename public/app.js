@@ -8,6 +8,7 @@ const esc = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
 const typeLabel = type => ({ SERIES: 'Serie', MOVIE: 'Película', OVA: 'OVA', SPECIAL: 'Especial', MANGA_COMIC_DUB: 'Manga / Comic Dub' }[type] || type);
 const statusLabel = status => ({ ONGOING: 'En emisión', FINISHED: 'Finalizado', PAUSED: 'Pausado', CANCELLED: 'Cancelado' }[status] || status);
 const imageOrFallback = value => value || '/assets/dubverse-icon.png';
+const PUBLIC_PATH = /^\/(?:catalogo|estudios|acerca|(?:estudio|proyecto|ver)\/[^/]+)?\/?$/;
 const socialLabel = key => ({
   website: 'Sitio web', facebook: 'Facebook', youtube: 'YouTube', instagram: 'Instagram',
   tiktok: 'TikTok', x: 'X / Twitter', twitter: 'X / Twitter', discord: 'Discord', twitch: 'Twitch'
@@ -41,7 +42,7 @@ function dubbingPanel(project) {
       <span class="eyebrow">Información sobre el doblaje</span>
       <div class="dubbing-grid">
         ${studios.length ? `<div class="dubbing-block dubbing-studios"><h3>Estudio${studios.length === 1 ? '' : 's'}</h3><div>${studios.map(studio => `
-          <a href="#/estudio/${encodeURIComponent(studio.id)}">
+          <a href="/estudio/${encodeURIComponent(studio.id)}">
             <img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}">
             <span><strong>${esc(studio.name)}</strong><small>${esc(studio.role || 'Fandoblaje')}</small></span>
           </a>`).join('')}</div></div>` : ''}
@@ -75,7 +76,7 @@ function projectCard(project) {
   const node = document.createElement('article');
   node.className = 'project-card';
   node.innerHTML = `
-    <a class="project-card-link" href="#/proyecto/${encodeURIComponent(project.id)}">
+    <a class="project-card-link" href="/proyecto/${encodeURIComponent(project.id)}">
       <div class="poster-wrap">
         <img class="poster" loading="lazy" src="${esc(imageOrFallback(project.poster))}" alt="${esc(project.title)}" />
         <span class="project-type">${esc(typeLabel(project.type))}</span>
@@ -114,8 +115,8 @@ function home() {
         <h1>${esc(hero.title)}</h1>
         <p>${esc(hero.synopsis)}</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#/proyecto/${encodeURIComponent(hero.id)}">▶ Ver proyecto</a>
-          <a class="btn btn-secondary" href="#/catalogo">Explorar catálogo</a>
+          <a class="btn btn-primary" href="/proyecto/${encodeURIComponent(hero.id)}">▶ Ver proyecto</a>
+          <a class="btn btn-secondary" href="/catalogo">Explorar catálogo</a>
         </div>
       </div>
     </section>
@@ -123,7 +124,7 @@ function home() {
     <section class="section">
       <div class="section-heading">
         <div><h2>Proyectos destacados</h2><p>Series, películas y OVA dobladas por la comunidad.</p></div>
-        <a href="#/catalogo">Ver todo →</a>
+        <a href="/catalogo">Ver todo →</a>
       </div>
       <div class="project-grid" id="featuredGrid"></div>
     </section>
@@ -131,11 +132,11 @@ function home() {
     <section class="section">
       <div class="section-heading">
         <div><h2>Estudios de fandoblaje</h2><p>Cada proyecto conserva sus créditos y responsables.</p></div>
-        <a href="#/estudios">Conocer estudios →</a>
+        <a href="/estudios">Conocer estudios →</a>
       </div>
       <div class="studio-strip">
         ${state.studios.slice(0, 5).map(studio => `
-          <a class="studio-mini" href="#/estudio/${encodeURIComponent(studio.id)}">
+          <a class="studio-mini" href="/estudio/${encodeURIComponent(studio.id)}">
             <img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}" />
             <div><strong>${esc(studio.name)}</strong><span>${studio.projects?.length || 0} proyectos</span></div>
           </a>
@@ -200,7 +201,7 @@ async function projectPage(id) {
         <div class="project-details">
           <p class="synopsis">${esc(project.synopsis)}</p>
           <div class="actions">
-            ${project.episodes.length ? `<a class="btn btn-primary" href="#/ver/${encodeURIComponent(project.episodes[0].id)}">▶ Reproducir desde el inicio</a>` : '<span class="chip">Sin episodios publicados</span>'}
+            ${project.episodes.length ? `<a class="btn btn-primary" href="/ver/${encodeURIComponent(project.episodes[0].id)}">▶ Reproducir desde el inicio</a>` : '<span class="chip">Sin episodios publicados</span>'}
           </div>
         </div>
       </div>
@@ -210,7 +211,7 @@ async function projectPage(id) {
       <div class="section-heading"><div><h2>Episodios</h2><p>Servidor principal: Archive.org. Reproductor limpio y sin anuncios propios.</p></div></div>
       <div class="episode-list">
         ${project.episodes.map(episode => `
-          <a class="episode-row" href="#/ver/${encodeURIComponent(episode.id)}">
+          <a class="episode-row" href="/ver/${encodeURIComponent(episode.id)}">
             <span class="episode-number">${String(episode.number).padStart(2, '0')}</span>
             <div><h3>${esc(episode.title)}</h3><p>${esc(episode.description)}</p></div>
             <span class="episode-play" aria-hidden="true">▶</span>
@@ -236,22 +237,22 @@ async function watch(id) {
 
   app.innerHTML = `
     <section class="watch-page">
-      <a class="watch-back" href="#/proyecto/${encodeURIComponent(episode.project_id)}">← Volver a ${esc(episode.project?.title || 'proyecto')}</a>
+      <a class="watch-back" href="/proyecto/${encodeURIComponent(episode.project_id)}">← Volver a ${esc(episode.project?.title || 'proyecto')}</a>
       <div class="watch-title"><h1>${esc(episode.title)}</h1><p>Temporada ${episode.season} · Episodio ${episode.number} · ${esc(episode.provider)}</p></div>
       <div class="player-shell">${player}</div>
       <div class="player-note">Dubverse no inserta anuncios. El archivo se reproduce desde el proveedor indicado y conserva los créditos del proyecto.</div>
       <nav class="player-navigation" aria-label="Navegación de episodios">
-        ${previous ? `<a href="#/ver/${encodeURIComponent(previous.id)}">← Anterior</a>` : '<span aria-disabled="true">← Anterior</span>'}
+        ${previous ? `<a href="/ver/${encodeURIComponent(previous.id)}">← Anterior</a>` : '<span aria-disabled="true">← Anterior</span>'}
         <details class="episode-picker">
           <summary>Episodios</summary>
           <div class="episode-picker-menu">
-            ${episodes.map(item => `<a href="#/ver/${encodeURIComponent(item.id)}" ${item.id === episode.id ? 'aria-current="page"' : ''}><span>T${item.season} · E${String(item.number).padStart(2, '0')}</span><strong>${esc(item.title)}</strong></a>`).join('')}
+            ${episodes.map(item => `<a href="/ver/${encodeURIComponent(item.id)}" ${item.id === episode.id ? 'aria-current="page"' : ''}><span>T${item.season} · E${String(item.number).padStart(2, '0')}</span><strong>${esc(item.title)}</strong></a>`).join('')}
           </div>
         </details>
-        ${next ? `<a href="#/ver/${encodeURIComponent(next.id)}">Siguiente →</a>` : '<span aria-disabled="true">Siguiente →</span>'}
+        ${next ? `<a href="/ver/${encodeURIComponent(next.id)}">Siguiente →</a>` : '<span aria-disabled="true">Siguiente →</span>'}
       </nav>
       ${dubbingPanel(project)}
-      <div class="actions"><a class="btn btn-secondary" href="#/proyecto/${encodeURIComponent(episode.project_id)}">Ver ficha del proyecto</a></div>
+      <div class="actions"><a class="btn btn-secondary" href="/proyecto/${encodeURIComponent(episode.project_id)}">Ver ficha del proyecto</a></div>
     </section>
   `;
 }
@@ -264,12 +265,12 @@ function studios() {
         ${state.studios.map(studio => `
           <article class="studio-card">
             <div class="studio-card-head">
-              <a class="studio-card-logo" href="#/estudio/${encodeURIComponent(studio.id)}"><img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}" /></a>
-              <div><h2><a href="#/estudio/${encodeURIComponent(studio.id)}">${esc(studio.name)}</a></h2><span class="director">${esc(studio.director || 'Dirección no indicada')}</span></div>
+              <a class="studio-card-logo" href="/estudio/${encodeURIComponent(studio.id)}"><img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}" /></a>
+              <div><h2><a href="/estudio/${encodeURIComponent(studio.id)}">${esc(studio.name)}</a></h2><span class="director">${esc(studio.director || 'Dirección no indicada')}</span></div>
             </div>
             <p>${esc(studio.description || 'Sin descripción disponible.')}</p>
-            <div class="studio-projects">${(studio.projects || []).map(project => `<a href="#/proyecto/${encodeURIComponent(project.id)}">${esc(project.title)}</a>`).join('') || '<span class="chip">Sin proyectos ligados</span>'}</div>
-            <a class="studio-detail-link" href="#/estudio/${encodeURIComponent(studio.id)}">Ver página del estudio →</a>
+            <div class="studio-projects">${(studio.projects || []).map(project => `<a href="/proyecto/${encodeURIComponent(project.id)}">${esc(project.title)}</a>`).join('') || '<span class="chip">Sin proyectos ligados</span>'}</div>
+            <a class="studio-detail-link" href="/estudio/${encodeURIComponent(studio.id)}">Ver página del estudio →</a>
           </article>
         `).join('')}
       </div>
@@ -361,8 +362,12 @@ function about() {
 async function router() {
   try {
     await loadBase();
-    const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    $$('#mainNav a').forEach(link => link.classList.toggle('active', link.getAttribute('href') === location.hash));
+    const parts = location.pathname.split('/').filter(Boolean).map(part => decodeURIComponent(part));
+    const currentPath = location.pathname.replace(/\/$/, '') || '/';
+    $$('#mainNav a').forEach(link => {
+      const linkPath = new URL(link.href, location.origin).pathname.replace(/\/$/, '') || '/';
+      link.classList.toggle('active', linkPath === currentPath);
+    });
     window.scrollTo(0, 0);
     if (!parts.length) return home();
     if (parts[0] === 'catalogo') return catalog();
@@ -399,8 +404,8 @@ input.addEventListener('input', () => {
   const projects = state.projects.filter(project => project.title.toLowerCase().includes(query)).slice(0, 8);
   const studiosFound = state.studios.filter(studio => studio.name.toLowerCase().includes(query)).slice(0, 4);
   results.innerHTML = [
-    ...projects.map(project => `<a class="search-item" href="#/proyecto/${encodeURIComponent(project.id)}" data-close-search><img src="${esc(imageOrFallback(project.poster))}" alt=""><div><strong>${esc(project.title)}</strong><small>${esc(typeLabel(project.type))} · ${project.episodeCount} episodios</small></div></a>`),
-    ...studiosFound.map(studio => `<a class="search-item" href="#/estudio/${encodeURIComponent(studio.id)}" data-close-search><img src="${esc(imageOrFallback(studio.logo))}" alt=""><div><strong>${esc(studio.name)}</strong><small>Estudio de fandoblaje</small></div></a>`)
+    ...projects.map(project => `<a class="search-item" href="/proyecto/${encodeURIComponent(project.id)}" data-close-search><img src="${esc(imageOrFallback(project.poster))}" alt=""><div><strong>${esc(project.title)}</strong><small>${esc(typeLabel(project.type))} · ${project.episodeCount} episodios</small></div></a>`),
+    ...studiosFound.map(studio => `<a class="search-item" href="/estudio/${encodeURIComponent(studio.id)}" data-close-search><img src="${esc(imageOrFallback(studio.logo))}" alt=""><div><strong>${esc(studio.name)}</strong><small>Estudio de fandoblaje</small></div></a>`)
   ].join('') || '<p class="empty">Sin resultados.</p>';
   $$('[data-close-search]', results).forEach(link => link.addEventListener('click', () => dialog.close()));
 });
@@ -411,11 +416,45 @@ menuButton.addEventListener('click', () => {
   menuButton.textContent = open ? '×' : '☰';
 });
 
-window.addEventListener('hashchange', () => {
+function closeMenu() {
   mainNav.classList.remove('open');
   menuButton.setAttribute('aria-expanded', 'false');
   menuButton.textContent = '☰';
+}
+
+function normalizeLegacyHash() {
+  if (!location.hash.startsWith('#/')) return false;
+  const path = location.hash.slice(1) || '/';
+  if (!PUBLIC_PATH.test(path)) return false;
+  history.replaceState(history.state, '', `${path}${location.search}`);
+  return true;
+}
+
+document.addEventListener('click', event => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = event.target.closest('a[href]');
+  if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+  const url = new URL(link.href, location.href);
+  if (url.origin !== location.origin || !PUBLIC_PATH.test(url.pathname)) return;
+  event.preventDefault();
+  const destination = `${url.pathname}${url.search}`;
+  if (destination !== `${location.pathname}${location.search}` || location.hash) {
+    history.pushState(null, '', destination);
+  }
+  closeMenu();
   router();
 });
 
+window.addEventListener('popstate', () => {
+  closeMenu();
+  router();
+});
+
+window.addEventListener('hashchange', () => {
+  if (!normalizeLegacyHash()) return;
+  closeMenu();
+  router();
+});
+
+normalizeLegacyHash();
 router();
