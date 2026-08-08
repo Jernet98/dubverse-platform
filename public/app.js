@@ -206,8 +206,6 @@ async function projectPage(id) {
       </div>
     </section>
 
-    ${dubbing ? `<section class="section section-tight">${dubbing}</section>` : ''}
-
     <section class="section">
       <div class="section-heading"><div><h2>Episodios</h2><p>Servidor principal: Archive.org. Reproductor limpio y sin anuncios propios.</p></div></div>
       <div class="episode-list">
@@ -220,6 +218,8 @@ async function projectPage(id) {
         `).join('') || '<div class="empty">Todavía no hay episodios publicados.</div>'}
       </div>
     </section>
+
+    ${dubbing ? `<section class="section section-tight">${dubbing}</section>` : ''}
   `;
 }
 
