@@ -87,7 +87,7 @@ Añadir previews de forma explícita; no usar `*` junto con orígenes que no se 
 4. Sólo ese WebP se escribe al bucket público con una nueva key `users/*` o `comments/*`; después se elimina el temporal y se marca `ACTIVE`.
 5. Un fallo marca `REJECTED` y elimina el objeto temporal. Sustituir avatar/banner marca el anterior `DELETED` y lo elimina. Eliminar comentario o cuenta limpia sus objetos.
 
-El script `npm run social:cleanup:r2` lista, en dry-run por defecto, hasta 500 registros `PENDING` con más de 24 horas. Este script sí consulta la base configurada cuando se invoca deliberadamente. `npm run social:cleanup:r2 -- --hours=48 --execute` borra los objetos listados y marca los registros; debe ejecutarse manualmente tras revisar el dry-run. No se programa desde peticiones ni durante el despliegue.
+El script `npm run social:cleanup:r2` lista, en dry-run por defecto, hasta 500 registros `PENDING` con más de 24 horas, temporales `REJECTED` pendientes de limpieza y objetos públicos marcados `DELETED` cuyo primer borrado falló. Este script sí consulta la base configurada cuando se invoca deliberadamente. `npm run social:cleanup:r2 -- --hours=48 --execute` borra los objetos listados y actualiza los registros; debe ejecutarse manualmente tras revisar el dry-run. No se programa desde peticiones ni durante el despliegue.
 
 ## Moderación, suspensión y privacidad
 

@@ -109,7 +109,7 @@ async function hardDeleteContent(sql, kind, id) {
     if (!rows.length) throw new AppError(404, 'Comentario no encontrado.');
     if (rows[0].object_key) await deleteR2Object(rows[0].object_key);
     await sql`DELETE FROM episode_comments WHERE id = ${contentId}::uuid`;
-    if (rows[0].media_id) await sql`UPDATE user_media_uploads SET status = 'DELETED', deleted_at = now() WHERE id = ${rows[0].media_id}`;
+    if (rows[0].media_id) await sql`UPDATE user_media_uploads SET status = 'DELETED', object_key = NULL, public_url = NULL, deleted_at = now() WHERE id = ${rows[0].media_id}`;
   } else {
     const rows = await sql`DELETE FROM project_reviews WHERE id = ${contentId}::uuid RETURNING id`;
     if (!rows.length) throw new AppError(404, 'Reseña no encontrada.');

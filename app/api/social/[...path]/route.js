@@ -328,7 +328,7 @@ async function deleteComment(request, id) {
     UPDATE episode_comments SET body = '[Comentario eliminado]', moderation_status = 'DELETED', deleted_at = now(), updated_at = now()
     WHERE id = ${commentId}::uuid AND author_profile_id = ${session.row.id} AND deleted_at IS NULL
   `];
-  if (rows[0].media_id) queries.push(session.sql`UPDATE user_media_uploads SET status = 'DELETED', deleted_at = now() WHERE id = ${rows[0].media_id}`);
+  if (rows[0].media_id) queries.push(session.sql`UPDATE user_media_uploads SET status = 'DELETED', object_key = NULL, public_url = NULL, deleted_at = now() WHERE id = ${rows[0].media_id}`);
   await session.sql.transaction(queries);
   return json({ deleted: true });
 }
@@ -465,7 +465,11 @@ async function finalizeUpload(request, uploadId) {
     const previous = oldMedia[0];
     if (previous?.id && previous.id !== upload.id) {
       await session.sql`UPDATE user_media_uploads SET status = 'DELETED', deleted_at = now() WHERE id = ${previous.id}`;
-      if (previous.object_key) await deleteR2Object(previous.object_key).catch(error => console.error('R2 previous media cleanup:', error));
+      if (previous.object_key) {
+        await deleteR2Object(previous.object_key)
+          .then(() => session.sql`UPDATE user_media_uploads SET object_key = NULL, public_url = NULL WHERE id = ${previous.id} AND status = 'DELETED'`)
+          .catch(error => console.error('R2 previous media cleanup:', error));
+      }
     }
     return json({ upload: { id: upload.id, purpose: upload.purpose, url: publicObjectUrl(destinationKey), width: output.width, height: output.height } });
   } catch (error) {
