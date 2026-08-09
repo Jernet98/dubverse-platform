@@ -34,6 +34,7 @@ export default function AdminPage() {
             <button data-tab="episodes" type="button">▶ <span>Episodios</span></button>
             <button data-tab="studios" type="button">◉ <span>Estudios</span></button>
             <button data-tab="upload" type="button">⇧ <span>Subir a Archive</span></button>
+            <button data-tab="moderation" type="button">⚑ <span>Moderación</span></button>
             <button data-tab="trash" type="button">♲ <span>Papelera</span></button>
           </nav>
           <button id="logoutButton" className="logout" type="button">Salir</button>

@@ -11,6 +11,8 @@ const state = {
   studios: [],
   overview: null,
   config: null,
+  moderation: { reports: { items: [] }, users: [] },
+  moderationStatus: 'OPEN',
   trash: { projects: [], studios: [], episodes: [] }
 };
 
@@ -20,6 +22,7 @@ const titles = {
   episodes: 'Episodios',
   studios: 'Estudios',
   upload: 'Subir a Archive',
+  moderation: 'Moderación',
   trash: 'Papelera'
 };
 
@@ -121,7 +124,7 @@ $('#logoutButton').addEventListener('click', logout);
 $('#topLogoutButton').addEventListener('click', logout);
 $$('.sidebar nav button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.tab)));
 
-async function refresh(includeTrash = false) {
+async function refresh(includeTrash = false, includeModeration = false) {
   const requests = [
     api('/api/admin/projects'),
     api('/api/admin/episodes'),
@@ -130,9 +133,11 @@ async function refresh(includeTrash = false) {
     api('/api/admin/config')
   ];
   if (includeTrash) requests.push(api('/api/admin/trash'));
+  if (includeModeration) requests.push(api(`/api/admin/moderation/list?status=${encodeURIComponent(state.moderationStatus)}`));
   const result = await Promise.all(requests);
   [state.projects, state.episodes, state.studios, state.overview, state.config] = result;
   if (includeTrash) state.trash = result[5];
+  if (includeModeration) state.moderation = result[5];
 }
 
 async function navigate(tab) {
@@ -141,8 +146,8 @@ async function navigate(tab) {
   $('#tabTitle').textContent = titles[tab] || titles.dashboard;
   $('#content').innerHTML = '<div class="loading">Cargando…</div>';
   try {
-    await refresh(tab === 'trash');
-    ({ dashboard, projects, episodes, studios, upload, trash }[tab] || dashboard)();
+    await refresh(tab === 'trash', tab === 'moderation');
+    ({ dashboard, projects, episodes, studios, upload, moderation, trash }[tab] || dashboard)();
   } catch (error) {
     if (/Sesión|administrativa requerida/i.test(error.message)) return location.reload();
     $('#content').innerHTML = `
@@ -385,6 +390,56 @@ async function importArchive() {
   } catch (error) {
     flash(error.message, 'error');
   }
+}
+
+function moderation() {
+  const reports = state.moderation.reports?.items || [];
+  const users = state.moderation.users || [];
+  $('#content').innerHTML = `
+    <div class="toolbar">
+      <select id="reportStatus"><option value="OPEN">Reportes abiertos</option><option value="RESOLVED">Resueltos</option><option value="DISMISSED">Descartados</option></select>
+      <span class="muted">${reports.length} reporte${reports.length === 1 ? '' : 's'} en esta página</span>
+    </div>
+    <div class="moderation-grid">
+      <section>
+        <div class="moderation-list">${reports.map(report => `
+          <article class="moderation-card" data-report-id="${esc(report.id)}">
+            <header><div>${badge(report.reason, report.status === 'OPEN' ? 'red' : 'green')} ${badge(report.targetType)}</div><time>${esc(dateLabel(report.createdAt))}</time></header>
+            <p class="reported-copy">${esc(report.content.body)}</p>
+            <div class="moderation-context">
+              <span>Autor: ${report.author ? `<strong>@${esc(report.author.username)}</strong> ${badge(report.author.status, report.author.status === 'ACTIVE' ? 'green' : 'red')}` : 'usuario eliminado'}</span>
+              <span>Reportó: ${report.reporter ? `@${esc(report.reporter.username)}` : 'usuario eliminado'}</span>
+              ${report.content.project ? `<a href="/proyecto/${encodeURIComponent(report.content.project.id)}" target="_blank" rel="noopener noreferrer">${esc(report.content.project.title)} ↗</a>` : ''}
+              ${report.content.episode ? `<a href="/ver/${encodeURIComponent(report.content.episode.id)}" target="_blank" rel="noopener noreferrer">${esc(report.content.episode.title)} ↗</a>` : ''}
+              ${report.details ? `<span>Detalle: ${esc(report.details)}</span>` : ''}
+            </div>
+            ${report.status === 'OPEN' ? `<footer class="row-actions">
+              ${report.content.moderationStatus !== 'DELETED' ? `<button class="action-btn" data-content-action="${report.content.moderationStatus === 'HIDDEN' ? 'RESTORE' : 'HIDE'}" data-kind="${report.targetType === 'COMMENT' ? 'comments' : 'reviews'}" data-target="${esc(report.targetId)}">${report.content.moderationStatus === 'HIDDEN' ? 'Restaurar' : 'Ocultar'}</button><button class="action-btn danger" data-delete-content data-kind="${report.targetType === 'COMMENT' ? 'comments' : 'reviews'}" data-target="${esc(report.targetId)}">Eliminar</button>` : ''}
+              ${report.author ? `<button class="action-btn danger" data-user-status="SUSPENDED" data-user="${esc(report.author.id)}">Suspender autor</button>` : ''}
+              <button class="action-btn" data-report-status="RESOLVED">Resolver</button><button class="action-btn secondary" data-report-status="DISMISSED">Descartar</button>
+            </footer>` : `<p class="muted">${esc(report.resolutionNote || 'Sin nota de resolución.')}</p>`}
+          </article>`).join('') || '<div class="empty">No hay reportes en este estado.</div>'}</div>
+      </section>
+      <aside class="panel-card panel-card-first"><h2>Usuarios</h2><div class="moderation-users">${users.map(user => `<div><span><strong>@${esc(user.username)}</strong><small>${esc(user.displayName)} · ${user.comments} comentarios · ${user.reviews} reseñas</small></span>${badge(user.status, user.status === 'ACTIVE' ? 'green' : 'red')}<button class="action-btn ${user.status === 'ACTIVE' ? 'danger' : ''}" data-user-status="${user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'}" data-user="${esc(user.id)}">${user.status === 'ACTIVE' ? 'Suspender' : 'Reactivar'}</button></div>`).join('') || '<p class="muted">Sin usuarios.</p>'}</div></aside>
+    </div>`;
+  $('#reportStatus').value = state.moderationStatus;
+  $('#reportStatus').onchange = event => { state.moderationStatus = event.target.value; navigate('moderation'); };
+  $$('[data-report-status]').forEach(button => button.onclick = async () => {
+    const note = prompt('Nota de resolución opcional', '') ?? '';
+    try { await api(`/api/admin/moderation/reports/${button.closest('[data-report-id]').dataset.reportId}`, { method: 'PATCH', body: JSON.stringify({ status: button.dataset.reportStatus, note }) }); flash('Reporte actualizado.'); await navigate('moderation'); } catch (error) { flash(error.message, 'error'); }
+  });
+  $$('[data-content-action]').forEach(button => button.onclick = async () => {
+    try { await api(`/api/admin/moderation/${button.dataset.kind}/${button.dataset.target}`, { method: 'PATCH', body: JSON.stringify({ action: button.dataset.contentAction }) }); flash('Contenido actualizado.'); await navigate('moderation'); } catch (error) { flash(error.message, 'error'); }
+  });
+  $$('[data-delete-content]').forEach(button => button.onclick = async () => {
+    if (!confirm('Esta eliminación es permanente. ¿Continuar?')) return;
+    try { await api(`/api/admin/moderation/${button.dataset.kind}/${button.dataset.target}`, { method: 'DELETE' }); flash('Contenido eliminado.'); await navigate('moderation'); } catch (error) { flash(error.message, 'error'); }
+  });
+  $$('[data-user-status]').forEach(button => button.onclick = async () => {
+    const verb = button.dataset.userStatus === 'SUSPENDED' ? 'suspender' : 'reactivar';
+    if (!confirm(`¿${verb[0].toUpperCase() + verb.slice(1)} este usuario?`)) return;
+    try { await api(`/api/admin/moderation/users/${button.dataset.user}`, { method: 'PATCH', body: JSON.stringify({ status: button.dataset.userStatus }) }); flash(`Usuario ${verb === 'suspender' ? 'suspendido; sus sesiones fueron invalidadas' : 'reactivado'}.`); await navigate('moderation'); } catch (error) { flash(error.message, 'error'); }
+  });
 }
 
 function trash() {

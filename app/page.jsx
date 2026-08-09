@@ -32,6 +32,11 @@ export default function HomePage() {
         <button className="search-trigger" id="searchTrigger" type="button" aria-label="Buscar">
           ⌕
         </button>
+
+        <div className="account-slot" id="accountSlot">
+          <button className="account-trigger" id="accountTrigger" type="button">Iniciar sesión</button>
+          <div className="account-menu hidden" id="accountMenu"></div>
+        </div>
       </header>
 
       <main id="app" aria-live="polite">
@@ -58,6 +63,17 @@ export default function HomePage() {
           </div>
           <div id="searchResults" className="search-results"></div>
         </form>
+      </dialog>
+
+      <dialog id="loginDialog" className="login-dialog">
+        <div className="login-shell">
+          <button className="dialog-close" id="closeLogin" type="button" aria-label="Cerrar">×</button>
+          <span className="eyebrow">Comunidad Dubverse</span>
+          <h2>Iniciar sesión</h2>
+          <p>Usa una cuenta social. Dubverse no almacena contraseñas.</p>
+          <div id="loginProviders" className="login-providers"></div>
+          <p id="loginStatus" className="form-message" role="status"></p>
+        </div>
       </dialog>
 
       <Script src="/app.js" strategy="afterInteractive" />
