@@ -32,6 +32,7 @@ test('Better Auth mantiene admin separado y desactiva linking implícito', async
   assert.match(source, /disableImplicitLinking: true/);
   assert.match(source, /allowDifferentEmails: false/);
   assert.match(source, /emailAndPassword: \{ enabled: false \}/);
+  assert.match(source, /@oauth\.invalid/);
   assert.doesNotMatch(source, /ADMIN_ACCESS_KEY|dubverse_session/);
 });
 

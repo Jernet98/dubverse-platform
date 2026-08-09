@@ -48,6 +48,8 @@ En local, la callback es `http://localhost:3000/api/auth/callback/google`. Un Pr
 
 En local, la callback es `http://localhost:3000/api/auth/callback/discord`.
 
+Discord puede devolver `email: null` para cuentas creadas sólo con teléfono. En ese caso el adaptador genera internamente un alias estable no entregable bajo `@oauth.invalid`, derivado mediante SHA-256 del ID de Discord. El alias nunca se publica, se marca como no verificado y no habilita linking implícito.
+
 La vinculación implícita por coincidencia de email está deshabilitada. Si dos proveedores presentan el mismo email, Dubverse no ejecuta un linking casero; cualquier vinculación futura deberá usar el flujo oficial y autenticado de Better Auth.
 
 ## Cloudflare R2
