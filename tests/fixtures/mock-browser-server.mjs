@@ -9,6 +9,7 @@ const projects = [
 ];
 const episode = { id: 'episode-alpha-1', project_id: 'alpha', season: 1, number: 1, title: 'El comienzo', description: 'Primer episodio', provider: 'EXTERNAL', video_url: '', project: { id: 'alpha', title: 'Alpha Romance', poster: '', banner: '' } };
 const project = { ...projects[0], projectDirector: 'Dirección segura', dubbingInfo: 'Información del fandoblaje', credits: 'Créditos', studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', role: 'Fandoblaje' }], episodes: [episode] };
+const viewerProfile = { id: 'fan-id', username: 'fan', displayName: 'Fan Mock', avatar: '', banner: '', bio: 'Perfil de prueba', joinedAt: '2026-08-09T00:00:00Z' };
 
 function sendJson(response, value, status = 200) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -16,18 +17,19 @@ function sendJson(response, value, status = 200) {
 }
 
 function apiResponse(path, request, response) {
+  const authenticated = String(request.headers.referer || '').includes('viewer=1');
   if (path === '/api/projects') return sendJson(response, projects);
   if (path === '/api/projects/alpha') return sendJson(response, project);
   if (path === '/api/episodes/episode-alpha-1') return sendJson(response, episode);
-  if (path === '/api/studios') return sendJson(response, [{ id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: {}, projects: [projects[0]] }]);
-  if (path === '/api/studios/studio') return sendJson(response, { id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: {}, projects: [projects[0]] });
+  if (path === '/api/studios') return sendJson(response, [{ id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] }]);
+  if (path === '/api/studios/studio') return sendJson(response, { id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] });
   if (path === '/api/settings') return sendJson(response, {});
-  if (path === '/api/social/config') return sendJson(response, { authAvailable: false, providers: [], mediaAvailable: false });
-  if (path === '/api/social/session') return sendJson(response, { user: null });
-  if (path === '/api/social/projects/alpha') return sendJson(response, { likes: 2, reviewCount: 1, reviewAverage: 5, viewer: { authenticated: false, liked: false, favorite: false, watchLater: false }, seenEpisodeIds: [], reviews: { page: 1, hasMore: false, items: [{ id: '550e8400-e29b-41d4-a716-446655440000', projectId: 'alpha', rating: 5, body: 'Gran proyecto', createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z', edited: false, own: false, author: { username: 'fan', displayName: 'Fan Mock', avatar: '' } }] } });
-  if (path === '/api/social/episodes/episode-alpha-1') return sendJson(response, { likes: 3, viewer: { authenticated: false, liked: false, seen: false }, comments: { page: 1, hasMore: false, items: [{ id: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, body: '<script>window.__xss=true</script>', image: '', createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z', edited: false, own: false, author: { username: 'fan', displayName: 'Fan Mock', avatar: '' } }] } });
-  if (path === '/api/social/users/fan') return sendJson(response, { profile: { id: 'fan-id', username: 'fan', displayName: 'Fan Mock', avatar: '', banner: '', bio: 'Perfil de prueba', joinedAt: '2026-08-09T00:00:00Z' }, favorites: { page: 1, hasMore: false, items: [projects[0]] }, reviews: { page: 1, hasMore: false, items: [] } });
-  if (path === '/api/social/me') return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+  if (path === '/api/social/config') return sendJson(response, { authAvailable: true, providers: ['google', 'discord'], mediaAvailable: true });
+  if (path === '/api/social/session') return sendJson(response, { user: authenticated ? viewerProfile : null });
+  if (path === '/api/social/projects/alpha') return sendJson(response, { likes: 2, reviewCount: 1, reviewAverage: 5, viewer: { authenticated, liked: authenticated, favorite: false, watchLater: authenticated }, seenEpisodeIds: [], reviews: { page: 1, hasMore: false, items: [{ id: '550e8400-e29b-41d4-a716-446655440000', projectId: 'alpha', rating: 5, body: 'Gran proyecto', createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z', edited: authenticated, own: authenticated, author: viewerProfile }] } });
+  if (path === '/api/social/episodes/episode-alpha-1') return sendJson(response, { likes: 3, viewer: { authenticated, liked: authenticated, seen: false }, comments: { page: 1, hasMore: false, items: [{ id: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, body: '<script>window.__xss=true</script>', image: '', createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z', edited: authenticated, own: authenticated, author: viewerProfile }] } });
+  if (path === '/api/social/users/fan') return sendJson(response, { profile: viewerProfile, favorites: { page: 1, hasMore: false, items: [projects[0]] }, reviews: { page: 1, hasMore: false, items: [] } });
+  if (path === '/api/social/me') return authenticated ? sendJson(response, { profile: viewerProfile, favorites: { page: 1, hasMore: false, items: [projects[0]] }, watchLater: { page: 1, hasMore: false, items: [projects[0]] }, history: { page: 1, hasMore: false, items: [] } }) : sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
   if (path === '/api/admin/session') return sendJson(response, { authenticated: true });
   if (path === '/api/admin/projects') return sendJson(response, projects.map(item => ({ ...item, studios: [], episodeCount: item.episodeCount })));
   if (path === '/api/admin/episodes') return sendJson(response, [{ ...episode, project_title: project.title, status: 'PUBLISHED', published: true, updatedAt: '2026-08-09T00:00:00Z' }]);

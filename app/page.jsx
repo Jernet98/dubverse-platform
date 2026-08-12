@@ -34,8 +34,8 @@ export default function HomePage() {
         </button>
 
         <div className="account-slot" id="accountSlot">
-          <button className="account-trigger" id="accountTrigger" type="button">Iniciar sesión</button>
-          <div className="account-menu hidden" id="accountMenu"></div>
+          <button className="account-trigger" id="accountTrigger" type="button" aria-haspopup="dialog" aria-expanded="false">Iniciar sesión</button>
+          <div className="account-menu hidden" id="accountMenu" role="menu"></div>
         </div>
       </header>
 
@@ -68,11 +68,16 @@ export default function HomePage() {
       <dialog id="loginDialog" className="login-dialog">
         <div className="login-shell">
           <button className="dialog-close" id="closeLogin" type="button" aria-label="Cerrar">×</button>
+          <div className="login-brandmark" aria-hidden="true">
+            <img src="/assets/dubverse-icon.png" alt="" />
+          </div>
           <span className="eyebrow">Comunidad Dubverse</span>
           <h2>Iniciar sesión</h2>
-          <p>Usa una cuenta social. Dubverse no almacena contraseñas.</p>
+          <p className="login-intro">Entra a la comunidad para guardar proyectos, publicar reseñas y conversar sobre cada episodio.</p>
+          <div className="login-divider"><span>Elige una cuenta</span></div>
           <div id="loginProviders" className="login-providers"></div>
           <p id="loginStatus" className="form-message" role="status"></p>
+          <p className="login-note">Acceso seguro con tu proveedor. Dubverse no almacena contraseñas.</p>
         </div>
       </dialog>
 

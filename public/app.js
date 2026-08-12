@@ -19,6 +19,39 @@ const socialLabel = key => ({
   tiktok: 'TikTok', x: 'X / Twitter', twitter: 'X / Twitter', discord: 'Discord', twitch: 'Twitch'
 }[key] || key.replace(/[_-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()));
 
+const uiIcon = name => ({
+  user: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
+  heart: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg>',
+  bookmark: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>',
+  clock: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  play: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>',
+  edit: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>',
+  trash: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></svg>',
+  flag: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 1h11l-1 4 1 4H5"/></svg>',
+  image: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-5L5 20"/></svg>',
+  send: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+  external: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"/></svg>',
+  globe: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
+  facebook: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/></svg>',
+  youtube: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8.2a3 3 0 0 0-2.1-2.1C17 5.6 12 5.6 12 5.6s-5 0-6.9.5A3 3 0 0 0 3 8.2 31 31 0 0 0 2.5 12c0 1.3.1 2.6.5 3.8a3 3 0 0 0 2.1 2.1c1.9.5 6.9.5 6.9.5s5 0 6.9-.5a3 3 0 0 0 2.1-2.1c.4-1.2.5-2.5.5-3.8s-.1-2.6-.5-3.8Z"/><path class="glyph-cutout" d="m10 15.2 5-3.2-5-3.2Z"/></svg>',
+  instagram: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" class="glyph-dot"/></svg>',
+  tiktok: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v11.5a4.5 4.5 0 1 1-3-4.2V14a1.8 1.8 0 1 0 0 1.7V3h3c.4 2.1 1.7 3.5 4 4v3c-1.6-.2-2.9-.8-4-1.7"/></svg>',
+  x: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 14 16M19 4 5 20"/></svg>',
+  discord: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7a16 16 0 0 1 10 0c1.3 2 2.1 4.3 2.5 6.7-1.5 1.8-3.4 3-5.5 3.6l-1.2-1.6c.8-.2 1.6-.6 2.3-1.1-2 .9-4.2.9-6.2 0 .7.5 1.5.9 2.3 1.1L10 17.3a11 11 0 0 1-5.5-3.6C4.9 11.3 5.7 9 7 7Z"/><circle cx="9" cy="12" r="1" class="glyph-dot"/><circle cx="15" cy="12" r="1" class="glyph-dot"/></svg>',
+  twitch: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h16v11l-5 5h-4l-3 3v-3H5V3Zm3 3v9h4v2l2-2h3l2-2V6H8Z"/><path class="glyph-cutout" d="M11 8h2v4h-2Zm4 0h2v4h-2Z"/></svg>'
+}[name] || '');
+
+const providerIcon = provider => provider === 'google'
+  ? '<svg class="provider-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4.3h5.4a4.6 4.6 0 0 1-2 3v2.8h3.3c1.9-1.8 2.9-4.4 2.9-7.9Z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.8c-.9.6-2.1 1-3.4 1a5.9 5.9 0 0 1-5.5-4.1H3.1v2.9A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.5 13.7a6 6 0 0 1 0-3.4V7.4H3.1a10 10 0 0 0 0 9.2l3.4-2.9Z"/><path fill="#ea4335" d="M12 6.2c1.5 0 2.8.5 3.9 1.5l2.9-2.9A9.8 9.8 0 0 0 3.1 7.4l3.4 2.9A5.9 5.9 0 0 1 12 6.2Z"/></svg>'
+  : provider === 'discord'
+    ? '<svg class="provider-icon discord-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6.6A16 16 0 0 1 17 6.6a15 15 0 0 1 2.7 7.2 11 11 0 0 1-4.8 3.5l-1.2-1.6c.8-.2 1.5-.6 2.2-1.1a9.5 9.5 0 0 1-7.8 0c.7.5 1.4.9 2.2 1.1l-1.2 1.6a11 11 0 0 1-4.8-3.5A15 15 0 0 1 7 6.6Zm2.1 4.1c-.8 0-1.4.7-1.4 1.5s.6 1.5 1.4 1.5 1.4-.7 1.4-1.5-.6-1.5-1.4-1.5Zm5.8 0c-.8 0-1.4.7-1.4 1.5s.6 1.5 1.4 1.5 1.4-.7 1.4-1.5-.6-1.5-1.4-1.5Z"/></svg>'
+    : uiIcon('user');
+
+const socialIconName = key => ({
+  website: 'globe', facebook: 'facebook', youtube: 'youtube', instagram: 'instagram',
+  tiktok: 'tiktok', x: 'x', twitter: 'x', discord: 'discord', twitch: 'twitch'
+}[key] || 'globe');
+
 function safeExternalUrl(value) {
   try {
     const url = new URL(String(value || ''));
@@ -33,7 +66,7 @@ function socialLinks(socials = {}) {
     .map(([key, value]) => ({ key, url: safeExternalUrl(value) }))
     .filter(item => item.url);
   if (!links.length) return '';
-  return `<div class="social-links">${links.map(item => `<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(socialLabel(item.key))} ↗</a>`).join('')}</div>`;
+  return `<div class="social-links" aria-label="Enlaces del estudio">${links.map(item => `<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" data-social-network="${esc(item.key)}"><span class="social-link-icon">${uiIcon(socialIconName(item.key))}</span><span>${esc(socialLabel(item.key))}</span><span class="social-link-arrow">${uiIcon('external')}</span></a>`).join('')}</div>`;
 }
 
 function dubbingPanel(project) {
@@ -111,7 +144,7 @@ function openLogin() {
   const loginDialog = $('#loginDialog');
   const providers = state.social.config.providers || [];
   $('#loginProviders').innerHTML = providers.length
-    ? providers.map(provider => `<button type="button" data-provider="${esc(provider)}">Continuar con ${provider === 'google' ? 'Google' : 'Discord'}</button>`).join('')
+    ? providers.map(provider => `<button class="login-provider" type="button" data-provider="${esc(provider)}">${providerIcon(provider)}<span>Entrar con tu cuenta ${provider === 'google' ? 'Google' : provider === 'discord' ? 'Discord' : esc(socialLabel(provider))}</span><span class="provider-arrow" aria-hidden="true">→</span></button>`).join('')
     : '<div class="empty compact-empty">El inicio de sesión no está configurado en este entorno.</div>';
   $('#loginStatus').textContent = '';
   $$('[data-provider]', $('#loginProviders')).forEach(button => button.onclick = async () => {
@@ -137,19 +170,23 @@ function renderAccount() {
   const viewer = state.social.viewer;
   if (!viewer) {
     trigger.className = 'account-trigger';
-    trigger.innerHTML = 'Iniciar sesión';
+    trigger.innerHTML = `${uiIcon('user')}<span>Iniciar sesión</span>`;
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-expanded', 'false');
     menu.classList.add('hidden');
     menu.innerHTML = '';
     return;
   }
   trigger.className = 'account-trigger account-user';
-  trigger.innerHTML = `<img src="${avatarImage(viewer)}" alt=""><span>@${esc(viewer.username)}</span>`;
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.innerHTML = `<img src="${avatarImage(viewer)}" alt="Avatar de ${esc(viewer.displayName)}"><span>@${esc(viewer.username)}</span><span class="account-chevron" aria-hidden="true">⌄</span>`;
   menu.innerHTML = `
-    <a href="/perfil">Mi perfil</a>
-    <a href="/perfil?tab=favoritos">Favoritos</a>
-    <a href="/perfil?tab=ver-despues">Ver después</a>
-    <a href="/perfil?tab=historial">Historial</a>
-    <button id="signOutButton" type="button">Cerrar sesión</button>`;
+    <div class="account-menu-profile" role="none"><img src="${avatarImage(viewer)}" alt=""><span><strong>${esc(viewer.displayName)}</strong><small>@${esc(viewer.username)}</small></span></div>
+    <a href="/perfil" role="menuitem">${uiIcon('user')}<span>Mi perfil</span></a>
+    <a href="/perfil?tab=favoritos" role="menuitem">${uiIcon('heart')}<span>Favoritos</span></a>
+    <a href="/perfil?tab=ver-despues" role="menuitem">${uiIcon('bookmark')}<span>Ver después</span></a>
+    <a href="/perfil?tab=historial" role="menuitem">${uiIcon('clock')}<span>Historial</span></a>
+    <button id="signOutButton" type="button" role="menuitem"><span>Cerrar sesión</span></button>`;
   $('#signOutButton').onclick = async () => {
     await api('/api/auth/sign-out', { method: 'POST', body: '{}' });
     state.social.viewer = null;
@@ -312,21 +349,32 @@ function catalog() {
 }
 
 function stars(value) {
-  const rating = Math.max(0, Math.min(5, Number(value) || 0));
+  const rating = Math.round(Math.max(0, Math.min(5, Number(value) || 0)));
   return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+}
+
+function ratingPicker() {
+  const labels = { 5: 'Excelente', 4: 'Muy buena', 3: 'Buena', 2: 'Regular', 1: 'Mala' };
+  return `<fieldset class="rating-picker">
+    <legend>Tu calificación</legend>
+    <div class="rating-input" aria-describedby="ratingHint">
+      ${[5, 4, 3, 2, 1].map(value => `<input id="rating-${value}" name="rating" type="radio" value="${value}" aria-label="${value} de 5: ${labels[value]}" ${value === 5 ? 'checked' : ''} required><label for="rating-${value}" title="${labels[value]}"><span class="sr-only">${value} de 5: ${labels[value]}</span><span aria-hidden="true">★</span></label>`).join('')}
+    </div>
+    <p id="ratingHint">Toca una estrella para puntuar el proyecto.</p>
+  </fieldset>`;
 }
 
 function reviewMarkup(review) {
   const author = review.author;
-  return `<article class="social-entry" data-review-id="${esc(review.id)}">
+  return `<article class="social-entry review-card" data-review-id="${esc(review.id)}">
     <div class="social-entry-head">
-      ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt=""><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
-      <span class="rating" aria-label="${review.rating} de 5">${stars(review.rating)}</span>
+      ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
+      <div class="entry-rating"><span class="rating" aria-label="${review.rating} de 5">${stars(review.rating)}</span><time datetime="${esc(review.updatedAt)}">${esc(dateLabel(review.updatedAt))}</time></div>
     </div>
     ${review.project ? `<a class="entry-context" href="/proyecto/${encodeURIComponent(review.project.id)}">${esc(review.project.title)}</a>` : ''}
-    <p>${esc(review.body)}</p>
-    <footer><time>${esc(dateLabel(review.updatedAt))}${review.edited ? ' · editada' : ''}</time><span>
-      ${review.own ? '<button type="button" data-edit-review>Editar</button><button type="button" data-delete-review>Eliminar</button>' : '<button type="button" data-report-review>Reportar</button>'}
+    <p class="entry-copy">${esc(review.body)}</p>
+    <footer><span class="entry-status">${review.edited ? 'Reseña editada' : 'Opinión de la comunidad'}</span><span class="entry-actions">
+      ${review.own ? `<button class="entry-action" type="button" data-edit-review>${uiIcon('edit')}<span>Editar</span></button><button class="entry-action entry-action-danger" type="button" data-delete-review>${uiIcon('trash')}<span>Eliminar</span></button>` : `<button class="entry-action" type="button" data-report-review>${uiIcon('flag')}<span>Reportar</span></button>`}
     </span></footer>
   </article>`;
 }
@@ -379,11 +427,13 @@ async function projectPage(id) {
 
         <div class="project-details">
           <p class="synopsis">${esc(project.synopsis)}</p>
-          <div class="actions">
-            ${project.episodes.length ? `<a class="btn btn-primary" href="/ver/${encodeURIComponent(project.episodes[0].id)}">▶ Reproducir desde el inicio</a>` : '<span class="chip">Sin episodios publicados</span>'}
-            ${social ? `<button class="btn btn-secondary social-toggle ${social.viewer.liked ? 'active' : ''}" data-social-action="like" type="button">♥ ${social.likes}</button>
-              <button class="btn btn-secondary social-toggle ${social.viewer.favorite ? 'active' : ''}" data-social-action="favorite" type="button">${social.viewer.favorite ? '♥' : '♡'} Favorito</button>
-              <button class="btn btn-secondary social-toggle ${social.viewer.watchLater ? 'active' : ''}" data-social-action="watch-later" type="button">${social.viewer.watchLater ? '✓' : '+'} Ver después</button>` : ''}
+          <div class="actions project-actions">
+            ${project.episodes.length ? `<a class="btn btn-primary" href="/ver/${encodeURIComponent(project.episodes[0].id)}">${uiIcon('play')}<span>Reproducir desde el inicio</span></a>` : '<span class="chip">Sin episodios publicados</span>'}
+            ${social ? `<div class="social-action-group" role="group" aria-label="Acciones de comunidad">
+              <button class="social-toggle ${social.viewer.liked ? 'active' : ''}" data-social-action="like" type="button" aria-pressed="${social.viewer.liked}">${uiIcon('heart')}<span>Me gusta</span><strong class="social-count">${social.likes}</strong></button>
+              <button class="social-toggle ${social.viewer.favorite ? 'active' : ''}" data-social-action="favorite" type="button" aria-pressed="${social.viewer.favorite}">${uiIcon('heart')}<span>Favorito</span></button>
+              <button class="social-toggle ${social.viewer.watchLater ? 'active' : ''}" data-social-action="watch-later" type="button" aria-pressed="${social.viewer.watchLater}">${uiIcon('bookmark')}<span>Ver después</span></button>
+            </div>` : ''}
           </div>
         </div>
       </div>
@@ -405,8 +455,8 @@ async function projectPage(id) {
     ${dubbing ? `<section class="section section-tight">${dubbing}</section>` : ''}
 
     ${social ? `<section class="section social-section" id="resenas">
-      <div class="section-heading"><div><h2>Reseñas</h2><p><strong>${social.reviewAverage.toFixed(1)}</strong> / 5 · ${social.reviewCount} reseña${social.reviewCount === 1 ? '' : 's'}</p></div></div>
-      ${viewer ? `<form id="reviewForm" class="social-form"><label>Calificación <select name="rating" class="form-control"><option value="5">5 — Excelente</option><option value="4">4 — Muy buena</option><option value="3">3 — Buena</option><option value="2">2 — Regular</option><option value="1">1 — Mala</option></select></label><label class="form-wide">Tu reseña<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary" type="submit">Publicar o actualizar reseña</button><p class="form-message" role="status"></p></form>` : '<button class="btn btn-secondary" id="reviewLogin" type="button">Inicia sesión para reseñar</button>'}
+      <div class="social-section-heading"><div><span class="section-kicker">Opiniones de la comunidad</span><h2>Reseñas</h2><p>Descubre qué piensa la comunidad sobre este fandoblaje.</p></div><div class="rating-summary" aria-label="Calificación promedio ${social.reviewAverage.toFixed(1)} de 5, ${social.reviewCount} reseñas"><strong>${social.reviewAverage.toFixed(1)}</strong><span><span class="rating" aria-hidden="true">${stars(social.reviewAverage)}</span><small>${social.reviewCount} reseña${social.reviewCount === 1 ? '' : 's'}</small></span></div></div>
+      ${viewer ? `<form id="reviewForm" class="social-form review-form"><div class="social-composer-head form-wide"><img src="${avatarImage(viewer)}" alt=""><span><strong>Comparte tu opinión</strong><small>Tu reseña será pública en la comunidad.</small></span></div>${ratingPicker()}<label class="form-wide field-label"><span>Tu reseña</span><textarea name="body" maxlength="2000" placeholder="¿Qué te pareció el fandoblaje, las voces o la adaptación?" required></textarea><small>Escribe una opinión útil y respetuosa.</small></label><div class="form-actions form-wide"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar o actualizar reseña</span></button></div><p class="form-message" role="status"></p></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('edit')}</span><div><strong>¿Ya viste este proyecto?</strong><p>Inicia sesión para puntuarlo y compartir tu reseña.</p></div><button class="btn btn-secondary" id="reviewLogin" type="button">Iniciar sesión</button></div>`}
       <div class="social-list" id="reviewList">${social.reviews.items.map(reviewMarkup).join('') || '<div class="empty">Aún no hay reseñas.</div>'}</div>
       ${social.reviews.hasMore ? '<button class="btn btn-secondary load-more" id="moreReviews" type="button">Cargar más reseñas</button>' : ''}
     </section>` : ''}
@@ -423,11 +473,13 @@ async function projectPage(id) {
     event.preventDefault();
     const form = event.currentTarget;
     const message = $('.form-message', form);
+    const submit = $('button[type="submit"]', form);
+    submit.disabled = true;
     message.textContent = 'Guardando…';
     try {
       await socialWrite(`/projects/${encodeURIComponent(id)}/reviews`, 'POST', { rating: Number(form.elements.rating.value), body: form.elements.body.value });
       await projectPage(id);
-    } catch (error) { message.textContent = error.message; }
+    } catch (error) { message.textContent = error.message; submit.disabled = false; }
   };
   bindReviewActions(id);
   if ($('#moreReviews')) $('#moreReviews').onclick = async () => {
@@ -440,14 +492,15 @@ async function projectPage(id) {
 
 function commentMarkup(comment) {
   const author = comment.author;
-  return `<article class="social-entry" data-comment-id="${esc(comment.id)}">
+  return `<article class="social-entry comment-card" data-comment-id="${esc(comment.id)}">
     <div class="social-entry-head">
-      ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt=""><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
+      ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
+      <time class="entry-date" datetime="${esc(comment.updatedAt)}">${esc(dateLabel(comment.updatedAt))}</time>
     </div>
-    <p>${esc(comment.body)}</p>
+    <p class="entry-copy">${esc(comment.body)}</p>
     ${comment.image ? `<img class="comment-image" loading="lazy" src="${esc(comment.image)}" alt="Imagen adjunta al comentario">` : ''}
-    <footer><time>${esc(dateLabel(comment.updatedAt))}${comment.edited ? ' · editado' : ''}</time><span>
-      ${comment.own ? '<button type="button" data-edit-comment>Editar</button><button type="button" data-delete-comment>Eliminar</button>' : '<button type="button" data-report-comment>Reportar</button>'}
+    <footer><span class="entry-status">${comment.edited ? 'Comentario editado' : 'Comentario público'}</span><span class="entry-actions">
+      ${comment.own ? `<button class="entry-action" type="button" data-edit-comment>${uiIcon('edit')}<span>Editar</span></button><button class="entry-action entry-action-danger" type="button" data-delete-comment>${uiIcon('trash')}<span>Eliminar</span></button>` : `<button class="entry-action" type="button" data-report-comment>${uiIcon('flag')}<span>Reportar</span></button>`}
     </span></footer>
   </article>`;
 }
@@ -505,11 +558,11 @@ async function watch(id, trackView = true) {
         ${next ? `<a href="/ver/${encodeURIComponent(next.id)}">Siguiente →</a>` : '<span aria-disabled="true">Siguiente →</span>'}
       </nav>
       ${dubbingPanel(project)}
-      <div class="actions"><a class="btn btn-secondary" href="/proyecto/${encodeURIComponent(episode.project_id)}">Ver ficha del proyecto</a>
-        ${social ? `<button class="btn btn-secondary social-toggle ${social.viewer.liked ? 'active' : ''}" id="episodeLike" type="button">♥ ${social.likes}</button>` : ''}
+      <div class="actions watch-actions"><a class="btn btn-secondary" href="/proyecto/${encodeURIComponent(episode.project_id)}">Ver ficha del proyecto</a>
+        ${social ? `<button class="social-toggle ${social.viewer.liked ? 'active' : ''}" id="episodeLike" type="button" aria-pressed="${social.viewer.liked}">${uiIcon('heart')}<span>Me gusta</span><strong class="social-count">${social.likes}</strong></button>` : ''}
       </div>
-      ${social ? `<section class="comments-section"><div class="section-heading"><div><h2>Comentarios</h2><p>Conversación sobre este episodio.</p></div></div>
-        ${state.social.viewer ? `<form id="commentForm" class="social-form"><label class="form-wide">Comentario<textarea name="body" maxlength="1500" required></textarea></label><label class="file-label">Imagen opcional (JPEG, PNG o WebP)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="btn btn-primary" type="submit">Publicar comentario</button><p class="form-message" role="status"></p></form>` : '<button class="btn btn-secondary" id="commentLogin" type="button">Inicia sesión para comentar</button>'}
+      ${social ? `<section class="comments-section"><div class="social-section-heading comments-heading"><div><span class="section-kicker">Conversación del episodio</span><h2>Comentarios</h2><p>Comparte impresiones con otros fans sin salir del reproductor.</p></div></div>
+        ${state.social.viewer ? `<form id="commentForm" class="social-form comment-form"><img class="composer-avatar" src="${avatarImage(state.social.viewer)}" alt=""><div class="comment-composer"><label class="form-wide field-label"><span class="sr-only">Comentario</span><textarea name="body" maxlength="1500" placeholder="Escribe un comentario sobre este episodio…" required></textarea></label><div class="comment-toolbar"><label class="file-picker" for="commentImage">${uiIcon('image')}<span>Añadir imagen</span><input id="commentImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span class="file-name" id="commentFileName">JPEG, PNG o WebP</span><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button></div><div class="comment-image-preview hidden" id="commentImagePreview"><img alt="Vista previa de la imagen"><button id="removeCommentImage" type="button" aria-label="Quitar imagen">×</button></div><p class="form-message" role="status"></p></div></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('send')}</span><div><strong>Únete a la conversación</strong><p>Inicia sesión para comentar este episodio.</p></div><button class="btn btn-secondary" id="commentLogin" type="button">Iniciar sesión</button></div>`}
         <div class="social-list" id="commentList">${social.comments.items.map(commentMarkup).join('') || '<div class="empty">Aún no hay comentarios.</div>'}</div>
         ${social.comments.hasMore ? '<button class="btn btn-secondary load-more" id="moreComments" type="button">Cargar más comentarios</button>' : ''}
       </section>` : ''}
@@ -521,10 +574,37 @@ async function watch(id, trackView = true) {
     try { await socialWrite(`/episodes/${encodeURIComponent(id)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(id, false); } catch (error) { alert(error.message); }
   };
   if ($('#commentLogin')) $('#commentLogin').onclick = openLogin;
+  if ($('#commentImage')) {
+    const imageInput = $('#commentImage');
+    const preview = $('#commentImagePreview');
+    const previewImage = $('img', preview);
+    const fileName = $('#commentFileName');
+    let previewUrl = '';
+    const clearPreview = () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = '';
+      imageInput.value = '';
+      previewImage.removeAttribute('src');
+      preview.classList.add('hidden');
+      fileName.textContent = 'JPEG, PNG o WebP';
+    };
+    imageInput.onchange = () => {
+      const file = imageInput.files[0];
+      if (!file) return clearPreview();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(file);
+      previewImage.src = previewUrl;
+      preview.classList.remove('hidden');
+      fileName.textContent = file.name;
+    };
+    $('#removeCommentImage').onclick = clearPreview;
+  }
   if ($('#commentForm')) $('#commentForm').onsubmit = async event => {
     event.preventDefault();
     const form = event.currentTarget;
     const message = $('.form-message', form);
+    const submit = $('button[type="submit"]', form);
+    submit.disabled = true;
     message.textContent = 'Publicando…';
     try {
       const created = await socialWrite(`/episodes/${encodeURIComponent(id)}/comments`, 'POST', { body: form.elements.body.value });
@@ -534,7 +614,7 @@ async function watch(id, trackView = true) {
         await uploadUserImage(file, 'COMMENT', created.comment.id);
       }
       await watch(id, false);
-    } catch (error) { message.textContent = `${error.message} Si el texto ya se publicó, puedes añadir la imagen al crear un comentario nuevo.`; }
+    } catch (error) { message.textContent = `${error.message} Si el texto ya se publicó, puedes añadir la imagen al crear un comentario nuevo.`; submit.disabled = false; }
   };
   bindCommentActions(id);
   if ($('#moreComments')) $('#moreComments').onclick = async () => {
@@ -740,16 +820,24 @@ const menuButton = $('#menuButton');
 const mainNav = $('#mainNav');
 const accountTrigger = $('#accountTrigger');
 const accountMenu = $('#accountMenu');
+const loginDialog = $('#loginDialog');
 
 accountTrigger.addEventListener('click', () => {
   if (!state.social.viewer) return openLogin();
-  accountMenu.classList.toggle('hidden');
+  const expanded = accountMenu.classList.toggle('hidden') === false;
+  accountTrigger.setAttribute('aria-expanded', String(expanded));
 });
 
-$('#closeLogin').addEventListener('click', () => $('#loginDialog').close());
+$('#closeLogin').addEventListener('click', () => loginDialog.close());
+loginDialog.addEventListener('click', event => {
+  if (event.target === loginDialog) loginDialog.close();
+});
 
 document.addEventListener('click', event => {
-  if (!event.target.closest('#accountSlot')) accountMenu.classList.add('hidden');
+  if (!event.target.closest('#accountSlot')) {
+    accountMenu.classList.add('hidden');
+    accountTrigger.setAttribute('aria-expanded', 'false');
+  }
 });
 
 $('#searchTrigger').addEventListener('click', () => {
@@ -784,6 +872,8 @@ function closeMenu() {
   mainNav.classList.remove('open');
   menuButton.setAttribute('aria-expanded', 'false');
   menuButton.textContent = '☰';
+  accountMenu.classList.add('hidden');
+  accountTrigger.setAttribute('aria-expanded', 'false');
 }
 
 function normalizeLegacyHash() {
