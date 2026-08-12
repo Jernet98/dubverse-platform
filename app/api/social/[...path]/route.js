@@ -206,7 +206,7 @@ async function projectSocial(request, sql, projectId, page) {
   const viewer = await optionalSession(request);
   const offset = (page - 1) * REVIEW_PAGE_SIZE;
   const viewerId = viewer?.row.id || null;
-  const [stats, reviews, flags, seen] = await sql.transaction([
+  const [stats, reviews, flags, watched] = await sql.transaction([
     sql`SELECT (SELECT COUNT(*) FROM project_likes WHERE project_id = ${projectId})::int AS likes,
           COUNT(*)::int AS review_count, COALESCE(AVG(rating), 0)::numeric(3,2) AS review_average
         FROM project_reviews WHERE project_id = ${projectId} AND moderation_status = 'VISIBLE' AND deleted_at IS NULL`,
@@ -221,13 +221,13 @@ async function projectSocial(request, sql, projectId, page) {
           EXISTS(SELECT 1 FROM favorites WHERE user_profile_id = ${viewerId} AND project_id = ${projectId}) AS favorite,
           EXISTS(SELECT 1 FROM watch_later WHERE user_profile_id = ${viewerId} AND project_id = ${projectId}) AS watch_later` :
       sql`SELECT false AS liked, false AS favorite, false AS watch_later`,
-    viewerId ? sql`SELECT h.episode_id FROM episode_history h JOIN episodes e ON e.id = h.episode_id
-        WHERE h.user_profile_id = ${viewerId} AND e.project_id = ${projectId}` : sql`SELECT NULL::text AS episode_id WHERE false`
+    viewerId ? sql`SELECT w.episode_id FROM episode_watched w JOIN episodes e ON e.id = w.episode_id
+        WHERE w.user_profile_id = ${viewerId} AND e.project_id = ${projectId}` : sql`SELECT NULL::text AS episode_id WHERE false`
   ]);
   return {
     likes: Number(stats[0].likes), reviewCount: Number(stats[0].review_count), reviewAverage: Number(stats[0].review_average),
     viewer: { authenticated: Boolean(viewer), liked: flags[0].liked, favorite: flags[0].favorite, watchLater: flags[0].watch_later },
-    seenEpisodeIds: seen.map(item => item.episode_id),
+    watchedEpisodeIds: watched.map(item => item.episode_id),
     reviews: pageSlice(reviews.map(row => mapReview(row, viewerId)), page, REVIEW_PAGE_SIZE)
   };
 }
@@ -249,11 +249,11 @@ async function episodeSocial(request, sql, episodeId, page) {
         ORDER BY c.created_at DESC LIMIT ${PAGE_SIZE + 1} OFFSET ${offset}`,
     viewerId ? sql`SELECT
           EXISTS(SELECT 1 FROM episode_likes WHERE user_profile_id = ${viewerId} AND episode_id = ${episodeId}) AS liked,
-          EXISTS(SELECT 1 FROM episode_history WHERE user_profile_id = ${viewerId} AND episode_id = ${episodeId}) AS seen` :
-      sql`SELECT false AS liked, false AS seen`
+          EXISTS(SELECT 1 FROM episode_watched WHERE user_profile_id = ${viewerId} AND episode_id = ${episodeId}) AS watched` :
+      sql`SELECT false AS liked, false AS watched`
   ]);
   return {
-    likes: Number(likes[0].count), viewer: { authenticated: Boolean(viewer), liked: flags[0].liked, seen: flags[0].seen },
+    likes: Number(likes[0].count), viewer: { authenticated: Boolean(viewer), liked: flags[0].liked, watched: flags[0].watched },
     comments: pageSlice(comments.map(row => mapComment(row, viewerId)), page, PAGE_SIZE)
   };
 }
@@ -283,6 +283,24 @@ async function writeMembership(request, path, present) {
     else await sql`DELETE FROM watch_later WHERE user_profile_id = ${row.id} AND project_id = ${id}`;
   }
   return json({ active: present });
+}
+
+async function writeWatched(request, episodeId, present) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const episode = await requireEpisode(session.sql, episodeId);
+  await enforceSocialRateLimit(session.sql, session.row.id, 'episode-watched', 80, 60);
+  if (present) {
+    await session.sql`
+      INSERT INTO episode_watched (user_profile_id, episode_id)
+      VALUES (${session.row.id}, ${episode.id}) ON CONFLICT DO NOTHING
+    `;
+  } else {
+    await session.sql`
+      DELETE FROM episode_watched WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}
+    `;
+  }
+  return json({ watched: present });
 }
 
 async function createComment(request, episodeId) {
@@ -512,6 +530,7 @@ export async function POST(request, context) {
   try {
     const path = await segments(context);
     if (path.length === 3 && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, true);
+    if (path[0] === 'episodes' && path[1] && path[2] === 'watched' && path.length === 3) return await writeWatched(request, path[1], true);
     if (path[0] === 'episodes' && path[1] && path[2] === 'view') {
       assertSocialWriteOrigin(request);
       const session = await socialSession(request, { required: true, active: true });
@@ -521,7 +540,7 @@ export async function POST(request, context) {
         INSERT INTO episode_history (user_profile_id, episode_id) VALUES (${session.row.id}, ${episode.id})
         ON CONFLICT (user_profile_id, episode_id) DO UPDATE SET last_viewed_at = now(), view_count = episode_history.view_count + 1
       `;
-      return json({ seen: true });
+      return json({ historyRecorded: true });
     }
     if (path[0] === 'episodes' && path[1] && path[2] === 'comments') return await createComment(request, path[1]);
     if (path[0] === 'projects' && path[1] && path[2] === 'reviews') return await saveReview(request, path[1]);
@@ -568,6 +587,7 @@ export async function DELETE(request, context) {
   try {
     const path = await segments(context);
     if (path.length === 3 && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, false);
+    if (path[0] === 'episodes' && path[1] && path[2] === 'watched' && path.length === 3) return await writeWatched(request, path[1], false);
     if (path[0] === 'comments' && path[1]) return await deleteComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await deleteReview(request, path[1]);
     throw new AppError(404, 'Ruta social no encontrada.');

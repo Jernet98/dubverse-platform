@@ -23,6 +23,7 @@ const uiIcon = name => ({
   user: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
   heart: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg>',
   bookmark: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>',
+  check: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
   clock: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   play: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>',
   edit: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>',
@@ -353,20 +354,21 @@ function stars(value) {
   return '★'.repeat(rating) + '☆'.repeat(5 - rating);
 }
 
-function ratingPicker() {
+function ratingPicker({ idPrefix = 'rating', selected = 5, compact = false } = {}) {
   const labels = { 5: 'Excelente', 4: 'Muy buena', 3: 'Buena', 2: 'Regular', 1: 'Mala' };
+  const hintId = `${idPrefix}-hint`;
   return `<fieldset class="rating-picker">
     <legend>Tu calificación</legend>
-    <div class="rating-input" aria-describedby="ratingHint">
-      ${[5, 4, 3, 2, 1].map(value => `<input id="rating-${value}" name="rating" type="radio" value="${value}" aria-label="${value} de 5: ${labels[value]}" ${value === 5 ? 'checked' : ''} required><label for="rating-${value}" title="${labels[value]}"><span class="sr-only">${value} de 5: ${labels[value]}</span><span aria-hidden="true">★</span></label>`).join('')}
+    <div class="rating-input"${compact ? '' : ` aria-describedby="${hintId}"`}>
+      ${[5, 4, 3, 2, 1].map(value => `<input id="${idPrefix}-${value}" name="rating" type="radio" value="${value}" aria-label="${value} de 5: ${labels[value]}" ${value === selected ? 'checked' : ''} required><label for="${idPrefix}-${value}" title="${labels[value]}"><span class="sr-only">${value} de 5: ${labels[value]}</span><span aria-hidden="true">★</span></label>`).join('')}
     </div>
-    <p id="ratingHint">Toca una estrella para puntuar el proyecto.</p>
+    ${compact ? '' : `<p id="${hintId}">Toca una estrella para puntuar el proyecto.</p>`}
   </fieldset>`;
 }
 
 function reviewMarkup(review) {
   const author = review.author;
-  return `<article class="social-entry review-card" data-review-id="${esc(review.id)}">
+  return `<article class="social-entry review-card" data-review-id="${esc(review.id)}" data-rating="${review.rating}">
     <div class="social-entry-head">
       ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
       <div class="entry-rating"><span class="rating" aria-label="${review.rating} de 5">${stars(review.rating)}</span><time datetime="${esc(review.updatedAt)}">${esc(dateLabel(review.updatedAt))}</time></div>
@@ -394,12 +396,35 @@ function bindReviewActions(projectId) {
     if (!confirm('¿Eliminar tu reseña?')) return;
     try { await socialWrite(`/reviews/${button.closest('[data-review-id]').dataset.reviewId}`, 'DELETE'); await projectPage(projectId); } catch (error) { alert(error.message); }
   });
-  $$('[data-edit-review]').forEach(button => button.onclick = async () => {
+  $$('[data-edit-review]').forEach(button => button.onclick = () => {
     const item = button.closest('[data-review-id]');
-    const body = prompt('Edita tu reseña', item.querySelector('p').textContent);
-    if (!body) return;
-    const rating = Number(prompt('Calificación de 1 a 5', '5'));
-    try { await socialWrite(`/reviews/${item.dataset.reviewId}`, 'PATCH', { body, rating }); await projectPage(projectId); } catch (error) { alert(error.message); }
+    if (item.querySelector('[data-inline-editor]')) return;
+    const copy = $('.entry-copy', item);
+    const footer = $('footer', item);
+    const form = document.createElement('form');
+    form.className = 'inline-edit-form review-inline-editor';
+    form.dataset.inlineEditor = 'review';
+    form.innerHTML = `${ratingPicker({ idPrefix: `edit-review-${item.dataset.reviewId}`, selected: Number(item.dataset.rating), compact: true })}
+      <label class="field-label"><span>Editar reseña</span><textarea name="body" maxlength="2000" required></textarea></label>
+      <div class="inline-edit-actions"><button class="btn btn-primary" type="submit">${uiIcon('check')}<span>Guardar</span></button><button class="btn btn-secondary" type="button" data-cancel-edit>Cancelar</button></div>
+      <p class="form-message" role="status"></p>`;
+    form.elements.body.value = copy.textContent;
+    copy.hidden = true;
+    footer.hidden = true;
+    item.insertBefore(form, footer);
+    form.elements.body.focus();
+    $('[data-cancel-edit]', form).onclick = () => { form.remove(); copy.hidden = false; footer.hidden = false; };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      const submit = $('button[type="submit"]', form);
+      const message = $('.form-message', form);
+      submit.disabled = true;
+      message.textContent = 'Guardando cambios…';
+      try {
+        await socialWrite(`/reviews/${item.dataset.reviewId}`, 'PATCH', { body: form.elements.body.value, rating: Number(form.elements.rating.value) });
+        await projectPage(projectId);
+      } catch (error) { message.textContent = error.message; submit.disabled = false; }
+    };
   });
 }
 
@@ -407,7 +432,7 @@ async function projectPage(id) {
   const project = await api(`/api/projects/${encodeURIComponent(id)}`);
   const social = await optionalSocial(`/projects/${encodeURIComponent(id)}`);
   const dubbing = dubbingPanel(project);
-  const seen = new Set(social?.seenEpisodeIds || []);
+  const watched = new Set(social?.watchedEpisodeIds || []);
   const viewer = state.social.viewer;
   app.innerHTML = `
     <section class="project-hero">
@@ -443,11 +468,14 @@ async function projectPage(id) {
       <div class="section-heading"><div><h2>Episodios</h2><p>Servidor principal: Archive.org. Reproductor limpio y sin anuncios propios.</p></div></div>
       <div class="episode-list">
         ${project.episodes.map(episode => `
-          <a class="episode-row ${seen.has(episode.id) ? 'episode-seen' : ''}" href="/ver/${encodeURIComponent(episode.id)}">
-            <span class="episode-number">${String(episode.number).padStart(2, '0')}</span>
-            <div><h3>${esc(episode.title)}</h3><p>${esc(episode.description)}</p></div>
-            <span class="episode-play" aria-label="${seen.has(episode.id) ? 'Visto' : 'Reproducir'}">${seen.has(episode.id) ? '✓' : '▶'}</span>
-          </a>
+          <article class="episode-row ${watched.has(episode.id) ? 'episode-watched' : ''}" data-episode-row="${esc(episode.id)}">
+            <a class="episode-main" href="/ver/${encodeURIComponent(episode.id)}">
+              <span class="episode-number">${String(episode.number).padStart(2, '0')}</span>
+              <div><h3>${esc(episode.title)}</h3><p>${esc(episode.description)}</p></div>
+              <span class="episode-play" aria-label="Reproducir">▶</span>
+            </a>
+            ${viewer ? `<button class="episode-watch-toggle ${watched.has(episode.id) ? 'active' : ''}" data-episode-watched="${esc(episode.id)}" type="button" aria-pressed="${watched.has(episode.id)}"><span class="watch-toggle-icon">${uiIcon('check')}</span><span><strong>${watched.has(episode.id) ? 'VISTO' : 'NO VISTO'}</strong><small>Marcar manualmente</small></span></button>` : ''}
+          </article>
         `).join('') || '<div class="empty">Todavía no hay episodios publicados.</div>'}
       </div>
     </section>
@@ -456,7 +484,7 @@ async function projectPage(id) {
 
     ${social ? `<section class="section social-section" id="resenas">
       <div class="social-section-heading"><div><span class="section-kicker">Opiniones de la comunidad</span><h2>Reseñas</h2><p>Descubre qué piensa la comunidad sobre este fandoblaje.</p></div><div class="rating-summary" aria-label="Calificación promedio ${social.reviewAverage.toFixed(1)} de 5, ${social.reviewCount} reseñas"><strong>${social.reviewAverage.toFixed(1)}</strong><span><span class="rating" aria-hidden="true">${stars(social.reviewAverage)}</span><small>${social.reviewCount} reseña${social.reviewCount === 1 ? '' : 's'}</small></span></div></div>
-      ${viewer ? `<form id="reviewForm" class="social-form review-form"><div class="social-composer-head form-wide"><img src="${avatarImage(viewer)}" alt=""><span><strong>Comparte tu opinión</strong><small>Tu reseña será pública en la comunidad.</small></span></div>${ratingPicker()}<label class="form-wide field-label"><span>Tu reseña</span><textarea name="body" maxlength="2000" placeholder="¿Qué te pareció el fandoblaje, las voces o la adaptación?" required></textarea><small>Escribe una opinión útil y respetuosa.</small></label><div class="form-actions form-wide"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar o actualizar reseña</span></button></div><p class="form-message" role="status"></p></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('edit')}</span><div><strong>¿Ya viste este proyecto?</strong><p>Inicia sesión para puntuarlo y compartir tu reseña.</p></div><button class="btn btn-secondary" id="reviewLogin" type="button">Iniciar sesión</button></div>`}
+      ${viewer ? `<form id="reviewForm" class="social-form review-form"><div class="social-composer-head form-wide"><img src="${avatarImage(viewer)}" alt=""><span><strong>Comparte tu opinión</strong><small>Tu reseña será pública en la comunidad.</small></span></div>${ratingPicker({ idPrefix: 'new-review' })}<label class="form-wide field-label"><span>Tu reseña</span><textarea name="body" maxlength="2000" placeholder="¿Qué te pareció el fandoblaje, las voces o la adaptación?" required></textarea><small>Escribe una opinión útil y respetuosa.</small></label><div class="form-actions form-wide"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar o actualizar reseña</span></button></div><p class="form-message" role="status"></p></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('edit')}</span><div><strong>¿Ya viste este proyecto?</strong><p>Inicia sesión para puntuarlo y compartir tu reseña.</p></div><button class="btn btn-secondary" id="reviewLogin" type="button">Iniciar sesión</button></div>`}
       <div class="social-list" id="reviewList">${social.reviews.items.map(reviewMarkup).join('') || '<div class="empty">Aún no hay reseñas.</div>'}</div>
       ${social.reviews.hasMore ? '<button class="btn btn-secondary load-more" id="moreReviews" type="button">Cargar más reseñas</button>' : ''}
     </section>` : ''}
@@ -467,6 +495,21 @@ async function projectPage(id) {
     const action = button.dataset.socialAction;
     const active = action === 'like' ? social.viewer.liked : action === 'favorite' ? social.viewer.favorite : social.viewer.watchLater;
     try { await socialWrite(`/projects/${encodeURIComponent(id)}/${action}`, active ? 'DELETE' : 'POST'); await projectPage(id); } catch (error) { alert(error.message); }
+  });
+  $$('[data-episode-watched]').forEach(button => button.onclick = async () => {
+    const episodeId = button.dataset.episodeWatched;
+    const isWatched = watched.has(episodeId);
+    button.disabled = true;
+    try {
+      await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/watched`, isWatched ? 'DELETE' : 'POST');
+      if (isWatched) watched.delete(episodeId); else watched.add(episodeId);
+      const nowWatched = watched.has(episodeId);
+      button.classList.toggle('active', nowWatched);
+      button.setAttribute('aria-pressed', String(nowWatched));
+      $('strong', button).textContent = nowWatched ? 'VISTO' : 'NO VISTO';
+      button.closest('[data-episode-row]').classList.toggle('episode-watched', nowWatched);
+      button.disabled = false;
+    } catch (error) { alert(error.message); button.disabled = false; }
   });
   if ($('#reviewLogin')) $('#reviewLogin').onclick = openLogin;
   if ($('#reviewForm')) $('#reviewForm').onsubmit = async event => {
@@ -519,15 +562,38 @@ function bindCommentActions(episodeId) {
     if (!confirm('¿Eliminar tu comentario?')) return;
     try { await socialWrite(`/comments/${button.closest('[data-comment-id]').dataset.commentId}`, 'DELETE'); await watch(episodeId, false); } catch (error) { alert(error.message); }
   });
-  $$('[data-edit-comment]').forEach(button => button.onclick = async () => {
+  $$('[data-edit-comment]').forEach(button => button.onclick = () => {
     const item = button.closest('[data-comment-id]');
-    const body = prompt('Edita tu comentario', item.querySelector('p').textContent);
-    if (!body) return;
-    try { await socialWrite(`/comments/${item.dataset.commentId}`, 'PATCH', { body }); await watch(episodeId, false); } catch (error) { alert(error.message); }
+    if (item.querySelector('[data-inline-editor]')) return;
+    const copy = $('.entry-copy', item);
+    const footer = $('footer', item);
+    const form = document.createElement('form');
+    form.className = 'inline-edit-form comment-inline-editor';
+    form.dataset.inlineEditor = 'comment';
+    form.innerHTML = `<label class="field-label"><span>Editar comentario</span><textarea name="body" maxlength="1500" required></textarea></label>
+      <div class="inline-edit-actions"><button class="btn btn-primary" type="submit">${uiIcon('check')}<span>Guardar</span></button><button class="btn btn-secondary" type="button" data-cancel-edit>Cancelar</button></div>
+      <p class="form-message" role="status"></p>`;
+    form.elements.body.value = copy.textContent;
+    copy.hidden = true;
+    footer.hidden = true;
+    item.insertBefore(form, footer);
+    form.elements.body.focus();
+    $('[data-cancel-edit]', form).onclick = () => { form.remove(); copy.hidden = false; footer.hidden = false; };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      const submit = $('button[type="submit"]', form);
+      const message = $('.form-message', form);
+      submit.disabled = true;
+      message.textContent = 'Guardando cambios…';
+      try {
+        await socialWrite(`/comments/${item.dataset.commentId}`, 'PATCH', { body: form.elements.body.value });
+        await watch(episodeId, false);
+      } catch (error) { message.textContent = error.message; submit.disabled = false; }
+    };
   });
 }
 
-async function watch(id, trackView = true) {
+async function watch(id, recordHistory = true) {
   const episode = await api(`/api/episodes/${encodeURIComponent(id)}`);
   const [project, social] = await Promise.all([
     api(`/api/projects/${encodeURIComponent(episode.project_id)}`),
@@ -568,7 +634,7 @@ async function watch(id, trackView = true) {
       </section>` : ''}
     </section>
   `;
-  if (state.social.viewer && trackView) socialWrite(`/episodes/${encodeURIComponent(id)}/view`, 'POST').catch(() => {});
+  if (state.social.viewer && recordHistory) socialWrite(`/episodes/${encodeURIComponent(id)}/view`, 'POST').catch(() => {});
   if ($('#episodeLike')) $('#episodeLike').onclick = async () => {
     if (!requireViewer()) return;
     try { await socialWrite(`/episodes/${encodeURIComponent(id)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(id, false); } catch (error) { alert(error.message); }

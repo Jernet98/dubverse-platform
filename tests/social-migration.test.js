@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migrationUrl = new URL('../database/migrations/2026-08-09-social-v1.sql', import.meta.url);
+const watchedMigrationUrl = new URL('../database/migrations/2026-08-12-manual-episode-watched.sql', import.meta.url);
 const routeUrl = new URL('../app/api/social/[...path]/route.js', import.meta.url);
 const sessionUrl = new URL('../lib/social.js', import.meta.url);
 const authUrl = new URL('../lib/user-auth.js', import.meta.url);
@@ -19,6 +20,19 @@ test('la migración es explícita, transaccional y contiene las tablas sociales'
   assert.match(sql, /PRIMARY KEY\(user_profile_id, episode_id\)/);
   assert.match(sql, /UNIQUE\(author_profile_id, project_id\)/);
   assert.match(sql, /content_reports_reporter_target_unique/);
+});
+
+test('visto manual usa una migración aditiva independiente del historial', async () => {
+  const [sql, route] = await Promise.all([readFile(watchedMigrationUrl, 'utf8'), readFile(routeUrl, 'utf8')]);
+  assert.match(sql, /^-- Dubverse Social: estado manual de episodios vistos\./);
+  assert.match(sql, /BEGIN;[\s\S]*CREATE TABLE IF NOT EXISTS episode_watched[\s\S]*COMMIT;/);
+  assert.match(sql, /PRIMARY KEY\(user_profile_id, episode_id\)/);
+  assert.doesNotMatch(sql, /INSERT INTO episode_watched[\s\S]*SELECT[\s\S]*episode_history/i);
+  assert.match(route, /SELECT w\.episode_id FROM episode_watched/);
+  assert.match(route, /INSERT INTO episode_watched/);
+  assert.match(route, /DELETE FROM episode_watched/);
+  assert.match(route, /historyRecorded: true/);
+  assert.doesNotMatch(route, /episode_history[^\n]+AS (?:seen|watched)/i);
 });
 
 test('suspensión bloquea escrituras e invalida sesiones públicas', async () => {
