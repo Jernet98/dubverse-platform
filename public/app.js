@@ -1,7 +1,8 @@
 const app = document.querySelector('#app');
 const state = {
   projects: [], studios: [], settings: {}, loaded: false,
-  social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, viewer: null, loaded: false }
+  social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, viewer: null, loaded: false,
+    notifications: { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false } }
 };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -32,6 +33,7 @@ const uiIcon = name => ({
   image: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-5L5 20"/></svg>',
   send: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
   reply: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 17-6-5 6-5v3h4a8 8 0 0 1 8 8v1a7 7 0 0 0-7-6H9v4Z"/></svg>',
+  eye: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
   external: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"/></svg>',
   globe: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
   facebook: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/></svg>',
@@ -129,7 +131,9 @@ async function syncSocialSession({ force = false } = {}) {
       const changed = wasLoaded && sessionViewerKey(viewer) !== previousKey;
       state.social.viewer = viewer;
       state.social.loaded = true;
+      if (changed || !viewer) state.social.notifications = { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false };
       renderAccount();
+      if (viewer) await refreshUnreadCount();
       return { changed, synchronized: true };
     } catch {
       if (!wasLoaded) state.social.loaded = true;
@@ -198,6 +202,7 @@ function renderAccount() {
   const trigger = $('#accountTrigger');
   const menu = $('#accountMenu');
   const viewer = state.social.viewer;
+  renderNotificationBell();
   if (!viewer) {
     trigger.className = 'account-trigger';
     trigger.innerHTML = `${uiIcon('user')}<span>Iniciar sesión</span>`;
@@ -224,6 +229,86 @@ function renderAccount() {
     renderAccount();
     router();
   };
+}
+
+function relativeTime(value) {
+  const seconds = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return 'Ahora';
+  if (seconds < 3600) return `Hace ${Math.floor(seconds / 60)} min`;
+  if (seconds < 86400) return `Hace ${Math.floor(seconds / 3600)} h`;
+  return `Hace ${Math.floor(seconds / 86400)} d`;
+}
+
+function notificationCopy(item) {
+  if (item.type === 'FOLLOW') return 'comenzó a seguirte';
+  if (item.type === 'COMMENT_REPLY') return `respondió a tu ${item.commentKind === 'REPLY' ? 'respuesta' : 'comentario'}${item.projectTitle ? ` en ${item.projectTitle}` : ''}`;
+  return `dio Me gusta a tu ${item.commentKind === 'REPLY' ? 'respuesta' : 'comentario'}${item.projectTitle ? ` en ${item.projectTitle}` : ''}`;
+}
+
+function notificationUrl(item) {
+  if (item.type === 'FOLLOW') return `/u/${encodeURIComponent(item.actor.username)}`;
+  return `/ver/${encodeURIComponent(item.episodeId)}?comment=${encodeURIComponent(item.targetId)}${item.rootCommentId ? `&root=${encodeURIComponent(item.rootCommentId)}` : ''}`;
+}
+
+function renderNotificationBell() {
+  const slot = $('#notificationSlot');
+  const badge = $('#notificationBadge');
+  if (!slot || !badge) return;
+  slot.classList.toggle('hidden', !state.social.viewer);
+  const unread = Number(state.social.notifications.unreadCount || 0);
+  badge.textContent = unread > 99 ? '99+' : String(unread);
+  badge.classList.toggle('hidden', unread === 0);
+  $('#notificationTrigger')?.setAttribute('aria-label', unread ? `Notificaciones; ${unread} sin leer` : 'Notificaciones');
+}
+
+function renderNotifications() {
+  const list = $('#notificationList');
+  if (!list) return;
+  list.innerHTML = state.social.notifications.items.map(item => `<a class="notification-item ${item.readAt ? '' : 'unread'}" href="${notificationUrl(item)}" data-notification-id="${esc(item.id)}">
+    <img src="${avatarImage(item.actor)}" alt=""><span><strong>${esc(item.actor.displayName)}</strong><small>@${esc(item.actor.username)} ${esc(notificationCopy(item))}</small><time>${esc(relativeTime(item.createdAt))}</time></span></a>`).join('') || '<div class="empty compact-empty">No tienes notificaciones.</div>';
+  $('#moreNotifications').classList.toggle('hidden', !state.social.notifications.hasMore);
+  $$('[data-notification-id]', list).forEach(link => link.onclick = async event => {
+    const item = state.social.notifications.items.find(value => value.id === link.dataset.notificationId);
+    if (!item?.readAt) {
+      event.preventDefault();
+      try {
+        const result = await socialWrite(`/notifications/${item.id}`, 'PATCH', {});
+        item.readAt = result.readAt;
+        state.social.notifications.unreadCount = result.unreadCount;
+        renderNotificationBell();
+        history.pushState(null, '', notificationUrl(item));
+        closeNotifications();
+        routeAndSyncSession();
+      } catch (error) { alert(error.message); }
+    } else closeNotifications();
+  });
+}
+
+async function loadNotifications({ reset = false } = {}) {
+  if (!state.social.viewer) return;
+  const page = reset ? 1 : state.social.notifications.page + 1;
+  const result = await socialApi(`/notifications?page=${page}`);
+  state.social.notifications.items = reset ? result.notifications.items : [...state.social.notifications.items, ...result.notifications.items];
+  state.social.notifications.page = result.notifications.page;
+  state.social.notifications.hasMore = result.notifications.hasMore;
+  state.social.notifications.unreadCount = result.unreadCount;
+  state.social.notifications.loaded = true;
+  renderNotificationBell();
+  renderNotifications();
+}
+
+function closeNotifications() {
+  $('#notificationPanel')?.classList.add('hidden');
+  $('#notificationTrigger')?.setAttribute('aria-expanded', 'false');
+}
+
+async function refreshUnreadCount() {
+  if (!state.social.viewer) return;
+  try {
+    const result = await socialApi('/notifications/unread-count');
+    state.social.notifications.unreadCount = result.unreadCount;
+    renderNotificationBell();
+  } catch {}
 }
 
 function requireViewer() {
@@ -603,7 +688,7 @@ function setReplyCount(rootId, count) {
   toggle.textContent = open ? 'Ocultar respuestas' : `Ver ${count} respuesta${count === 1 ? '' : 's'}`;
 }
 
-async function loadReplies(rootId, episodeId, { page = 1, reset = false } = {}) {
+async function loadReplies(rootId, episodeId, { page = 1, reset = false, target = '' } = {}) {
   const root = rootCommentCard(rootId);
   if (!root) return;
   const region = $('[data-reply-region]', root);
@@ -615,7 +700,7 @@ async function loadReplies(rootId, episodeId, { page = 1, reset = false } = {}) 
   thread.dataset.loading = 'true';
   more.disabled = true;
   try {
-    const result = await socialApi(`/comments/${encodeURIComponent(rootId)}/replies?page=${page}`);
+    const result = await socialApi(`/comments/${encodeURIComponent(rootId)}/replies?page=${page}${target ? `&target=${encodeURIComponent(target)}` : ''}`);
     const preservedNewReply = reset ? list.querySelector('[data-new-reply]') : null;
     if (reset) list.innerHTML = '';
     const markup = result.replies.items.map(reply => commentMarkup(reply, { reply: true })).join('');
@@ -787,10 +872,33 @@ function bindCommentActions(episodeId) {
     form.className = 'reply-composer';
     form.dataset.replyComposer = item.dataset.commentId;
     form.innerHTML = `<label><span>Respondiendo a ${username ? `<strong>@${esc(username)}</strong>` : 'este comentario'}</span><textarea name="body" maxlength="1500" required placeholder="Escribe una respuesta…"></textarea></label>
+      ${state.social.config.mediaAvailable ? `<div class="reply-image-tools"><label class="file-picker">${uiIcon('image')}<span>Añadir imagen</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span data-reply-file-name>JPEG, PNG o WebP</span></div><div class="comment-image-preview hidden" data-reply-image-preview><img alt="Vista previa de la imagen"><button type="button" aria-label="Quitar imagen">×</button></div>` : ''}
       <div class="reply-composer-actions"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button><button class="btn btn-secondary" type="button" data-cancel-reply>Cancelar</button></div><p class="form-message" role="status"></p>`;
     const region = $('[data-reply-region]', root);
     root.insertBefore(form, region);
     form.elements.body.focus();
+    if (form.elements.image) {
+      let previewUrl = '';
+      const preview = $('[data-reply-image-preview]', form);
+      const previewImage = $('img', preview);
+      const clear = () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = '';
+        form.elements.image.value = '';
+        preview.classList.add('hidden');
+        $('[data-reply-file-name]', form).textContent = 'JPEG, PNG o WebP';
+      };
+      form.elements.image.onchange = () => {
+        const file = form.elements.image.files[0];
+        if (!file) return clear();
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(file);
+        previewImage.src = previewUrl;
+        preview.classList.remove('hidden');
+        $('[data-reply-file-name]', form).textContent = file.name;
+      };
+      $('button', preview).onclick = clear;
+    }
     $('[data-cancel-reply]', form).onclick = () => form.remove();
     form.onsubmit = async event => {
       event.preventDefault();
@@ -800,6 +908,17 @@ function bindCommentActions(episodeId) {
       message.textContent = 'Publicando respuesta…';
       try {
         const result = await socialWrite(`/comments/${item.dataset.commentId}/replies`, 'POST', { body: form.elements.body.value });
+        const file = form.elements.image?.files[0];
+        if (file) {
+          message.textContent = 'Validando imagen…';
+          try {
+            const uploaded = await uploadUserImage(file, 'COMMENT', result.reply.id);
+            result.reply.image = uploaded.upload.url;
+          } catch (error) {
+            await socialWrite(`/comments/${result.reply.id}`, 'DELETE').catch(() => {});
+            throw new Error(`${error.message} La respuesta no se publicó para evitar perder el adjunto.`);
+          }
+        }
         form.remove();
         setReplyCount(rootId, result.replyCount);
         await loadReplies(rootId, episodeId, { page: 1, reset: true });
@@ -842,7 +961,9 @@ function bindCommentActions(episodeId) {
     const form = document.createElement('form');
     form.className = 'inline-edit-form comment-inline-editor';
     form.dataset.inlineEditor = 'comment';
+    const currentImage = $('[data-lightbox-image]', item)?.dataset.lightboxImage || '';
     form.innerHTML = `<label class="field-label"><span>Editar ${item.classList.contains('comment-reply') ? 'respuesta' : 'comentario'}</span><textarea name="body" maxlength="1500" required></textarea></label>
+      ${item.classList.contains('comment-reply') && state.social.config.mediaAvailable ? `<div class="inline-image-editor">${currentImage ? `<button class="btn btn-secondary" type="button" data-remove-comment-image>Quitar imagen</button>` : ''}<label class="file-picker">${uiIcon('image')}<span>${currentImage ? 'Reemplazar imagen' : 'Añadir imagen'}</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label></div>` : ''}
       <div class="inline-edit-actions"><button class="btn btn-primary" type="submit">${uiIcon('check')}<span>Guardar</span></button><button class="btn btn-secondary" type="button" data-cancel-edit>Cancelar</button></div>
       <p class="form-message" role="status"></p>`;
     form.elements.body.value = copy.textContent;
@@ -851,6 +972,12 @@ function bindCommentActions(episodeId) {
     item.insertBefore(form, footer);
     form.elements.body.focus();
     $('[data-cancel-edit]', form).onclick = () => { form.remove(); copy.hidden = false; footer.hidden = false; };
+    let removeExistingImage = false;
+    if ($('[data-remove-comment-image]', form)) $('[data-remove-comment-image]', form).onclick = () => {
+      const remove = $('[data-remove-comment-image]', form);
+      removeExistingImage = !removeExistingImage;
+      remove.textContent = removeExistingImage ? 'Conservar imagen' : 'Quitar imagen';
+    };
     form.onsubmit = async event => {
       event.preventDefault();
       const submit = $('button[type="submit"]', form);
@@ -859,6 +986,9 @@ function bindCommentActions(episodeId) {
       message.textContent = 'Guardando cambios…';
       try {
         await socialWrite(`/comments/${item.dataset.commentId}`, 'PATCH', { body: form.elements.body.value });
+        const file = form.elements.image?.files[0];
+        if (file) await uploadUserImage(file, 'COMMENT', item.dataset.commentId);
+        else if (removeExistingImage) await socialWrite(`/comments/${item.dataset.commentId}/image`, 'DELETE');
         await watch(episodeId, false);
       } catch (error) { message.textContent = error.message; submit.disabled = false; }
     };
@@ -978,6 +1108,23 @@ async function watch(id, recordHistory = true) {
     $('#commentList').insertAdjacentHTML('beforeend', nextPage.comments.items.map(commentMarkup).join(''));
     $('#moreComments').remove(); bindCommentActions(id);
   };
+  const commentTarget = new URLSearchParams(location.search).get('comment');
+  const rootTarget = new URLSearchParams(location.search).get('root');
+  if (commentTarget) {
+    const direct = $(`[data-comment-id="${CSS.escape(commentTarget)}"]`);
+    if (direct) {
+      direct.classList.add('comment-target');
+      direct.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      direct.focus?.();
+    } else if (rootTarget && rootCommentCard(rootTarget)) {
+      await loadReplies(rootTarget, id, { reset: true, target: commentTarget });
+      const reply = $(`[data-comment-id="${CSS.escape(commentTarget)}"]`);
+      if (reply) {
+        reply.classList.add('comment-target');
+        reply.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
 }
 
 function studios() {
@@ -1026,20 +1173,55 @@ async function studioPage(id) {
   renderCards(studio.projects || [], $('#studioProjectGrid'));
 }
 
-function profileHero(profile, own = false) {
+function profileHero(profile, { own = false, visitorView = false, social = null } = {}) {
   const banner = safeExternalUrl(profile.banner);
   return `<section class="user-profile">
     <div class="user-banner" style="background-image:url('${esc(banner)}')"></div>
-    <div class="user-identity"><img src="${avatarImage(profile)}" alt="Avatar de ${esc(profile.displayName)}"><div><span class="eyebrow">${own ? 'Mi cuenta' : 'Perfil de la comunidad'}</span><h1>${esc(profile.displayName)}</h1><strong>@${esc(profile.username)}</strong><p>${esc(profile.bio || 'Sin biografía todavía.')}</p><small>En Dubverse desde ${esc(dateLabel(profile.joinedAt))}</small></div></div>
+    <div class="user-identity"><img src="${avatarImage(profile)}" alt="Avatar de ${esc(profile.displayName)}"><div><span class="eyebrow">${visitorView ? 'Vista como visitante' : own ? 'Mi cuenta' : 'Perfil de la comunidad'}</span><h1>${esc(profile.displayName)}</h1><strong>@${esc(profile.username)}</strong><p>${esc(profile.bio || 'Sin biografía todavía.')}</p><small>En Dubverse desde ${esc(dateLabel(profile.joinedAt))}</small>
+      ${social ? `<div class="profile-social-stats"><button type="button" data-profile-connections="followers"><strong>${Number(social.followers || 0)}</strong><span>Seguidores</span></button><button type="button" data-profile-connections="following"><strong>${Number(social.following || 0)}</strong><span>Siguiendo</span></button></div>` : ''}
+    </div></div>
   </section>`;
 }
 
-async function publicUserPage(username) {
+function bindProfileConnections(username) {
+  $$('[data-profile-connections]').forEach(button => button.onclick = async () => {
+    const direction = button.dataset.profileConnections;
+    try {
+      const result = await socialApi(`/users/${encodeURIComponent(username)}/${direction}`);
+      let dialog = $('#connectionsDialog');
+      if (!dialog) {
+        dialog = document.createElement('dialog');
+        dialog.id = 'connectionsDialog';
+        dialog.className = 'connections-dialog';
+        document.body.appendChild(dialog);
+      }
+      dialog.innerHTML = `<div class="connections-shell"><header><h2>${direction === 'followers' ? 'Seguidores' : 'Siguiendo'}</h2><button type="button" aria-label="Cerrar">×</button></header><div>${result.profiles.items.map(profile => `<a href="/u/${encodeURIComponent(profile.username)}"><img src="${avatarImage(profile)}" alt=""><span><strong>${esc(profile.displayName)}</strong><small>@${esc(profile.username)}</small></span></a>`).join('') || '<p class="empty">Todavía no hay perfiles.</p>'}</div></div>`;
+      $('header button', dialog).onclick = () => dialog.close();
+      dialog.onclick = event => { if (event.target === dialog) dialog.close(); };
+      dialog.showModal();
+    } catch (error) { alert(error.message); }
+  });
+}
+
+async function publicUserPage(username, { visitorView = false } = {}) {
   const data = await socialApi(`/users/${encodeURIComponent(username)}`);
-  app.innerHTML = `${profileHero(data.profile)}
+  app.innerHTML = `${visitorView ? `<div class="visitor-view-banner"><span>${uiIcon('eye')} Vista como visitante</span><a class="btn btn-secondary" href="/perfil">Salir de vista como visitante</a></div>` : ''}${profileHero(data.profile, { visitorView, social: data.social })}
+    ${!visitorView && !data.social.viewerOwn ? `<section class="profile-follow-actions"><button class="btn ${data.social.viewerFollowing ? 'btn-secondary' : 'btn-primary'}" id="profileFollow" type="button">${data.social.viewerFollowing ? 'Siguiendo' : 'Seguir'}</button></section>` : ''}
     <section class="section"><div class="section-heading"><div><h2>Favoritos públicos</h2><p>Proyectos guardados por @${esc(data.profile.username)}.</p></div></div><div class="project-grid" id="publicFavorites"></div></section>
     <section class="section"><div class="section-heading"><div><h2>Reseñas</h2><p>Opiniones públicas de este usuario.</p></div></div><div class="social-list">${data.reviews.items.map(reviewMarkup).join('') || '<div class="empty">Aún no ha publicado reseñas.</div>'}</div></section>`;
   renderCards(data.favorites.items, $('#publicFavorites'));
+  bindProfileConnections(data.profile.username);
+  if ($('#profileFollow')) $('#profileFollow').onclick = async () => {
+    if (!requireViewer()) return;
+    const button = $('#profileFollow');
+    button.disabled = true;
+    try {
+      const result = await socialWrite(`/users/${encodeURIComponent(data.profile.username)}/follow`, data.social.viewerFollowing ? 'DELETE' : 'POST');
+      data.social.viewerFollowing = result.following;
+      data.social.followers = result.followers;
+      await publicUserPage(data.profile.username);
+    } catch (error) { alert(error.message); button.disabled = false; }
+  };
 }
 
 function historyMarkup(item) {
@@ -1055,7 +1237,7 @@ async function ownProfilePage() {
   const data = await socialApi('/me');
   const profile = data.profile;
   const mediaControls = state.social.config.mediaAvailable ? `<div class="profile-media"><label>Avatar<input id="avatarFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="btn btn-secondary" data-upload-profile="AVATAR" type="button">Cambiar avatar</button><label>Banner<input id="bannerFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="btn btn-secondary" data-upload-profile="BANNER" type="button">Cambiar banner</button></div>` : '<p class="form-message">Las imágenes personalizadas no están disponibles hasta configurar R2.</p>';
-  app.innerHTML = `${profileHero(profile, true)}
+  app.innerHTML = `<div class="own-profile-toolbar"><a class="btn btn-secondary" href="/u/${encodeURIComponent(profile.username)}?view=public">${uiIcon('eye')}<span>Ver como visitante</span></a></div>${profileHero(profile, { own: true, social: data.social })}
     <section class="section profile-layout">
       <article class="profile-settings"><h2>Editar perfil</h2><form id="profileForm" class="social-form"><label>Nombre visible<input class="form-control" name="displayName" maxlength="80" value="${esc(profile.displayName)}" required></label><label>Username<input class="form-control" name="username" minlength="3" maxlength="30" value="${esc(profile.username)}" required></label><label class="form-wide">Biografía<textarea name="bio" maxlength="500">${esc(profile.bio)}</textarea></label><button class="btn btn-primary" type="submit">Guardar perfil</button><p class="form-message" role="status"></p></form>${mediaControls}</article>
       <article class="profile-settings danger-zone"><h2>Cuenta</h2><p>Cerrar sesión no elimina datos. Eliminar la cuenta revoca sesiones, elimina identidades OAuth y datos privados, anonimiza comentarios/reseñas y limpia medios personalizados.</p><div class="actions"><button id="profileSignOut" class="btn btn-secondary" type="button">Cerrar sesión</button><button id="deleteAccount" class="btn btn-danger" type="button">Eliminar cuenta</button></div></article>
@@ -1065,6 +1247,7 @@ async function ownProfilePage() {
     <section class="section" id="historial"><div class="section-heading"><div><h2>Historial</h2><p>Episodios vistos recientemente; sólo tú puedes verlo.</p></div></div><div class="history-list">${data.history.items.map(historyMarkup).join('') || '<div class="empty">Todavía no hay reproducciones registradas.</div>'}</div></section>`;
   renderCards(data.favorites.items, $('#ownFavorites'));
   renderCards(data.watchLater.items, $('#ownWatchLater'));
+  bindProfileConnections(profile.username);
   $('#profileForm').onsubmit = async event => {
     event.preventDefault(); const form = event.currentTarget; const message = $('.form-message', form); message.textContent = 'Guardando…';
     try {
@@ -1161,7 +1344,11 @@ async function router({ preserveScroll = false, recordHistory = true } = {}) {
     if (parts[0] === 'acerca') return about();
     if (parts[0] === 'proyecto' && parts[1]) return projectPage(parts[1]);
     if (parts[0] === 'ver' && parts[1]) return watch(parts[1], recordHistory);
-    if (parts[0] === 'u' && parts[1]) return publicUserPage(parts[1]);
+    if (parts[0] === 'u' && parts[1]) {
+      const visitorView = new URLSearchParams(location.search).get('view') === 'public'
+        && state.social.viewer?.username?.toLowerCase() === parts[1].toLowerCase();
+      return publicUserPage(parts[1], { visitorView });
+    }
     if (parts[0] === 'perfil') return ownProfilePage();
     return home();
   } catch (error) {
@@ -1177,12 +1364,33 @@ const mainNav = $('#mainNav');
 const accountTrigger = $('#accountTrigger');
 const accountMenu = $('#accountMenu');
 const loginDialog = $('#loginDialog');
+const notificationTrigger = $('#notificationTrigger');
+const notificationPanel = $('#notificationPanel');
 
 accountTrigger.addEventListener('click', () => {
   if (!state.social.viewer) return openLogin();
   const expanded = accountMenu.classList.toggle('hidden') === false;
   accountTrigger.setAttribute('aria-expanded', String(expanded));
 });
+
+notificationTrigger.addEventListener('click', async () => {
+  const opening = notificationPanel.classList.contains('hidden');
+  notificationPanel.classList.toggle('hidden', !opening);
+  notificationTrigger.setAttribute('aria-expanded', String(opening));
+  accountMenu.classList.add('hidden');
+  if (opening) await loadNotifications({ reset: true }).catch(error => { $('#notificationList').innerHTML = `<p class="empty">${esc(error.message)}</p>`; });
+});
+
+$('#moreNotifications').onclick = () => loadNotifications().catch(error => alert(error.message));
+$('#readAllNotifications').onclick = async () => {
+  try {
+    const result = await socialWrite('/notifications/read-all', 'PATCH', {});
+    state.social.notifications.unreadCount = result.unreadCount;
+    state.social.notifications.items.forEach(item => { if (!item.readAt) item.readAt = new Date().toISOString(); });
+    renderNotificationBell();
+    renderNotifications();
+  } catch (error) { alert(error.message); }
+};
 
 $('#closeLogin').addEventListener('click', () => loginDialog.close());
 loginDialog.addEventListener('click', event => {
@@ -1194,6 +1402,7 @@ document.addEventListener('click', event => {
     accountMenu.classList.add('hidden');
     accountTrigger.setAttribute('aria-expanded', 'false');
   }
+  if (!event.target.closest('#notificationSlot')) closeNotifications();
 });
 
 $('#searchTrigger').addEventListener('click', () => {
@@ -1230,6 +1439,7 @@ function closeMenu() {
   menuButton.textContent = '☰';
   accountMenu.classList.add('hidden');
   accountTrigger.setAttribute('aria-expanded', 'false');
+  closeNotifications();
 }
 
 let navigationVersion = 0;

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const migrationUrl = new URL('../database/migrations/2026-08-09-social-v1.sql', import.meta.url);
 const watchedMigrationUrl = new URL('../database/migrations/2026-08-12-manual-episode-watched.sql', import.meta.url);
+const socialV12MigrationUrl = new URL('../database/migrations/2026-08-12-follows-notifications.sql', import.meta.url);
 const routeUrl = new URL('../app/api/social/[...path]/route.js', import.meta.url);
 const sessionUrl = new URL('../lib/social.js', import.meta.url);
 const authUrl = new URL('../lib/user-auth.js', import.meta.url);
@@ -56,4 +57,15 @@ test('las rutas sociales no contienen DDL ni confían en user_id del body', asyn
   assert.doesNotMatch(source, /body\.(?:userId|user_id|role)/);
   assert.match(source, /socialSession\(request, \{ required: true, active: true \}\)/);
   assert.match(source, /author_profile_id = \$\{session\.row\.id\}/);
+});
+
+test('Social v1.2 agrega follows y notificaciones de forma explícita y aditiva', async () => {
+  const sql = await readFile(socialV12MigrationUrl, 'utf8');
+  assert.match(sql, /^-- Dubverse Social v1\.2/);
+  assert.match(sql, /BEGIN;[\s\S]*CREATE TABLE IF NOT EXISTS user_follows[\s\S]*CREATE TABLE IF NOT EXISTS social_notifications[\s\S]*COMMIT;/);
+  assert.match(sql, /PRIMARY KEY\(follower_profile_id, followed_profile_id\)/);
+  assert.match(sql, /user_follows_not_self CHECK \(follower_profile_id <> followed_profile_id\)/);
+  assert.match(sql, /dedupe_key text NOT NULL UNIQUE/);
+  assert.match(sql, /social_notifications_recipient_read_recent_idx[\s\S]*recipient_profile_id, read_at, created_at DESC/);
+  assert.doesNotMatch(sql, /UPDATE user_profiles|UPDATE episode_comments|DELETE FROM/);
 });

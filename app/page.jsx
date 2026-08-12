@@ -33,6 +33,17 @@ export default function HomePage() {
           ⌕
         </button>
 
+        <div className="notification-slot hidden" id="notificationSlot">
+          <button className="notification-trigger" id="notificationTrigger" type="button" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+            <span aria-hidden="true">🔔</span><strong className="hidden" id="notificationBadge">0</strong>
+          </button>
+          <section className="notification-panel hidden" id="notificationPanel" aria-label="Notificaciones recientes">
+            <header><strong>Notificaciones</strong><button id="readAllNotifications" type="button">Marcar todas como leídas</button></header>
+            <div className="notification-list" id="notificationList"></div>
+            <button className="notification-more hidden" id="moreNotifications" type="button">Ver más</button>
+          </section>
+        </div>
+
         <div className="account-slot" id="accountSlot">
           <button className="account-trigger" id="accountTrigger" type="button" aria-haspopup="dialog" aria-expanded="false">Iniciar sesión</button>
           <div className="account-menu hidden" id="accountMenu" role="menu"></div>

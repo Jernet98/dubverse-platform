@@ -18,6 +18,8 @@ const historyByViewer = new Map();
 const reviewsByViewer = new Map();
 const commentsByViewer = new Map();
 const commentLikesByViewer = new Map();
+const followsByViewer = new Map();
+const readNotificationsByViewer = new Map();
 let activeViewerId = '';
 const appliedSessionSeeds = new Set();
 
@@ -42,6 +44,12 @@ function requestContext(request) {
 function viewerSet(store, viewerId) {
   if (!store.has(viewerId)) store.set(viewerId, new Set());
   return store.get(viewerId);
+}
+
+function unreadNotificationCount(viewerId) {
+  const read = viewerSet(readNotificationsByViewer, viewerId);
+  if (read.has('all')) return 0;
+  return 3 - ['93f3027e-0b65-4b23-a36b-1e98aa6f5e91', '93f3027e-0b65-4b23-a36b-1e98aa6f5e92', '93f3027e-0b65-4b23-a36b-1e98aa6f5e93'].filter(id => read.has(id)).length;
 }
 
 function viewerReview(profile) {
@@ -73,7 +81,7 @@ function mockReplies(profile) {
       episodeId: episode.id,
       parentCommentId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90',
       body: `Respuesta de prueba ${index + 1}`,
-      image: '',
+      image: index <= 1 ? '/assets/projects/kowloon-generic-romance/banner.jpg' : '',
       createdAt: `2026-08-${String(index + 1).padStart(2, '0')}T00:00:00Z`,
       updatedAt: `2026-08-${String(index + 1).padStart(2, '0')}T00:00:00Z`,
       edited: false,
@@ -123,7 +131,11 @@ async function apiResponse(path, request, response) {
     const page = Number(new URL(request.url, 'http://localhost:3100').searchParams.get('page') || 1);
     const replies = mockReplies(profile);
     const start = (page - 1) * 5;
-    return sendJson(response, { rootId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', replies: { page, hasMore: start + 5 < replies.length, items: replies.slice(start, start + 5) } });
+    const target = new URL(request.url, 'http://localhost:3100').searchParams.get('target');
+    const targetIndex = target ? replies.findIndex(item => item.id === target) : -1;
+    const effectivePage = targetIndex >= 0 ? Math.floor(targetIndex / 5) + 1 : page;
+    const effectiveStart = (effectivePage - 1) * 5;
+    return sendJson(response, { rootId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', replies: { page: effectivePage, hasMore: effectiveStart + 5 < replies.length, items: replies.slice(effectiveStart, effectiveStart + 5) } });
   }
   if (/^\/api\/social\/comments\/[0-9a-f-]+\/replies$/.test(path) && request.method === 'POST') {
     if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
@@ -137,11 +149,48 @@ async function apiResponse(path, request, response) {
     if (request.method === 'POST') likes.add(commentId); else likes.delete(commentId);
     return sendJson(response, { commentId, liked: likes.has(commentId), likeCount: likes.has(commentId) ? 3 : 2 });
   }
-  if (path === '/api/social/users/fan') return sendJson(response, { profile: profiles['1'], favorites: { page: 1, hasMore: false, items: [projects[0]] }, reviews: { page: 1, hasMore: false, items: [] } });
+  if (path === '/api/social/users/fan' || path === '/api/social/users/fan2') {
+    const target = path.endsWith('fan2') ? profiles['2'] : profiles['1'];
+    const followed = authenticated && viewerSet(followsByViewer, viewerId).has(target.username);
+    return sendJson(response, { profile: target, social: { followers: followed ? 13 : 12, following: 4, viewerOwn: profile?.id === target.id, viewerFollowing: followed }, favorites: { page: 1, hasMore: false, items: [projects[0]] }, reviews: { page: 1, hasMore: false, items: [] } });
+  }
+  if (/^\/api\/social\/users\/(?:fan|fan2)\/(?:followers|following)$/.test(path)) return sendJson(response, { direction: path.endsWith('followers') ? 'followers' : 'following', profiles: { page: 1, hasMore: false, items: [profiles['2']] } });
+  if (/^\/api\/social\/users\/(?:fan|fan2)\/follow$/.test(path) && ['POST', 'DELETE'].includes(request.method)) {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    const target = path.split('/')[4];
+    const follows = viewerSet(followsByViewer, viewerId);
+    if (request.method === 'POST') follows.add(target); else follows.delete(target);
+    return sendJson(response, { following: follows.has(target), followers: follows.has(target) ? 13 : 12 });
+  }
   if (path === '/api/social/me') {
     if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
     const historyItems = historyByViewer.has(viewerId) ? [{ episode: { id: episode.id, title: episode.title, season: episode.season, number: episode.number }, project: { id: project.id, title: project.title, poster: project.poster }, firstViewedAt: '2026-08-12T00:00:00Z', lastViewedAt: '2026-08-12T00:00:00Z', viewCount: historyByViewer.get(viewerId) }] : [];
-    return sendJson(response, { profile, favorites: { page: 1, hasMore: false, items: [projects[0]] }, watchLater: { page: 1, hasMore: false, items: [projects[0]] }, history: { page: 1, hasMore: false, items: historyItems } });
+    return sendJson(response, { profile, social: { followers: 12, following: 4 }, favorites: { page: 1, hasMore: false, items: [projects[0]] }, watchLater: { page: 1, hasMore: false, items: [projects[0]] }, history: { page: 1, hasMore: false, items: historyItems } });
+  }
+  if (path === '/api/social/notifications/unread-count') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    return sendJson(response, { unreadCount: unreadNotificationCount(viewerId) });
+  }
+  if (path === '/api/social/notifications') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    const read = viewerSet(readNotificationsByViewer, viewerId);
+    const items = [
+      { id: '93f3027e-0b65-4b23-a36b-1e98aa6f5e91', type: 'FOLLOW', targetType: 'PROFILE', targetId: '00000000-0000-4000-8000-000000000002', episodeId: null, rootCommentId: null, createdAt: '2026-08-12T08:00:00Z', readAt: read.has('all') || read.has('93f3027e-0b65-4b23-a36b-1e98aa6f5e91') ? '2026-08-12T09:00:00Z' : null, commentKind: 'COMMENT', projectTitle: '', actor: profiles['2'] },
+      { id: '93f3027e-0b65-4b23-a36b-1e98aa6f5e92', type: 'COMMENT_REPLY', targetType: 'COMMENT', targetId: '73f3027e-0b65-4b23-a36b-1e98aa6f5e01', episodeId: episode.id, rootCommentId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', createdAt: '2026-08-12T07:00:00Z', readAt: read.has('all') || read.has('93f3027e-0b65-4b23-a36b-1e98aa6f5e92') ? '2026-08-12T09:00:00Z' : null, commentKind: 'COMMENT', projectTitle: project.title, actor: profiles['2'] },
+      { id: '93f3027e-0b65-4b23-a36b-1e98aa6f5e93', type: 'COMMENT_LIKE', targetType: 'COMMENT', targetId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, rootCommentId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', createdAt: '2026-08-12T06:00:00Z', readAt: read.has('all') || read.has('93f3027e-0b65-4b23-a36b-1e98aa6f5e93') ? '2026-08-12T09:00:00Z' : null, commentKind: 'COMMENT', projectTitle: project.title, actor: profiles['2'] }
+    ];
+    return sendJson(response, { unreadCount: unreadNotificationCount(viewerId), notifications: { page: 1, hasMore: false, items } });
+  }
+  if (/^\/api\/social\/notifications\/[0-9a-f-]+$/.test(path) && request.method === 'PATCH') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    const notificationId = path.split('/').at(-1);
+    viewerSet(readNotificationsByViewer, viewerId).add(notificationId);
+    return sendJson(response, { id: notificationId, readAt: '2026-08-12T09:00:00Z', unreadCount: unreadNotificationCount(viewerId) });
+  }
+  if (path === '/api/social/notifications/read-all' && request.method === 'PATCH') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    viewerSet(readNotificationsByViewer, viewerId).add('all');
+    return sendJson(response, { unreadCount: 0 });
   }
   if (path === '/api/social/episodes/episode-alpha-1/watched') {
     if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
