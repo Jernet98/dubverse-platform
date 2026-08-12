@@ -40,6 +40,7 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20;
 const REVIEW_PAGE_SIZE = 10;
+const REPLY_PAGE_SIZE = 5;
 
 function json(value, status = 200) {
   return Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -75,6 +76,14 @@ function mapComment(row, viewerId = '') {
     updatedAt: dateValue(row.updated_at),
     edited: String(row.updated_at) !== String(row.created_at),
     own: Boolean(viewerId && row.author_profile_id === viewerId),
+    parentCommentId: row.parent_comment_id || null,
+    replyCount: Number(row.reply_count || 0),
+    likeCount: Number(row.like_count || 0),
+    likedByViewer: Boolean(row.liked_by_viewer),
+    replyTo: row.reply_to_profile_id ? {
+      username: row.reply_to_username,
+      displayName: row.reply_to_display_name
+    } : null,
     author: row.author_profile_id ? {
       username: row.username,
       displayName: row.display_name,
@@ -125,6 +134,24 @@ async function requireEpisode(sql, id) {
       AND p.published = true AND p.deleted_at IS NULL
   `;
   if (!rows.length) throw new AppError(404, 'Episodio no encontrado.');
+  return rows[0];
+}
+
+async function requirePublicComment(sql, id) {
+  const commentId = uuidValue(id, 'El comentario');
+  const rows = await sql`
+    SELECT c.id, c.episode_id, c.parent_comment_id, c.author_profile_id,
+      up.username, up.display_name
+    FROM episode_comments c
+    JOIN episodes e ON e.id = c.episode_id
+    JOIN projects p ON p.id = e.project_id
+    LEFT JOIN user_profiles up ON up.id = c.author_profile_id
+    WHERE c.id = ${commentId}::uuid
+      AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
+      AND e.published = true AND e.deleted_at IS NULL
+      AND p.published = true AND p.deleted_at IS NULL
+  `;
+  if (!rows.length) throw new AppError(404, 'Comentario no encontrado.');
   return rows[0];
 }
 
@@ -240,12 +267,17 @@ async function episodeSocial(request, sql, episodeId, page) {
   const [likes, comments, flags] = await sql.transaction([
     sql`SELECT COUNT(*)::int AS count FROM episode_likes WHERE episode_id = ${episodeId}`,
     sql`SELECT c.*, up.username, up.display_name, au.image AS provider_image,
-          avatar.public_url AS avatar_url, image.public_url AS image_url
+          avatar.public_url AS avatar_url, image.public_url AS image_url,
+          (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS like_count,
+          EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_profile_id = ${viewerId}) AS liked_by_viewer,
+          (SELECT COUNT(*) FROM episode_comments reply
+            WHERE reply.parent_comment_id = c.id AND reply.moderation_status = 'VISIBLE' AND reply.deleted_at IS NULL)::int AS reply_count
         FROM episode_comments c LEFT JOIN user_profiles up ON up.id = c.author_profile_id
         LEFT JOIN auth_users au ON au.id = up.auth_user_id
         LEFT JOIN user_media_uploads avatar ON avatar.id = up.avatar_media_id AND avatar.status = 'ACTIVE'
         LEFT JOIN user_media_uploads image ON image.id = c.image_media_id AND image.status = 'ACTIVE'
-        WHERE c.episode_id = ${episodeId} AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
+        WHERE c.episode_id = ${episodeId} AND c.parent_comment_id IS NULL
+          AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
         ORDER BY c.created_at DESC LIMIT ${PAGE_SIZE + 1} OFFSET ${offset}`,
     viewerId ? sql`SELECT
           EXISTS(SELECT 1 FROM episode_likes WHERE user_profile_id = ${viewerId} AND episode_id = ${episodeId}) AS liked,
@@ -256,6 +288,32 @@ async function episodeSocial(request, sql, episodeId, page) {
     likes: Number(likes[0].count), viewer: { authenticated: Boolean(viewer), liked: flags[0].liked, watched: flags[0].watched },
     comments: pageSlice(comments.map(row => mapComment(row, viewerId)), page, PAGE_SIZE)
   };
+}
+
+async function commentReplies(request, sql, rootId, page) {
+  const root = await requirePublicComment(sql, rootId);
+  if (root.parent_comment_id) throw new AppError(400, 'Las respuestas se cargan desde el comentario principal.');
+  const viewer = await optionalSession(request);
+  const viewerId = viewer?.row.id || null;
+  const offset = (page - 1) * REPLY_PAGE_SIZE;
+  const rows = await sql`
+    SELECT c.*, up.username, up.display_name, au.image AS provider_image,
+      avatar.public_url AS avatar_url, image.public_url AS image_url,
+      reply_to.username AS reply_to_username, reply_to.display_name AS reply_to_display_name,
+      (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS like_count,
+      EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_profile_id = ${viewerId}) AS liked_by_viewer
+    FROM episode_comments c
+    LEFT JOIN user_profiles up ON up.id = c.author_profile_id
+    LEFT JOIN auth_users au ON au.id = up.auth_user_id
+    LEFT JOIN user_media_uploads avatar ON avatar.id = up.avatar_media_id AND avatar.status = 'ACTIVE'
+    LEFT JOIN user_media_uploads image ON image.id = c.image_media_id AND image.status = 'ACTIVE'
+    LEFT JOIN user_profiles reply_to ON reply_to.id = c.reply_to_profile_id
+    WHERE c.parent_comment_id = ${root.id}::uuid
+      AND c.episode_id = ${root.episode_id}
+      AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
+    ORDER BY c.created_at ASC LIMIT ${REPLY_PAGE_SIZE + 1} OFFSET ${offset}
+  `;
+  return { rootId: root.id, replies: pageSlice(rows.map(row => mapComment(row, viewerId)), page, REPLY_PAGE_SIZE) };
 }
 
 async function writeMembership(request, path, present) {
@@ -314,6 +372,62 @@ async function createComment(request, episodeId) {
     VALUES (${crypto.randomUUID()}::uuid, ${episode.id}, ${session.row.id}, ${commentValue(body.body)}) RETURNING *
   `;
   return json({ comment: mapComment(ownAuthorRow(rows[0], session.row), session.row.id) }, 201);
+}
+
+async function createReply(request, targetId) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const target = await requirePublicComment(session.sql, targetId);
+  const rootId = target.parent_comment_id || target.id;
+  const roots = await session.sql`
+    SELECT id FROM episode_comments
+    WHERE id = ${rootId}::uuid AND episode_id = ${target.episode_id}
+      AND parent_comment_id IS NULL AND moderation_status = 'VISIBLE' AND deleted_at IS NULL
+  `;
+  if (!roots.length) throw new AppError(409, 'El comentario principal ya no está disponible.');
+  const body = await jsonBody(request);
+  await enforceSocialRateLimit(session.sql, session.row.id, 'comment-reply', 10, 60);
+  const rows = await session.sql`
+    INSERT INTO episode_comments (id, episode_id, author_profile_id, body, parent_comment_id, reply_to_profile_id)
+    VALUES (${crypto.randomUUID()}::uuid, ${target.episode_id}, ${session.row.id}, ${commentValue(body.body)},
+      ${rootId}::uuid, ${target.author_profile_id || null}::uuid)
+    RETURNING *
+  `;
+  const counts = await session.sql`
+    SELECT COUNT(*)::int AS count FROM episode_comments
+    WHERE parent_comment_id = ${rootId}::uuid AND moderation_status = 'VISIBLE' AND deleted_at IS NULL
+  `;
+  const reply = ownAuthorRow({
+    ...rows[0],
+    reply_to_username: target.username,
+    reply_to_display_name: target.display_name,
+    like_count: 0,
+    liked_by_viewer: false
+  }, session.row);
+  return json({ reply: mapComment(reply, session.row.id), replyCount: Number(counts[0].count) }, 201);
+}
+
+async function writeCommentLike(request, id, present) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const comment = await requirePublicComment(session.sql, id);
+  await enforceSocialRateLimit(session.sql, session.row.id, 'comment-like', 120, 60);
+  if (present) {
+    await session.sql`
+      INSERT INTO comment_likes (user_profile_id, comment_id)
+      VALUES (${session.row.id}, ${comment.id}::uuid) ON CONFLICT DO NOTHING
+    `;
+  } else {
+    await session.sql`
+      DELETE FROM comment_likes WHERE user_profile_id = ${session.row.id} AND comment_id = ${comment.id}::uuid
+    `;
+  }
+  const rows = await session.sql`
+    SELECT COUNT(*)::int AS count,
+      EXISTS(SELECT 1 FROM comment_likes WHERE user_profile_id = ${session.row.id} AND comment_id = ${comment.id}::uuid) AS liked
+    FROM comment_likes WHERE comment_id = ${comment.id}::uuid
+  `;
+  return json({ commentId: comment.id, liked: rows[0].liked, likeCount: Number(rows[0].count) });
 }
 
 async function updateComment(request, id) {
@@ -428,7 +542,7 @@ async function createPresign(request) {
     targetId = uuidValue(body.targetId, 'El comentario');
     const comments = await session.sql`
       SELECT id FROM episode_comments WHERE id = ${targetId}::uuid AND author_profile_id = ${session.row.id}
-        AND image_media_id IS NULL AND deleted_at IS NULL
+        AND parent_comment_id IS NULL AND image_media_id IS NULL AND deleted_at IS NULL
     `;
     if (!comments.length) throw new AppError(404, 'Comentario propio disponible para imagen no encontrado.');
   }
@@ -519,6 +633,7 @@ export async function GET(request, context) {
     if (path[0] === 'me' && path.length === 1) return json(await privateProfile(await socialSession(request, { required: true }), page));
     if (path[0] === 'projects' && path[1] && path.length === 2) return json(await projectSocial(request, sql, path[1], page));
     if (path[0] === 'episodes' && path[1] && path.length === 2) return json(await episodeSocial(request, sql, path[1], page));
+    if (path[0] === 'comments' && path[1] && path[2] === 'replies' && path.length === 3) return json(await commentReplies(request, sql, path[1], page));
     throw new AppError(404, 'Ruta social no encontrada.');
   } catch (error) {
     if (Number(error?.status || 500) >= 500) console.error('Social GET:', error);
@@ -529,7 +644,7 @@ export async function GET(request, context) {
 export async function POST(request, context) {
   try {
     const path = await segments(context);
-    if (path.length === 3 && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, true);
+    if (path.length === 3 && ['projects', 'episodes'].includes(path[0]) && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, true);
     if (path[0] === 'episodes' && path[1] && path[2] === 'watched' && path.length === 3) return await writeWatched(request, path[1], true);
     if (path[0] === 'episodes' && path[1] && path[2] === 'view') {
       assertSocialWriteOrigin(request);
@@ -543,6 +658,8 @@ export async function POST(request, context) {
       return json({ historyRecorded: true });
     }
     if (path[0] === 'episodes' && path[1] && path[2] === 'comments') return await createComment(request, path[1]);
+    if (path[0] === 'comments' && path[1] && path[2] === 'replies' && path.length === 3) return await createReply(request, path[1]);
+    if (path[0] === 'comments' && path[1] && path[2] === 'like' && path.length === 3) return await writeCommentLike(request, path[1], true);
     if (path[0] === 'projects' && path[1] && path[2] === 'reviews') return await saveReview(request, path[1]);
     if (path[0] === 'reports' && path.length === 1) return await createReport(request);
     if (path[0] === 'media' && path[1] === 'presign') return await createPresign(request);
@@ -574,7 +691,7 @@ export async function PATCH(request, context) {
       if (!rows.length) throw new AppError(409, 'Ese username ya está en uso.');
       return json({ profile: mapSocialProfile({ ...session.row, ...rows[0] }) });
     }
-    if (path[0] === 'comments' && path[1]) return await updateComment(request, path[1]);
+    if (path[0] === 'comments' && path[1] && path.length === 2) return await updateComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await updateReview(request, path[1]);
     throw new AppError(404, 'Ruta social no encontrada.');
   } catch (error) {
@@ -586,9 +703,10 @@ export async function PATCH(request, context) {
 export async function DELETE(request, context) {
   try {
     const path = await segments(context);
-    if (path.length === 3 && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, false);
+    if (path.length === 3 && ['projects', 'episodes'].includes(path[0]) && ['like', 'favorite', 'watch-later'].includes(path[2])) return await writeMembership(request, path, false);
     if (path[0] === 'episodes' && path[1] && path[2] === 'watched' && path.length === 3) return await writeWatched(request, path[1], false);
-    if (path[0] === 'comments' && path[1]) return await deleteComment(request, path[1]);
+    if (path[0] === 'comments' && path[1] && path[2] === 'like' && path.length === 3) return await writeCommentLike(request, path[1], false);
+    if (path[0] === 'comments' && path[1] && path.length === 2) return await deleteComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await deleteReview(request, path[1]);
     throw new AppError(404, 'Ruta social no encontrada.');
   } catch (error) {

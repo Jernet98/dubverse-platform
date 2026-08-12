@@ -17,6 +17,7 @@ const watchedByViewer = new Map();
 const historyByViewer = new Map();
 const reviewsByViewer = new Map();
 const commentsByViewer = new Map();
+const commentLikesByViewer = new Map();
 let activeViewerId = '';
 const appliedSessionSeeds = new Set();
 
@@ -64,6 +65,28 @@ function commentImage(pageUrl) {
   }[pageUrl.searchParams.get('commentImage')] || '';
 }
 
+function mockReplies(profile) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const author = index % 2 ? profiles['2'] : profiles['1'];
+    return {
+      id: `73f3027e-0b65-4b23-a36b-1e98aa6f5e${String(index).padStart(2, '0')}`,
+      episodeId: episode.id,
+      parentCommentId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90',
+      body: `Respuesta de prueba ${index + 1}`,
+      image: '',
+      createdAt: `2026-08-${String(index + 1).padStart(2, '0')}T00:00:00Z`,
+      updatedAt: `2026-08-${String(index + 1).padStart(2, '0')}T00:00:00Z`,
+      edited: false,
+      own: Boolean(profile && profile.id === author.id),
+      author,
+      replyTo: index ? profiles[index % 2 ? '1' : '2'] : profiles['1'],
+      likeCount: index,
+      likedByViewer: false,
+      replyCount: 0
+    };
+  });
+}
+
 async function requestJson(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
@@ -93,7 +116,26 @@ async function apiResponse(path, request, response) {
   }
   if (path === '/api/social/episodes/episode-alpha-1') {
     const comment = viewerComment(profile);
-    return sendJson(response, { likes: 3, viewer: { authenticated, liked: authenticated, watched: watched.has(episode.id) }, comments: { page: 1, hasMore: false, items: [{ id: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, body: comment.body, image: commentImage(pageUrl), createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z', edited: authenticated, own: authenticated, author: profile || profiles['1'] }] } });
+    const liked = authenticated && viewerSet(commentLikesByViewer, viewerId).has('63f3027e-0b65-4b23-a36b-1e98aa6f5e90');
+    return sendJson(response, { likes: 3, viewer: { authenticated, liked: authenticated, watched: watched.has(episode.id) }, comments: { page: 1, hasMore: false, items: [{ id: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, body: comment.body, image: commentImage(pageUrl), createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z', edited: authenticated, own: authenticated, author: profile || profiles['1'], replyCount: 7, likeCount: liked ? 3 : 2, likedByViewer: liked }] } });
+  }
+  if (path === '/api/social/comments/63f3027e-0b65-4b23-a36b-1e98aa6f5e90/replies' && request.method === 'GET') {
+    const page = Number(new URL(request.url, 'http://localhost:3100').searchParams.get('page') || 1);
+    const replies = mockReplies(profile);
+    const start = (page - 1) * 5;
+    return sendJson(response, { rootId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', replies: { page, hasMore: start + 5 < replies.length, items: replies.slice(start, start + 5) } });
+  }
+  if (/^\/api\/social\/comments\/[0-9a-f-]+\/replies$/.test(path) && request.method === 'POST') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    const body = await requestJson(request);
+    return sendJson(response, { replyCount: 8, reply: { ...mockReplies(profile)[0], id: '83f3027e-0b65-4b23-a36b-1e98aa6f5e99', body: String(body.body || ''), own: true, author: profile } }, 201);
+  }
+  if (/^\/api\/social\/comments\/[0-9a-f-]+\/like$/.test(path) && ['POST', 'DELETE'].includes(request.method)) {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    const commentId = path.split('/')[4];
+    const likes = viewerSet(commentLikesByViewer, viewerId);
+    if (request.method === 'POST') likes.add(commentId); else likes.delete(commentId);
+    return sendJson(response, { commentId, liked: likes.has(commentId), likeCount: likes.has(commentId) ? 3 : 2 });
   }
   if (path === '/api/social/users/fan') return sendJson(response, { profile: profiles['1'], favorites: { page: 1, hasMore: false, items: [projects[0]] }, reviews: { page: 1, hasMore: false, items: [] } });
   if (path === '/api/social/me') {
@@ -131,7 +173,7 @@ async function apiResponse(path, request, response) {
   if (path === '/api/admin/studios') return sendJson(response, []);
   if (path === '/api/admin/overview') return sendJson(response, { projects: 4, episodes: 1, studios: 0, processing: 0, trash: 0, providers: [] });
   if (path === '/api/admin/config') return sendJson(response, { database: false, authSecret: true, adminKey: true, blob: false });
-  if (path === '/api/admin/moderation/list') return sendJson(response, { reports: { page: 1, hasMore: false, items: [{ id: 'report', targetType: 'COMMENT', targetId: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', reason: 'SPAM', details: 'Contexto', status: 'OPEN', createdAt: '2026-08-09T00:00:00Z', reporter: { username: 'reporter', displayName: 'Reporter' }, author: { id: 'fan-id', username: 'fan', displayName: 'Fan Mock', status: 'ACTIVE' }, content: { body: 'Contenido reportado', moderationStatus: 'VISIBLE', project: { id: 'alpha', title: 'Alpha Romance' }, episode: { id: episode.id, title: episode.title } } }] }, users: [{ id: 'fan-id', username: 'fan', displayName: 'Fan Mock', status: 'ACTIVE', comments: 1, reviews: 1 }] });
+  if (path === '/api/admin/moderation/list') return sendJson(response, { reports: { page: 1, hasMore: false, items: [{ id: 'report', targetType: 'COMMENT', targetId: '73f3027e-0b65-4b23-a36b-1e98aa6f5e00', reason: 'SPAM', details: 'Contexto', status: 'OPEN', createdAt: '2026-08-09T00:00:00Z', reporter: { username: 'reporter', displayName: 'Reporter' }, author: { id: 'fan-id', username: 'fan', displayName: 'Fan Mock', status: 'ACTIVE' }, content: { kind: 'REPLY', body: 'Respuesta reportada', moderationStatus: 'VISIBLE', project: { id: 'alpha', title: 'Alpha Romance' }, episode: { id: episode.id, title: episode.title } } }] }, users: [{ id: 'fan-id', username: 'fan', displayName: 'Fan Mock', status: 'ACTIVE', comments: 1, reviews: 1 }] });
   return sendJson(response, { error: `Mock no definido: ${request.method} ${path}` }, 404);
 }
 
@@ -140,7 +182,8 @@ const server = http.createServer(async (request, response) => {
   if (url.pathname.startsWith('/api/')) return await apiResponse(url.pathname, request, response);
   const sourcePath = url.pathname === '/admin' || url.pathname.startsWith('/_next/') || /\.(?:js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/.test(url.pathname) ? url.pathname : '/';
   const upstreamResponse = await fetch(`${upstream}${sourcePath}`);
-  const body = Buffer.from(await upstreamResponse.arrayBuffer());
+  let body = Buffer.from(await upstreamResponse.arrayBuffer());
+  if (sourcePath === '/') body = Buffer.from(body.toString('utf8').replace('</body>', '<script src="/app.js"></script></body>'));
   const headers = Object.fromEntries([...upstreamResponse.headers].filter(([name]) => !['content-encoding', 'content-length', 'transfer-encoding'].includes(name.toLowerCase())));
   response.writeHead(upstreamResponse.status, headers);
   response.end(body);

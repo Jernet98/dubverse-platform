@@ -44,6 +44,6 @@ test('avatar e imágenes adjuntas tienen límites y capas explícitas', async ()
   const styles = await readFile(stylesUrl, 'utf8');
   assert.match(styles, /\.user-identity\{position:relative;z-index:2\}/);
   assert.match(styles, /\.user-identity>img\{position:relative;z-index:3\}/);
-  assert.match(styles, /\.comment-card \.comment-image\{[^}]*max-width:min\(100%,520px\)[^}]*max-height:500px[^}]*object-fit:contain/);
-  assert.match(styles, /@media\(max-width:720px\)[\s\S]*\.comment-card \.comment-image\{max-width:100%;max-height:500px\}/);
+  assert.match(styles, /\.comment-card \.comment-image\{[^}]*max-width:min\(100%,360px\)[^}]*max-height:360px[^}]*object-fit:contain/);
+  assert.match(styles, /@media\(max-width:720px\)[\s\S]*\.comment-image-button,\.comment-card \.comment-image\{max-width:100%;max-height:360px\}/);
 });

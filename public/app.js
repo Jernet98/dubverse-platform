@@ -31,6 +31,7 @@ const uiIcon = name => ({
   flag: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 1h11l-1 4 1 4H5"/></svg>',
   image: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-5L5 20"/></svg>',
   send: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+  reply: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 17-6-5 6-5v3h4a8 8 0 0 1 8 8v1a7 7 0 0 0-7-6H9v4Z"/></svg>',
   external: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"/></svg>',
   globe: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
   facebook: '<svg class="ui-icon social-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/></svg>',
@@ -561,19 +562,195 @@ async function projectPage(id) {
   };
 }
 
-function commentMarkup(comment) {
+function commentMarkup(comment, { reply = Boolean(comment.parentCommentId) } = {}) {
   const author = comment.author;
-  return `<article class="social-entry comment-card" data-comment-id="${esc(comment.id)}">
+  const rootId = comment.parentCommentId || comment.id;
+  const replyCount = Number(comment.replyCount || 0);
+  return `<article class="social-entry comment-card ${reply ? 'comment-reply' : 'comment-root'}" data-comment-id="${esc(comment.id)}" data-root-comment-id="${esc(rootId)}" data-author-username="${esc(author?.username || '')}">
     <div class="social-entry-head">
       ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
       <time class="entry-date" datetime="${esc(comment.updatedAt)}">${esc(dateLabel(comment.updatedAt))}</time>
     </div>
+    ${comment.replyTo?.username ? `<a class="reply-mention" href="/u/${encodeURIComponent(comment.replyTo.username)}">@${esc(comment.replyTo.username)}</a>` : ''}
     <p class="entry-copy">${esc(comment.body)}</p>
-    ${comment.image ? `<img class="comment-image" loading="lazy" src="${esc(comment.image)}" alt="Imagen adjunta al comentario">` : ''}
-    <footer><span class="entry-status">${comment.edited ? 'Comentario editado' : 'Comentario público'}</span><span class="entry-actions">
-      ${comment.own ? `<button class="entry-action" type="button" data-edit-comment>${uiIcon('edit')}<span>Editar</span></button><button class="entry-action entry-action-danger" type="button" data-delete-comment>${uiIcon('trash')}<span>Eliminar</span></button>` : `<button class="entry-action" type="button" data-report-comment>${uiIcon('flag')}<span>Reportar</span></button>`}
+    ${comment.image ? `<button class="comment-image-button" type="button" data-lightbox-image="${esc(comment.image)}" aria-label="Abrir imagen adjunta"><img class="comment-image" loading="lazy" src="${esc(comment.image)}" alt="Imagen adjunta al comentario"></button>` : ''}
+    <footer><span class="entry-status">${comment.edited ? (reply ? 'Respuesta editada' : 'Comentario editado') : (reply ? 'Respuesta pública' : 'Comentario público')}</span><span class="entry-actions">
+      <button class="entry-action comment-like ${comment.likedByViewer ? 'active' : ''}" type="button" data-like-comment aria-label="Me gusta; ${Number(comment.likeCount || 0)}" aria-pressed="${Boolean(comment.likedByViewer)}">${uiIcon('heart')}<span>Me gusta</span><strong>${Number(comment.likeCount || 0)}</strong></button>
+      <button class="entry-action" type="button" data-reply-comment aria-label="Responder a ${esc(author?.username ? `@${author.username}` : 'este comentario')}">${uiIcon('reply')}<span>Responder</span></button>
+      ${comment.own ? `<button class="entry-action" type="button" data-edit-comment aria-label="Editar ${reply ? 'respuesta' : 'comentario'}">${uiIcon('edit')}<span>Editar</span></button><button class="entry-action entry-action-danger" type="button" data-delete-comment aria-label="Eliminar ${reply ? 'respuesta' : 'comentario'}">${uiIcon('trash')}<span>Eliminar</span></button>` : `<button class="entry-action" type="button" data-report-comment aria-label="Reportar ${reply ? 'respuesta' : 'comentario'}">${uiIcon('flag')}<span>Reportar</span></button>`}
     </span></footer>
+    ${reply ? '' : `<div class="reply-region" data-reply-region data-reply-count="${replyCount}">
+      <button class="reply-toggle" type="button" data-toggle-replies ${replyCount ? '' : 'hidden'}>Ver ${replyCount} respuesta${replyCount === 1 ? '' : 's'}</button>
+      <div class="reply-thread hidden" data-reply-thread><div class="reply-list" data-reply-list></div><button class="reply-more hidden" type="button" data-more-replies>Ver más respuestas</button></div>
+    </div>`}
   </article>`;
+}
+
+let replyPagination = new Map();
+
+function rootCommentCard(rootId) {
+  return $(`.comment-root[data-comment-id="${CSS.escape(rootId)}"]`);
+}
+
+function setReplyCount(rootId, count) {
+  const root = rootCommentCard(rootId);
+  if (!root) return;
+  const region = $('[data-reply-region]', root);
+  const toggle = $('[data-toggle-replies]', region);
+  const open = !$('[data-reply-thread]', region).classList.contains('hidden');
+  region.dataset.replyCount = String(count);
+  toggle.hidden = count === 0;
+  toggle.textContent = open ? 'Ocultar respuestas' : `Ver ${count} respuesta${count === 1 ? '' : 's'}`;
+}
+
+async function loadReplies(rootId, episodeId, { page = 1, reset = false } = {}) {
+  const root = rootCommentCard(rootId);
+  if (!root) return;
+  const region = $('[data-reply-region]', root);
+  const thread = $('[data-reply-thread]', region);
+  const list = $('[data-reply-list]', region);
+  const more = $('[data-more-replies]', region);
+  const toggle = $('[data-toggle-replies]', region);
+  if (thread.dataset.loading === 'true') return;
+  thread.dataset.loading = 'true';
+  more.disabled = true;
+  try {
+    const result = await socialApi(`/comments/${encodeURIComponent(rootId)}/replies?page=${page}`);
+    const preservedNewReply = reset ? list.querySelector('[data-new-reply]') : null;
+    if (reset) list.innerHTML = '';
+    const markup = result.replies.items.map(reply => commentMarkup(reply, { reply: true })).join('');
+    const newReply = reset ? null : list.querySelector('[data-new-reply]');
+    if (newReply) newReply.insertAdjacentHTML('beforebegin', markup); else list.insertAdjacentHTML('beforeend', markup);
+    if (preservedNewReply) list.appendChild(preservedNewReply);
+    replyPagination.set(rootId, { page: result.replies.page, hasMore: result.replies.hasMore });
+    thread.classList.remove('hidden');
+    toggle.textContent = 'Ocultar respuestas';
+    more.classList.toggle('hidden', !result.replies.hasMore);
+    bindCommentActions(episodeId);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    thread.dataset.loading = 'false';
+    more.disabled = false;
+  }
+}
+
+let lightboxState = null;
+
+function applyLightboxTransform() {
+  if (!lightboxState) return;
+  lightboxState.image.style.transform = `translate3d(${lightboxState.x}px,${lightboxState.y}px,0) scale(${lightboxState.scale})`;
+  lightboxState.reset.textContent = `${Math.round(lightboxState.scale * 100)}%`;
+  lightboxState.image.classList.toggle('can-pan', lightboxState.scale > 1);
+}
+
+function setLightboxZoom(next, center = null) {
+  if (!lightboxState) return;
+  const previous = lightboxState.scale;
+  lightboxState.scale = Math.min(5, Math.max(1, next));
+  if (center && previous !== lightboxState.scale) {
+    const box = lightboxState.stage.getBoundingClientRect();
+    const cx = center.x - box.left - box.width / 2;
+    const cy = center.y - box.top - box.height / 2;
+    const ratio = lightboxState.scale / previous;
+    lightboxState.x = cx - (cx - lightboxState.x) * ratio;
+    lightboxState.y = cy - (cy - lightboxState.y) * ratio;
+  }
+  if (lightboxState.scale === 1) lightboxState.x = lightboxState.y = 0;
+  applyLightboxTransform();
+}
+
+function closeImageLightbox() {
+  if (!lightboxState) return;
+  const { overlay, opener } = lightboxState;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('lightbox-open');
+  overlay._activePointers?.clear();
+  lightboxState = null;
+  opener?.focus();
+}
+
+function ensureImageLightbox() {
+  let overlay = $('#imageLightbox');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = 'imageLightbox';
+  overlay.className = 'image-lightbox';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Visor de imagen');
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.innerHTML = `<button class="lightbox-close" type="button" aria-label="Cerrar visor">×</button>
+    <div class="lightbox-stage"><img draggable="false" alt="Imagen ampliada del comentario"></div>
+    <div class="lightbox-controls" aria-label="Controles de zoom">
+      <button type="button" data-zoom-out aria-label="Alejar imagen">−</button>
+      <button type="button" data-zoom-reset aria-label="Restablecer zoom">100%</button>
+      <button type="button" data-zoom-in aria-label="Acercar imagen">+</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  $('.lightbox-close', overlay).onclick = closeImageLightbox;
+  $('[data-zoom-out]', overlay).onclick = () => setLightboxZoom(lightboxState.scale - .25);
+  $('[data-zoom-in]', overlay).onclick = () => setLightboxZoom(lightboxState.scale + .25);
+  $('[data-zoom-reset]', overlay).onclick = () => { lightboxState.x = lightboxState.y = 0; setLightboxZoom(1); };
+  const stage = $('.lightbox-stage', overlay);
+  stage.onclick = event => { if (event.target === stage) closeImageLightbox(); };
+  overlay.onclick = event => { if (event.target === overlay) closeImageLightbox(); };
+  stage.addEventListener('wheel', event => {
+    if (!lightboxState) return;
+    event.preventDefault();
+    setLightboxZoom(lightboxState.scale + (event.deltaY < 0 ? .2 : -.2), { x: event.clientX, y: event.clientY });
+  }, { passive: false });
+  stage.ondblclick = event => {
+    event.preventDefault();
+    setLightboxZoom(lightboxState.scale > 1 ? 1 : 2, { x: event.clientX, y: event.clientY });
+  };
+  const points = new Map();
+  overlay._activePointers = points;
+  stage.onpointerdown = event => {
+    if (!lightboxState) return;
+    points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    stage.setPointerCapture(event.pointerId);
+  };
+  stage.onpointermove = event => {
+    if (!lightboxState || !points.has(event.pointerId)) return;
+    event.preventDefault();
+    const beforePoints = [...points.values()];
+    const previous = points.get(event.pointerId);
+    points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const afterPoints = [...points.values()];
+    if (afterPoints.length === 1 && lightboxState.scale > 1) {
+      lightboxState.x += event.clientX - previous.x;
+      lightboxState.y += event.clientY - previous.y;
+      applyLightboxTransform();
+    } else if (afterPoints.length === 2 && beforePoints.length === 2) {
+      const distance = values => Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
+      const before = distance(beforePoints);
+      const after = distance(afterPoints);
+      if (before > 0) setLightboxZoom(lightboxState.scale * after / before);
+      lightboxState.x += ((afterPoints[0].x + afterPoints[1].x) - (beforePoints[0].x + beforePoints[1].x)) / 2;
+      lightboxState.y += ((afterPoints[0].y + afterPoints[1].y) - (beforePoints[0].y + beforePoints[1].y)) / 2;
+      applyLightboxTransform();
+    }
+  };
+  const release = event => points.delete(event.pointerId);
+  stage.onpointerup = release;
+  stage.onpointercancel = release;
+  return overlay;
+}
+
+function openImageLightbox(opener) {
+  const overlay = ensureImageLightbox();
+  const image = $('.lightbox-stage img', overlay);
+  const stage = $('.lightbox-stage', overlay);
+  const reset = $('[data-zoom-reset]', overlay);
+  image.src = opener.dataset.lightboxImage;
+  lightboxState = { overlay, image, stage, reset, opener, scale: 1, x: 0, y: 0 };
+  applyLightboxTransform();
+  document.body.classList.add('lightbox-open');
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  $('.lightbox-close', overlay).focus();
 }
 
 async function uploadUserImage(file, purpose, targetId) {
@@ -585,9 +762,76 @@ async function uploadUserImage(file, purpose, targetId) {
 }
 
 function bindCommentActions(episodeId) {
+  $$('[data-lightbox-image]').forEach(button => button.onclick = () => openImageLightbox(button));
+  $$('[data-like-comment]').forEach(button => button.onclick = async () => {
+    if (!requireViewer()) return;
+    const item = button.closest('[data-comment-id]');
+    const liked = button.getAttribute('aria-pressed') === 'true';
+    button.disabled = true;
+    try {
+      const result = await socialWrite(`/comments/${item.dataset.commentId}/like`, liked ? 'DELETE' : 'POST');
+      button.classList.toggle('active', result.liked);
+      button.setAttribute('aria-pressed', String(result.liked));
+      button.setAttribute('aria-label', `Me gusta; ${result.likeCount}`);
+      $('strong', button).textContent = result.likeCount;
+    } catch (error) { alert(error.message); } finally { button.disabled = false; }
+  });
+  $$('[data-reply-comment]').forEach(button => button.onclick = () => {
+    if (!requireViewer()) return;
+    const item = button.closest('[data-comment-id]');
+    const rootId = item.dataset.rootCommentId;
+    const root = rootCommentCard(rootId);
+    if (!root || root.querySelector('[data-reply-composer]')) return;
+    const username = item.dataset.authorUsername;
+    const form = document.createElement('form');
+    form.className = 'reply-composer';
+    form.dataset.replyComposer = item.dataset.commentId;
+    form.innerHTML = `<label><span>Respondiendo a ${username ? `<strong>@${esc(username)}</strong>` : 'este comentario'}</span><textarea name="body" maxlength="1500" required placeholder="Escribe una respuesta…"></textarea></label>
+      <div class="reply-composer-actions"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button><button class="btn btn-secondary" type="button" data-cancel-reply>Cancelar</button></div><p class="form-message" role="status"></p>`;
+    const region = $('[data-reply-region]', root);
+    root.insertBefore(form, region);
+    form.elements.body.focus();
+    $('[data-cancel-reply]', form).onclick = () => form.remove();
+    form.onsubmit = async event => {
+      event.preventDefault();
+      const submit = $('button[type="submit"]', form);
+      const message = $('.form-message', form);
+      submit.disabled = true;
+      message.textContent = 'Publicando respuesta…';
+      try {
+        const result = await socialWrite(`/comments/${item.dataset.commentId}/replies`, 'POST', { body: form.elements.body.value });
+        form.remove();
+        setReplyCount(rootId, result.replyCount);
+        await loadReplies(rootId, episodeId, { page: 1, reset: true });
+        const list = $('[data-reply-list]', root);
+        if (!list.querySelector(`[data-comment-id="${CSS.escape(result.reply.id)}"]`)) {
+          list.insertAdjacentHTML('beforeend', commentMarkup(result.reply, { reply: true }));
+          list.lastElementChild.dataset.newReply = 'true';
+          bindCommentActions(episodeId);
+        }
+      } catch (error) { message.textContent = error.message; submit.disabled = false; }
+    };
+  });
+  $$('[data-toggle-replies]').forEach(button => button.onclick = async () => {
+    const root = button.closest('.comment-root');
+    const thread = $('[data-reply-thread]', root);
+    const rootId = root.dataset.commentId;
+    if (!thread.classList.contains('hidden')) {
+      thread.classList.add('hidden');
+      button.textContent = `Ver ${Number($('[data-reply-region]', root).dataset.replyCount)} respuesta${Number($('[data-reply-region]', root).dataset.replyCount) === 1 ? '' : 's'}`;
+      return;
+    }
+    await loadReplies(rootId, episodeId, { page: 1, reset: true });
+  });
+  $$('[data-more-replies]').forEach(button => button.onclick = async () => {
+    const rootId = button.closest('.comment-root').dataset.commentId;
+    const pagination = replyPagination.get(rootId) || { page: 1, hasMore: true };
+    if (pagination.hasMore) await loadReplies(rootId, episodeId, { page: pagination.page + 1 });
+  });
   $$('[data-report-comment]').forEach(button => button.onclick = () => reportContent('COMMENT', button.closest('[data-comment-id]').dataset.commentId).catch(error => alert(error.message)));
   $$('[data-delete-comment]').forEach(button => button.onclick = async () => {
-    if (!confirm('¿Eliminar tu comentario?')) return;
+    const item = button.closest('[data-comment-id]');
+    if (!confirm(`¿Eliminar tu ${item.classList.contains('comment-reply') ? 'respuesta' : 'comentario'}?`)) return;
     try { await socialWrite(`/comments/${button.closest('[data-comment-id]').dataset.commentId}`, 'DELETE'); await watch(episodeId, false); } catch (error) { alert(error.message); }
   });
   $$('[data-edit-comment]').forEach(button => button.onclick = () => {
@@ -598,7 +842,7 @@ function bindCommentActions(episodeId) {
     const form = document.createElement('form');
     form.className = 'inline-edit-form comment-inline-editor';
     form.dataset.inlineEditor = 'comment';
-    form.innerHTML = `<label class="field-label"><span>Editar comentario</span><textarea name="body" maxlength="1500" required></textarea></label>
+    form.innerHTML = `<label class="field-label"><span>Editar ${item.classList.contains('comment-reply') ? 'respuesta' : 'comentario'}</span><textarea name="body" maxlength="1500" required></textarea></label>
       <div class="inline-edit-actions"><button class="btn btn-primary" type="submit">${uiIcon('check')}<span>Guardar</span></button><button class="btn btn-secondary" type="button" data-cancel-edit>Cancelar</button></div>
       <p class="form-message" role="status"></p>`;
     form.elements.body.value = copy.textContent;
@@ -620,6 +864,24 @@ function bindCommentActions(episodeId) {
     };
   });
 }
+
+document.addEventListener('keydown', event => {
+  if (!lightboxState) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeImageLightbox();
+    return;
+  }
+  if (event.key === '+' || event.key === '=') setLightboxZoom(lightboxState.scale + .25);
+  if (event.key === '-') setLightboxZoom(lightboxState.scale - .25);
+  if (event.key === 'Tab') {
+    const controls = $$('button:not([disabled])', lightboxState.overlay);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+});
 
 async function watch(id, recordHistory = true) {
   const episode = await api(`/api/episodes/${encodeURIComponent(id)}`);

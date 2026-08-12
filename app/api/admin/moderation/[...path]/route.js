@@ -32,6 +32,7 @@ function reportRow(row) {
     reporter: row.reporter_username ? { username: row.reporter_username, displayName: row.reporter_display_name } : null,
     author: row.author_username ? { id: row.author_id, username: row.author_username, displayName: row.author_display_name, status: row.author_status } : null,
     content: {
+      kind: row.target_type === 'COMMENT' ? (row.parent_comment_id ? 'REPLY' : 'COMMENT') : 'REVIEW',
       body: row.content_body || '[Contenido eliminado]',
       moderationStatus: row.content_status || 'DELETED',
       project: row.project_id ? { id: row.project_id, title: row.project_title } : null,
@@ -51,6 +52,7 @@ async function moderationOverview(sql, status, page) {
       COALESCE(comment_author.status, review_author.status) AS author_status,
       COALESCE(c.body, r.body) AS content_body,
       COALESCE(c.moderation_status, r.moderation_status) AS content_status,
+      c.parent_comment_id,
       e.id AS episode_id,
       e.title AS episode_title,
       COALESCE(episode_project.id, review_project.id) AS project_id,

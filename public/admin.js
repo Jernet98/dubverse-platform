@@ -404,7 +404,7 @@ function moderation() {
       <section>
         <div class="moderation-list">${reports.map(report => `
           <article class="moderation-card" data-report-id="${esc(report.id)}">
-            <header><div>${badge(report.reason, report.status === 'OPEN' ? 'red' : 'green')} ${badge(report.targetType)}</div><time>${esc(dateLabel(report.createdAt))}</time></header>
+            <header><div>${badge(report.reason, report.status === 'OPEN' ? 'red' : 'green')} ${badge(report.content.kind === 'REPLY' ? 'RESPUESTA' : report.targetType === 'COMMENT' ? 'COMENTARIO PRINCIPAL' : 'RESEÑA')}</div><time>${esc(dateLabel(report.createdAt))}</time></header>
             <p class="reported-copy">${esc(report.content.body)}</p>
             <div class="moderation-context">
               <span>Autor: ${report.author ? `<strong>@${esc(report.author.username)}</strong> ${badge(report.author.status, report.author.status === 'ACTIVE' ? 'green' : 'red')}` : 'usuario eliminado'}</span>
