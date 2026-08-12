@@ -17,6 +17,8 @@ const watchedByViewer = new Map();
 const historyByViewer = new Map();
 const reviewsByViewer = new Map();
 const commentsByViewer = new Map();
+let activeViewerId = '';
+const appliedSessionSeeds = new Set();
 
 function sendJson(response, value, status = 200) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -26,7 +28,13 @@ function sendJson(response, value, status = 200) {
 function requestContext(request) {
   let pageUrl;
   try { pageUrl = new URL(String(request.headers.referer || ''), 'http://localhost:3100'); } catch { pageUrl = new URL('http://localhost:3100/'); }
-  const viewerId = pageUrl.searchParams.get('viewer') || '';
+  const requestedViewer = pageUrl.searchParams.get('viewer');
+  const sessionSeed = requestedViewer === null ? '' : `${pageUrl.pathname}|${requestedViewer}|${pageUrl.searchParams.get('sessionSeed') || 'default'}`;
+  if (sessionSeed && !appliedSessionSeeds.has(sessionSeed)) {
+    activeViewerId = profiles[requestedViewer] ? requestedViewer : '';
+    appliedSessionSeeds.add(sessionSeed);
+  }
+  const viewerId = activeViewerId;
   return { pageUrl, viewerId, profile: profiles[viewerId] || null };
 }
 
@@ -73,6 +81,10 @@ async function apiResponse(path, request, response) {
   if (path === '/api/studios') return sendJson(response, [{ id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] }]);
   if (path === '/api/studios/studio') return sendJson(response, { id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] });
   if (path === '/api/settings') return sendJson(response, {});
+  if (path === '/api/auth/sign-out' && request.method === 'POST') {
+    activeViewerId = '';
+    return sendJson(response, { success: true });
+  }
   if (path === '/api/social/config') return sendJson(response, { authAvailable: true, providers: ['google', 'discord'], mediaAvailable: true });
   if (path === '/api/social/session') return sendJson(response, { user: profile });
   if (path === '/api/social/projects/alpha') {

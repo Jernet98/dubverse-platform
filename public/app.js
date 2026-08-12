@@ -110,14 +110,42 @@ async function optionalSocial(path) {
   try { return await socialApi(path); } catch { return null; }
 }
 
+let sessionSyncPromise = null;
+
+function sessionViewerKey(viewer) {
+  return viewer ? JSON.stringify([viewer.id, viewer.username, viewer.displayName, viewer.avatar, viewer.banner, viewer.status]) : '';
+}
+
+async function syncSocialSession({ force = false } = {}) {
+  if (!force && state.social.loaded) return { changed: false, synchronized: true };
+  if (sessionSyncPromise) return sessionSyncPromise;
+  const wasLoaded = state.social.loaded;
+  const previousKey = sessionViewerKey(state.social.viewer);
+  sessionSyncPromise = (async () => {
+    try {
+      const session = await socialApi('/session');
+      const viewer = session?.user || null;
+      const changed = wasLoaded && sessionViewerKey(viewer) !== previousKey;
+      state.social.viewer = viewer;
+      state.social.loaded = true;
+      renderAccount();
+      return { changed, synchronized: true };
+    } catch {
+      if (!wasLoaded) state.social.loaded = true;
+      return { changed: false, synchronized: false };
+    }
+  })();
+  try {
+    return await sessionSyncPromise;
+  } finally {
+    sessionSyncPromise = null;
+  }
+}
+
 async function loadSocial() {
   if (state.social.loaded) return;
-  const config = await optionalSocial('/config');
+  const [config] = await Promise.all([optionalSocial('/config'), syncSocialSession()]);
   if (config) state.social.config = config;
-  const session = await optionalSocial('/session');
-  state.social.viewer = session?.user || null;
-  state.social.loaded = true;
-  renderAccount();
 }
 
 async function loadBase() {
@@ -854,7 +882,7 @@ function about() {
   `;
 }
 
-async function router() {
+async function router({ preserveScroll = false, recordHistory = true } = {}) {
   try {
     await loadBase();
     const parts = location.pathname.split('/').filter(Boolean).map(part => decodeURIComponent(part));
@@ -863,14 +891,14 @@ async function router() {
       const linkPath = new URL(link.href, location.origin).pathname.replace(/\/$/, '') || '/';
       link.classList.toggle('active', linkPath === currentPath);
     });
-    window.scrollTo(0, 0);
+    if (!preserveScroll) window.scrollTo(0, 0);
     if (!parts.length) return home();
     if (parts[0] === 'catalogo') return catalog();
     if (parts[0] === 'estudios') return studios();
     if (parts[0] === 'estudio' && parts[1]) return studioPage(parts[1]);
     if (parts[0] === 'acerca') return about();
     if (parts[0] === 'proyecto' && parts[1]) return projectPage(parts[1]);
-    if (parts[0] === 'ver' && parts[1]) return watch(parts[1]);
+    if (parts[0] === 'ver' && parts[1]) return watch(parts[1], recordHistory);
     if (parts[0] === 'u' && parts[1]) return publicUserPage(parts[1]);
     if (parts[0] === 'perfil') return ownProfilePage();
     return home();
@@ -942,6 +970,25 @@ function closeMenu() {
   accountTrigger.setAttribute('aria-expanded', 'false');
 }
 
+let navigationVersion = 0;
+
+async function routeAndSyncSession() {
+  const version = ++navigationVersion;
+  await router();
+  const result = await syncSocialSession({ force: true });
+  if (result.changed && version === navigationVersion) {
+    await router({ preserveScroll: true, recordHistory: false });
+  }
+}
+
+async function reconcileRestoredSession() {
+  const version = navigationVersion;
+  const result = await syncSocialSession({ force: true });
+  if (result.changed && version === navigationVersion) {
+    await router({ preserveScroll: true, recordHistory: false });
+  }
+}
+
 function normalizeLegacyHash() {
   if (!location.hash.startsWith('#/')) return false;
   const path = location.hash.slice(1) || '/';
@@ -962,18 +1009,22 @@ document.addEventListener('click', event => {
     history.pushState(null, '', destination);
   }
   closeMenu();
-  router();
+  routeAndSyncSession();
 });
 
 window.addEventListener('popstate', () => {
   closeMenu();
-  router();
+  routeAndSyncSession();
+});
+
+window.addEventListener('pageshow', () => {
+  reconcileRestoredSession();
 });
 
 window.addEventListener('hashchange', () => {
   if (!normalizeLegacyHash()) return;
   closeMenu();
-  router();
+  routeAndSyncSession();
 });
 
 normalizeLegacyHash();
