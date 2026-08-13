@@ -1,7 +1,7 @@
 const app = document.querySelector('#app');
 const state = {
   projects: [], studios: [], settings: {}, home: null, loaded: false,
-  social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, viewer: null, loaded: false,
+  social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, configLoad: { status: 'idle', error: '' }, viewer: null, sessionLoaded: false,
     notifications: { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false } }
 };
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -116,15 +116,16 @@ async function optionalSocial(path) {
 }
 
 let sessionSyncPromise = null;
+let socialConfigPromise = null;
 
 function sessionViewerKey(viewer) {
   return viewer ? JSON.stringify([viewer.id, viewer.username, viewer.displayName, viewer.avatar, viewer.banner, viewer.status]) : '';
 }
 
 async function syncSocialSession({ force = false } = {}) {
-  if (!force && state.social.loaded) return { changed: false, synchronized: true };
+  if (!force && state.social.sessionLoaded) return { changed: false, synchronized: true };
   if (sessionSyncPromise) return sessionSyncPromise;
-  const wasLoaded = state.social.loaded;
+  const wasLoaded = state.social.sessionLoaded;
   const previousKey = sessionViewerKey(state.social.viewer);
   sessionSyncPromise = (async () => {
     try {
@@ -132,13 +133,13 @@ async function syncSocialSession({ force = false } = {}) {
       const viewer = session?.user || null;
       const changed = wasLoaded && sessionViewerKey(viewer) !== previousKey;
       state.social.viewer = viewer;
-      state.social.loaded = true;
+      state.social.sessionLoaded = true;
       if (changed || !viewer) state.social.notifications = { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false };
       renderAccount();
       if (viewer) await refreshUnreadCount();
       return { changed, synchronized: true };
     } catch {
-      if (!wasLoaded) state.social.loaded = true;
+      if (!wasLoaded) state.social.sessionLoaded = true;
       return { changed: false, synchronized: false };
     }
   })();
@@ -149,10 +150,35 @@ async function syncSocialSession({ force = false } = {}) {
   }
 }
 
+async function loadSocialConfig({ force = false } = {}) {
+  if (!force && state.social.configLoad.status === 'loaded') return { loaded: true, config: state.social.config };
+  if (socialConfigPromise) return socialConfigPromise;
+  state.social.configLoad = { status: 'loading', error: '' };
+  socialConfigPromise = (async () => {
+    try {
+      const config = await socialApi('/config', { cache: 'no-store' });
+      if (!config || !Array.isArray(config.providers)) throw new Error('La configuración Social recibida no es válida.');
+      state.social.config = {
+        authAvailable: Boolean(config.authAvailable),
+        providers: config.providers.filter(provider => typeof provider === 'string' && provider.trim()),
+        mediaAvailable: Boolean(config.mediaAvailable)
+      };
+      state.social.configLoad = { status: 'loaded', error: '' };
+      return { loaded: true, config: state.social.config };
+    } catch (error) {
+      state.social.configLoad = { status: 'error', error: error.message || 'No se pudo cargar la configuración Social.' };
+      return { loaded: false, error };
+    }
+  })();
+  try {
+    return await socialConfigPromise;
+  } finally {
+    socialConfigPromise = null;
+  }
+}
+
 async function loadSocial() {
-  if (state.social.loaded) return;
-  const [config] = await Promise.all([optionalSocial('/config'), syncSocialSession()]);
-  if (config) state.social.config = config;
+  await Promise.all([loadSocialConfig(), syncSocialSession()]);
 }
 
 async function loadBase() {
@@ -197,14 +223,22 @@ function avatarImage(profile) {
   return esc(imageOrFallback(''));
 }
 
-function openLogin() {
-  const loginDialog = $('#loginDialog');
+function renderLoginOptions() {
+  const container = $('#loginProviders');
+  const loadState = state.social.configLoad.status;
   const providers = state.social.config.providers || [];
-  $('#loginProviders').innerHTML = providers.length
-    ? providers.map(provider => `<button class="login-provider" type="button" data-provider="${esc(provider)}">${providerIcon(provider)}<span>Entrar con tu cuenta ${provider === 'google' ? 'Google' : provider === 'discord' ? 'Discord' : esc(socialLabel(provider))}</span><span class="provider-arrow" aria-hidden="true">→</span></button>`).join('')
-    : '<div class="empty compact-empty">El inicio de sesión no está configurado en este entorno.</div>';
-  $('#loginStatus').textContent = '';
-  $$('[data-provider]', $('#loginProviders')).forEach(button => button.onclick = async () => {
+  if (loadState === 'loading' || loadState === 'idle') {
+    container.innerHTML = '<div class="empty compact-empty">Cargando opciones de inicio de sesión…</div>';
+  } else if (loadState === 'error') {
+    container.innerHTML = '<div class="empty compact-empty"><p>No pudimos cargar las opciones de inicio de sesión.</p><button class="btn btn-secondary" id="retrySocialConfig" type="button">Reintentar</button></div>';
+  } else if (!providers.length) {
+    container.innerHTML = '<div class="empty compact-empty">El inicio de sesión no está configurado en este entorno.</div>';
+  } else {
+    container.innerHTML = providers.map(provider => `<button class="login-provider" type="button" data-provider="${esc(provider)}">${providerIcon(provider)}<span>Entrar con tu cuenta ${provider === 'google' ? 'Google' : provider === 'discord' ? 'Discord' : esc(socialLabel(provider))}</span><span class="provider-arrow" aria-hidden="true">→</span></button>`).join('');
+  }
+  const retry = $('#retrySocialConfig');
+  if (retry) retry.onclick = retrySocialConfig;
+  $$('[data-provider]', container).forEach(button => button.onclick = async () => {
     button.disabled = true;
     $('#loginStatus').textContent = 'Abriendo el proveedor…';
     try {
@@ -218,7 +252,25 @@ function openLogin() {
       $('#loginStatus').textContent = error.message;
     }
   });
-  loginDialog.showModal();
+}
+
+async function retrySocialConfig() {
+  $('#loginStatus').textContent = '';
+  const request = loadSocialConfig({ force: true });
+  renderLoginOptions();
+  await request;
+  renderLoginOptions();
+}
+
+async function openLogin() {
+  const loginDialog = $('#loginDialog');
+  $('#loginStatus').textContent = '';
+  if (!loginDialog.open) loginDialog.showModal();
+  if (state.social.configLoad.status === 'loaded') {
+    renderLoginOptions();
+    return;
+  }
+  await retrySocialConfig();
 }
 
 function renderAccount() {
@@ -248,7 +300,7 @@ function renderAccount() {
   $('#signOutButton').onclick = async () => {
     await api('/api/auth/sign-out', { method: 'POST', body: '{}' });
     state.social.viewer = null;
-    state.social.loaded = true;
+    state.social.sessionLoaded = true;
     renderAccount();
     router();
   };
@@ -1343,7 +1395,7 @@ async function ownProfilePage() {
     const file = $(`#${purpose === 'AVATAR' ? 'avatarFile' : 'bannerFile'}`).files[0];
     if (!file) return alert('Selecciona una imagen primero.');
     button.disabled = true;
-    try { await uploadUserImage(file, purpose); state.social.loaded = false; await loadSocial(); await ownProfilePage(); } catch (error) { alert(error.message); button.disabled = false; }
+    try { await uploadUserImage(file, purpose); state.social.sessionLoaded = false; await loadSocial(); await ownProfilePage(); } catch (error) { alert(error.message); button.disabled = false; }
   });
   $('#profileSignOut').onclick = async () => { await api('/api/auth/sign-out', { method: 'POST', body: '{}' }); state.social.viewer = null; renderAccount(); router(); };
   $('#deleteAccount').onclick = async () => {
