@@ -11,6 +11,7 @@ const state = {
   studios: [],
   overview: null,
   config: null,
+  home: null,
   moderation: { reports: { items: [] }, users: [] },
   moderationStatus: 'OPEN',
   trash: { projects: [], studios: [], episodes: [] }
@@ -18,6 +19,7 @@ const state = {
 
 const titles = {
   dashboard: 'Resumen',
+  home: 'Portada',
   projects: 'Proyectos',
   episodes: 'Episodios',
   studios: 'Estudios',
@@ -124,7 +126,7 @@ $('#logoutButton').addEventListener('click', logout);
 $('#topLogoutButton').addEventListener('click', logout);
 $$('.sidebar nav button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.tab)));
 
-async function refresh(includeTrash = false, includeModeration = false) {
+async function refresh(includeTrash = false, includeModeration = false, includeHome = false) {
   const requests = [
     api('/api/admin/projects'),
     api('/api/admin/episodes'),
@@ -134,10 +136,13 @@ async function refresh(includeTrash = false, includeModeration = false) {
   ];
   if (includeTrash) requests.push(api('/api/admin/trash'));
   if (includeModeration) requests.push(api(`/api/admin/moderation/list?status=${encodeURIComponent(state.moderationStatus)}`));
+  if (includeHome) requests.push(api('/api/admin/home'));
   const result = await Promise.all(requests);
   [state.projects, state.episodes, state.studios, state.overview, state.config] = result;
-  if (includeTrash) state.trash = result[5];
-  if (includeModeration) state.moderation = result[5];
+  let index = 5;
+  if (includeTrash) state.trash = result[index++];
+  if (includeModeration) state.moderation = result[index++];
+  if (includeHome) state.home = result[index];
 }
 
 async function navigate(tab) {
@@ -146,8 +151,8 @@ async function navigate(tab) {
   $('#tabTitle').textContent = titles[tab] || titles.dashboard;
   $('#content').innerHTML = '<div class="loading">Cargando…</div>';
   try {
-    await refresh(tab === 'trash', tab === 'moderation');
-    ({ dashboard, projects, episodes, studios, upload, moderation, trash }[tab] || dashboard)();
+    await refresh(tab === 'trash', tab === 'moderation', tab === 'home');
+    ({ dashboard, home, projects, episodes, studios, upload, moderation, trash }[tab] || dashboard)();
   } catch (error) {
     if (/Sesión|administrativa requerida/i.test(error.message)) return location.reload();
     $('#content').innerHTML = `
@@ -210,6 +215,165 @@ function dashboard() {
       <p class="muted panel-copy">Los proyectos, estudios y episodios viven en Neon. Todo cambio realizado aquí aparece en la página pública sin editar GitHub.</p>
     </div>`;
   $('#openTrash').onclick = () => navigate('trash');
+}
+
+const HOME_SECTION_TYPE_OPTIONS = [
+  { value: 'AUTO_STATUS', label: 'Automática por estado' },
+  { value: 'AUTO_TYPE', label: 'Automática por tipo' },
+  { value: 'RECENT', label: 'Recién agregados' },
+  { value: 'CURATED', label: 'Selección manual' },
+  { value: 'RECOMMENDED', label: 'Recomendaciones' }
+];
+const HOME_STATUS_OPTIONS = [
+  { value: 'ONGOING', label: 'En emisión' }, { value: 'FINISHED', label: 'Finalizados' },
+  { value: 'PAUSED', label: 'Pausados' }, { value: 'CANCELLED', label: 'Cancelados' }
+];
+
+function homeCollectionCard(kind, item, index, total) {
+  const resource = item.project || item.studio;
+  const image = resource.poster || resource.banner || resource.logo || '/assets/dubverse-icon.png';
+  const name = resource.title || resource.name;
+  return `<article class="home-item" data-home-kind="${kind}" data-resource-id="${esc(item.projectId || item.studioId)}">
+    <img src="${esc(image)}" alt=""><div><strong>${esc(name)}</strong><small>${item.enabled ? 'Activo en portada' : 'Desactivado'}</small></div>
+    ${kind === 'hero-projects' ? `<label class="compact-field">Peso <select data-home-weight>${[1, 2, 3, 4, 5].map(weight => `<option value="${weight}" ${weight === item.weight ? 'selected' : ''}>${weight}</option>`).join('')}</select></label>` : ''}
+    <label class="switch-field"><input type="checkbox" data-home-enabled ${item.enabled ? 'checked' : ''}><span>Activo</span></label>
+    <div class="home-order"><button type="button" data-home-move="-1" ${index === 0 ? 'disabled' : ''} aria-label="Mover arriba">↑</button><button type="button" data-home-move="1" ${index === total - 1 ? 'disabled' : ''} aria-label="Mover abajo">↓</button><button class="danger" type="button" data-home-remove aria-label="Quitar">×</button></div>
+  </article>`;
+}
+
+function homeCollection(kind, title, description, items, resources, key) {
+  const selected = new Set(items.map(item => item.projectId || item.studioId));
+  const available = resources.filter(resource => resource.published && !selected.has(resource.id));
+  return `<section class="panel-card home-admin-block" data-home-collection="${kind}">
+    <header class="home-block-heading"><div><h2>${title}</h2><p>${description}</p></div>${badge(`${items.filter(item => item.enabled).length} activos`, 'green')}</header>
+    <div class="home-add-row"><input type="search" data-home-add-search placeholder="Buscar ${kind === 'featured-studios' ? 'estudio' : 'proyecto'}"><select data-home-add-select><option value="">Seleccionar…</option>${available.map(resource => `<option value="${esc(resource.id)}">${esc(resource[key])}</option>`).join('')}</select><button type="button" data-home-add ${available.length ? '' : 'disabled'}>Agregar</button></div>
+    <div class="home-item-list">${items.map((item, index) => homeCollectionCard(kind, item, index, items.length)).join('') || '<div class="empty compact-empty">Sin selección manual. La portada usará el fallback configurado.</div>'}</div>
+  </section>`;
+}
+
+function sectionTypeLabel(type) {
+  return ({ HERO: 'Hero', FEATURED_PROJECTS: 'Proyectos destacados', FEATURED_STUDIOS: 'Estudios destacados', AUTO_STATUS: 'Por estado', AUTO_TYPE: 'Por tipo', RECENT: 'Recientes', CURATED: 'Curada', RECOMMENDED: 'Recomendada' })[type] || type;
+}
+
+function home() {
+  const data = state.home;
+  const site = data.site || {};
+  const socials = site.socials || {};
+  const sections = [...(data.sections || [])].sort((left, right) => left.position - right.position);
+  const publishedProjects = state.projects.filter(project => project.published);
+  const publishedStudios = state.studios.filter(studio => studio.published);
+  $('#content').innerHTML = `
+    <div class="home-admin-intro"><div><span class="kicker">CENTRO EDITORIAL</span><h2>Controla la portada sin editar código</h2><p>Los cambios guardados se reflejan en el endpoint público agregado.</p></div><a class="action-link" href="/" target="_blank" rel="noopener noreferrer">Ver portada ↗</a></div>
+    ${homeCollection('hero-projects', 'Hero', 'Elige proyectos publicados. El peso influye en el orden de cada ronda sin repetir proyectos.', data.heroProjects || [], publishedProjects, 'title')}
+    ${homeCollection('featured-projects', 'Proyectos destacados', 'La selección manual tiene prioridad; la cantidad y el autocompletado viven en su sección.', data.featuredProjects || [], publishedProjects, 'title')}
+    ${homeCollection('featured-studios', 'Estudios destacados', 'Selecciona, activa y ordena estudios publicados.', data.featuredStudios || [], publishedStudios, 'name')}
+
+    <section class="panel-card home-admin-block" data-home-sections>
+      <header class="home-block-heading"><div><h2>Secciones de contenido</h2><p>Orden, activación, título, cantidad y modo de cada fila de la portada.</p></div><button id="newHomeSection" type="button">+ Nueva sección</button></header>
+      <div class="home-section-list">${sections.map((section, index) => `<article class="home-section-item" data-section-index="${index}"><span class="home-position">${index + 1}</span><div><strong>${esc(section.title || sectionTypeLabel(section.sectionType))}</strong><small>${esc(sectionTypeLabel(section.sectionType))} · máximo ${section.maxItems}${section.persisted ? '' : ' · default sin guardar'}</small></div><label class="switch-field"><input type="checkbox" data-section-enabled ${section.enabled ? 'checked' : ''}><span>Activa</span></label><div class="home-order"><button type="button" data-section-move="-1" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-section-move="1" ${index === sections.length - 1 ? 'disabled' : ''}>↓</button><button type="button" data-section-edit>Editar</button>${section.isDefault || !section.persisted ? '' : '<button class="danger" type="button" data-section-remove>×</button>'}</div></article>`).join('')}</div>
+    </section>
+
+    <section class="panel-card home-admin-block" data-home-banners>
+      <header class="home-block-heading"><div><h2>Banners / Novedades</h2><p>Promociones internas con imagen opcional, enlace seguro y programación por fechas.</p></div><button id="newHomeBanner" type="button">+ Crear banner</button></header>
+      <div class="home-banner-list">${(data.banners || []).map(banner => `<article class="home-banner-item" data-banner-id="${esc(banner.id)}">${banner.imageUrl ? `<img src="${esc(banner.imageUrl)}" alt="">` : '<span class="banner-placeholder">Novedad</span>'}<div><strong>${esc(banner.title)}</strong><small>${esc(banner.label || 'Sin etiqueta')} · posición ${banner.position}${banner.startsAt ? ` · desde ${esc(dateLabel(banner.startsAt))}` : ''}${banner.endsAt ? ` · hasta ${esc(dateLabel(banner.endsAt))}` : ''}</small></div>${banner.enabled ? badge('Activo', 'green') : badge('Inactivo', 'red')}<div class="row-actions"><button class="action-btn" type="button" data-banner-edit>Editar</button><button class="action-btn danger" type="button" data-banner-remove>Eliminar</button></div></article>`).join('') || '<div class="empty compact-empty">Todavía no hay banners editoriales.</div>'}</div>
+    </section>
+
+    <section class="panel-card home-admin-block">
+      <header class="home-block-heading"><div><h2>Configuración general</h2><p>Nombre visible, footer, contacto y redes públicas. Los campos vacíos no se muestran.</p></div></header>
+      <form id="siteSettingsForm" class="home-settings-grid">
+        ${field('siteName', 'Nombre visible', site.siteName || 'DUBVERSE')}
+        ${field('publicEmail', 'Correo público', site.publicEmail || '', 'email')}
+        ${field('footerSlogan', 'Slogan del footer', site.footerSlogan || '', 'text', true)}
+        ${field('description', 'Descripción breve', site.description || '', 'textarea', true)}
+        ${field('copyrightText', 'Texto de copyright', site.copyrightText || '', 'text', true)}
+        ${field('website', 'Sitio web / contacto', socials.website || '', 'url')}
+        ${field('facebook', 'Facebook', socials.facebook || '', 'url')}
+        ${field('instagram', 'Instagram', socials.instagram || '', 'url')}
+        ${field('x', 'X / Twitter', socials.x || socials.twitter || '', 'url')}
+        ${field('youtube', 'YouTube', socials.youtube || '', 'url')}
+        ${field('discord', 'Discord', socials.discord || '', 'url')}
+        ${field('tiktok', 'TikTok', socials.tiktok || '', 'url')}
+        <div class="home-settings-actions"><button type="submit">Guardar configuración</button></div>
+      </form>
+    </section>`;
+  bindHomeAdmin(sections);
+}
+
+async function saveHomeCollection(kind, id, body, method = 'PATCH') {
+  await api(`/api/admin/home/${kind}/${encodeURIComponent(id)}`, { method, body: JSON.stringify(body) });
+}
+
+async function reorderHomeCollection(kind, items, index, direction) {
+  const target = index + direction;
+  if (target < 0 || target >= items.length) return;
+  [items[index], items[target]] = [items[target], items[index]];
+  await Promise.all(items.map((item, position) => saveHomeCollection(kind, item.projectId || item.studioId, { enabled: item.enabled, position: position * 10, weight: item.weight || 1 })));
+}
+
+async function persistHomeSection(section, updates = {}) {
+  const body = { ...section, ...updates };
+  delete body.id;
+  delete body.persisted;
+  if (section.id) return api(`/api/admin/home/sections/${encodeURIComponent(section.id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+  const result = await api('/api/admin/home/sections', { method: 'POST', body: JSON.stringify(body) });
+  section.id = result.id;
+  section.persisted = true;
+  return result;
+}
+
+function bindHomeAdmin(sections) {
+  $$('[data-home-collection]').forEach(block => {
+    const kind = block.dataset.homeCollection;
+    const items = kind === 'hero-projects' ? state.home.heroProjects : kind === 'featured-projects' ? state.home.featuredProjects : state.home.featuredStudios;
+    $('[data-home-add-search]', block).oninput = event => {
+      const query = event.target.value.trim().toLowerCase();
+      const select = $('[data-home-add-select]', block);
+      [...select.options].slice(1).forEach(option => { option.hidden = Boolean(query && !option.textContent.toLowerCase().includes(query)); });
+      if (select.selectedOptions[0]?.hidden) select.value = '';
+    };
+    $('[data-home-add]', block).onclick = async () => {
+      const id = $('[data-home-add-select]', block).value;
+      if (!id) return flash('Selecciona un recurso publicado.', 'error');
+      try { await api(`/api/admin/home/${kind}`, { method: 'POST', body: JSON.stringify({ resourceId: id, enabled: true, position: items.length * 10, weight: 1 }) }); flash('Elemento agregado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); }
+    };
+    $$('[data-resource-id]', block).forEach((card, index) => {
+      const item = items[index];
+      $('[data-home-enabled]', card).onchange = async event => { try { await saveHomeCollection(kind, card.dataset.resourceId, { enabled: event.target.checked, position: item.position, weight: $('[data-home-weight]', card)?.value || item.weight || 1 }); flash('Estado actualizado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } };
+      $('[data-home-weight]', card)?.addEventListener('change', async event => { try { await saveHomeCollection(kind, card.dataset.resourceId, { enabled: item.enabled, position: item.position, weight: Number(event.target.value) }); flash('Peso actualizado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } });
+      $$('[data-home-move]', card).forEach(button => button.onclick = async () => { try { await reorderHomeCollection(kind, items, index, Number(button.dataset.homeMove)); flash('Orden actualizado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } });
+      $('[data-home-remove]', card).onclick = async () => { if (!confirm('¿Quitar este elemento de la selección manual?')) return; try { await saveHomeCollection(kind, card.dataset.resourceId, {}, 'DELETE'); flash('Elemento quitado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } };
+    });
+  });
+
+  $('#newHomeSection').onclick = () => openHomeSection();
+  $$('.home-section-item').forEach((card, index) => {
+    const section = sections[index];
+    $('[data-section-edit]', card).onclick = () => openHomeSection(section);
+    $('[data-section-enabled]', card).onchange = async event => { try { await persistHomeSection(section, { enabled: event.target.checked }); flash('Sección actualizada'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } };
+    $$('[data-section-move]', card).forEach(button => button.onclick = async () => {
+      const target = index + Number(button.dataset.sectionMove);
+      if (target < 0 || target >= sections.length) return;
+      [sections[index], sections[target]] = [sections[target], sections[index]];
+      try { for (let position = 0; position < sections.length; position += 1) await persistHomeSection(sections[position], { position: position * 10 }); flash('Orden de portada actualizado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); }
+    });
+    $('[data-section-remove]', card)?.addEventListener('click', async () => { if (!confirm('¿Eliminar esta sección de la portada?')) return; try { await api(`/api/admin/home/sections/${encodeURIComponent(section.id)}`, { method: 'DELETE' }); flash('Sección eliminada'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } });
+  });
+
+  $('#newHomeBanner').onclick = () => openHomeBanner();
+  $$('.home-banner-item').forEach(card => {
+    const banner = state.home.banners.find(item => item.id === card.dataset.bannerId);
+    $('[data-banner-edit]', card).onclick = () => openHomeBanner(banner);
+    $('[data-banner-remove]', card).onclick = async () => { if (!confirm('¿Eliminar definitivamente este banner editorial?')) return; try { await api(`/api/admin/home/banners/${encodeURIComponent(banner.id)}`, { method: 'DELETE' }); flash('Banner eliminado'); await navigate('home'); } catch (error) { flash(error.message, 'error'); } };
+  });
+
+  $('#siteSettingsForm').onsubmit = async event => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const socialKeys = ['website', 'facebook', 'instagram', 'x', 'youtube', 'discord', 'tiktok'];
+    const socials = Object.fromEntries(socialKeys.filter(key => values[key]?.trim()).map(key => [key, values[key].trim()]));
+    socialKeys.forEach(key => delete values[key]);
+    try { await api('/api/admin/home/settings', { method: 'POST', body: JSON.stringify({ ...values, socials }) }); flash('Configuración guardada'); await navigate('home'); } catch (error) { flash(error.message, 'error'); }
+  };
 }
 
 function projects() {
@@ -517,7 +681,7 @@ function field(name, label, value = '', type = 'text', full = false, options = [
   if (type === 'checkbox') return `<label class="field checkbox ${full ? 'full' : ''}"><input name="${name}" type="checkbox" ${value ? 'checked' : ''}><span>${label}</span></label>`;
   if (type === 'textarea') return `<label class="field ${full ? 'full' : ''}"><span>${label}</span><textarea name="${name}">${esc(value)}</textarea></label>`;
   if (type === 'select') return `<label class="field ${full ? 'full' : ''}"><span>${label}</span><select name="${name}">${options.map(option => `<option value="${esc(option.value ?? option)}" ${(option.value ?? option) === value ? 'selected' : ''}>${esc(option.label ?? option)}</option>`).join('')}</select></label>`;
-  const min = type === 'number' ? ' min="1" step="1"' : '';
+  const min = type === 'number' ? ` min="${name === 'position' ? 0 : 1}" step="1"` : '';
   return `<label class="field ${full ? 'full' : ''}"><span>${label}</span><input name="${name}" type="${type}" value="${esc(value)}"${min}></label>`;
 }
 
@@ -742,6 +906,61 @@ function openEpisode(episode = null) {
   }
 }
 
+function curatedProjectChecks(section) {
+  const selected = new Set((state.home?.curated || []).filter(item => item.sectionId === section?.id).map(item => item.projectId));
+  return `<fieldset class="field full studio-selector home-project-selector"><legend>Proyectos de esta selección</legend><div>${state.projects.filter(project => project.published).map(project => `<label><input type="checkbox" name="projectIds" value="${esc(project.id)}" ${selected.has(project.id) ? 'checked' : ''}><span>${esc(project.title)}</span></label>`).join('') || '<small>No hay proyectos publicados.</small>'}</div></fieldset>`;
+}
+
+function openHomeSection(section = null) {
+  resetEditor('home-sections', section?.id || null);
+  editor.homeSection = section;
+  const type = section?.sectionType || 'RECENT';
+  const system = Boolean(section?.isDefault);
+  const typeOptions = system ? [{ value: type, label: sectionTypeLabel(type) }] : HOME_SECTION_TYPE_OPTIONS;
+  $('#editorTitle').textContent = section ? 'Editar sección' : 'Nueva sección';
+  $('#editorKicker').textContent = 'Portada · Sección';
+  fields.innerHTML =
+    field('sectionKey', 'Clave interna', section?.sectionKey || '', 'text') +
+    field('sectionType', 'Modo', type, 'select', false, typeOptions) +
+    field('title', 'Título visible', section?.title || '') +
+    field('subtitle', 'Subtítulo opcional', section?.subtitle || '', 'text') +
+    field('position', 'Posición', section?.position ?? 70, 'number') +
+    field('maxItems', 'Cantidad máxima', section?.maxItems || 8, 'number') +
+    field('filterStatus', 'Estado para modo automático', section?.configuration?.status || 'ONGOING', 'select', false, HOME_STATUS_OPTIONS) +
+    field('filterType', 'Tipo para modo automático', section?.configuration?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
+    field('autoFill', 'Completar espacios automáticamente', section?.configuration?.autoFill !== false, 'checkbox', true) +
+    field('enabled', 'Sección activa', section?.enabled !== false, 'checkbox', true) +
+    curatedProjectChecks(section);
+  dialog.showModal();
+}
+
+function localDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function openHomeBanner(banner = null) {
+  resetEditor('home-banners', banner?.id || null);
+  $('#editorTitle').textContent = banner ? 'Editar banner' : 'Nuevo banner';
+  $('#editorKicker').textContent = 'Portada · Novedad';
+  fields.innerHTML =
+    field('label', 'Etiqueta', banner?.label || 'NOVEDAD') +
+    field('title', 'Título', banner?.title || '') +
+    field('description', 'Descripción', banner?.description || '', 'textarea', true) +
+    imageField('imageUrl', 'Imagen horizontal opcional', banner?.imageUrl || '', 'home-banners', true) +
+    field('linkUrl', 'Enlace interno o HTTPS', banner?.linkUrl || '', 'text', true) +
+    field('buttonText', 'Texto del botón', banner?.buttonText || '') +
+    field('position', 'Posición en portada', banner?.position ?? 25, 'number') +
+    field('startsAt', 'Mostrar desde (opcional)', localDateTime(banner?.startsAt), 'datetime-local') +
+    field('endsAt', 'Mostrar hasta (opcional)', localDateTime(banner?.endsAt), 'datetime-local') +
+    field('enabled', 'Banner activo', banner?.enabled !== false, 'checkbox', true);
+  dialog.showModal();
+  bindImageUploads();
+}
+
 async function closeEditor() {
   if (editor.uploading) return flash('Espera a que termine la subida.', 'error');
   dialog.close();
@@ -761,11 +980,25 @@ $('#editorForm').addEventListener('submit', async event => {
 
   const formData = new FormData(event.currentTarget);
   const body = {};
-  for (const [key, value] of formData) if (key !== 'studioIds') body[key] = value;
-  $$('input[type="checkbox"]', fields).filter(input => input.name !== 'studioIds').forEach(input => body[input.name] = input.checked);
+  for (const [key, value] of formData) if (!['studioIds', 'projectIds'].includes(key)) body[key] = value;
+  $$('input[type="checkbox"]', fields).filter(input => !['studioIds', 'projectIds'].includes(input.name)).forEach(input => body[input.name] = input.checked);
   if (editor.kind === 'projects') body.studioIds = $$('input[name="studioIds"]:checked', fields).map(input => input.value);
   if (body.genres) body.genres = body.genres.split(',').map(item => item.trim()).filter(Boolean);
   ['season', 'number'].forEach(key => { if (key in body) body[key] = Number(body[key]); });
+
+  if (editor.kind === 'home-sections') {
+    body.position = Number(body.position);
+    body.maxItems = Number(body.maxItems);
+    body.configuration = {};
+    if (body.sectionType === 'AUTO_STATUS') body.configuration.status = body.filterStatus;
+    if (body.sectionType === 'AUTO_TYPE') body.configuration.type = body.filterType;
+    if (['FEATURED_PROJECTS', 'FEATURED_STUDIOS'].includes(body.sectionType)) body.configuration.autoFill = body.autoFill;
+    body.projectIds = $$('input[name="projectIds"]:checked', fields).map(input => input.value);
+    delete body.filterStatus;
+    delete body.filterType;
+    delete body.autoFill;
+  }
+  if (editor.kind === 'home-banners') body.position = Number(body.position);
 
   if (editor.kind === 'studios') {
     try {
@@ -782,7 +1015,15 @@ $('#editorForm').addEventListener('submit', async event => {
   $('#editorStatus').textContent = 'Guardando cambios…';
 
   try {
-    if (editor.id) {
+    if (editor.kind === 'home-sections' && !editor.id) {
+      await api('/api/admin/home/sections', { method: 'POST', body: JSON.stringify(body) });
+    } else if (editor.kind === 'home-sections') {
+      await api(`/api/admin/home/sections/${encodeURIComponent(editor.id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+    } else if (editor.kind === 'home-banners' && !editor.id) {
+      await api('/api/admin/home/banners', { method: 'POST', body: JSON.stringify(body) });
+    } else if (editor.kind === 'home-banners') {
+      await api(`/api/admin/home/banners/${encodeURIComponent(editor.id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+    } else if (editor.id) {
       await api(`/api/admin/${editor.kind}/${encodeURIComponent(editor.id)}`, { method: 'PATCH', body: JSON.stringify(body) });
     } else {
       await api(`/api/admin/${editor.kind}`, { method: 'POST', body: JSON.stringify(body) });

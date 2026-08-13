@@ -1,6 +1,6 @@
 const app = document.querySelector('#app');
 const state = {
-  projects: [], studios: [], settings: {}, loaded: false,
+  projects: [], studios: [], settings: {}, home: null, loaded: false,
   social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, viewer: null, loaded: false,
     notifications: { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false } }
 };
@@ -12,6 +12,7 @@ const esc = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
 const typeLabel = type => ({ SERIES: 'Serie', MOVIE: 'Película', OVA: 'OVA', SPECIAL: 'Especial', MANGA_COMIC_DUB: 'Manga / Comic Dub' }[type] || type);
 const statusLabel = status => ({ ONGOING: 'En emisión', FINISHED: 'Finalizado', PAUSED: 'Pausado', CANCELLED: 'Cancelado' }[status] || status);
 const imageOrFallback = value => value || '/assets/dubverse-icon.png';
+const cssUrl = value => String(value || '').replace(/["'\\()\s]/g, char => encodeURIComponent(char));
 const PUBLIC_PATH = /^\/(?:catalogo|estudios|acerca|perfil|(?:estudio|proyecto|ver|u)\/[^/]+)?\/?$/;
 const normalizeText = value => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const dateLabel = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value)) : '';
@@ -155,13 +156,34 @@ async function loadSocial() {
 
 async function loadBase() {
   if (state.loaded) return;
-  [state.projects, state.studios, state.settings] = await Promise.all([
-    api('/api/projects'),
-    api('/api/studios'),
-    api('/api/settings')
-  ]);
+  const home = await api('/api/home').catch(() => null);
+  if (home?.catalog) {
+    state.home = home;
+    state.projects = home.catalog.projects || [];
+    state.studios = home.catalog.studios || [];
+    state.settings = home.site || {};
+  } else {
+    [state.projects, state.studios, state.settings] = await Promise.all([
+      api('/api/projects'), api('/api/studios'), api('/api/settings')
+    ]);
+  }
   state.loaded = true;
   await loadSocial();
+  applySiteSettings();
+}
+
+function applySiteSettings() {
+  const site = state.home?.site || state.settings || {};
+  const name = site.siteName || 'DUBVERSE';
+  document.title = `${name} — Fandoblaje`;
+  const footer = document.querySelector('.site-footer');
+  if (!footer) return;
+  const socials = site.socials || {};
+  const links = Object.entries(socials).map(([key, value]) => ({ key, url: safeExternalUrl(value) })).filter(item => item.url);
+  footer.innerHTML = `<div><img src="/assets/dubverse-logo.png" alt="${esc(name)}"><strong class="footer-site-name">${esc(name)}</strong>${site.footerSlogan ? `<p>${esc(site.footerSlogan)}</p>` : ''}${site.description ? `<small>${esc(site.description)}</small>` : ''}</div>
+    <div class="footer-links"><a href="/catalogo">Catálogo</a><a href="/estudios">Estudios</a><a href="/acerca">Aviso</a>${site.publicEmail ? `<a href="mailto:${esc(site.publicEmail)}">Contacto</a>` : ''}</div>
+    ${links.length ? `<div class="footer-socials" aria-label="Redes de ${esc(name)}">${links.map(item => `<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(socialLabel(item.key))}">${uiIcon(socialIconName(item.key))}</a>`).join('')}</div>` : ''}
+    ${site.copyrightText ? `<p class="footer-copyright">${esc(site.copyrightText)}</p>` : ''}`;
 }
 
 function avatarImage(profile) {
@@ -347,10 +369,35 @@ function renderCards(projects, target) {
   if (!projects.length) target.innerHTML = '<div class="empty">No encontré proyectos con esos filtros.</div>';
 }
 
-function home() {
+const HERO_BAG_KEY = 'dubverse:home-hero-bag:v1';
+
+function nextHeroFromBag(projects, storage = sessionStorage) {
+  const unique = [...new Map((projects || []).map(project => [project.id, project])).values()];
+  if (!unique.length) return null;
+  const signature = unique.map(project => `${project.id}:${Number(project.heroWeight || 1)}`).sort().join('|');
+  let bag = null;
+  try { bag = JSON.parse(storage.getItem(HERO_BAG_KEY) || 'null'); } catch {}
+  if (!bag || bag.signature !== signature || !Array.isArray(bag.queue) || bag.queue.some(id => !unique.some(project => project.id === id))) bag = { signature, queue: [], last: bag?.last || '' };
+  if (!bag.queue.length) {
+    bag.queue = unique.map(project => ({
+      id: project.id,
+      key: Math.pow(Math.max(Number.EPSILON, Math.random()), 1 / Math.max(1, Math.min(10, Number(project.heroWeight || 1))))
+    })).sort((left, right) => right.key - left.key).map(project => project.id);
+    if (unique.length > 1 && bag.queue[0] === bag.last) {
+      const different = bag.queue.findIndex(id => id !== bag.last);
+      if (different > 0) [bag.queue[0], bag.queue[different]] = [bag.queue[different], bag.queue[0]];
+    }
+  }
+  const selectedId = bag.queue.shift();
+  bag.last = selectedId;
+  try { storage.setItem(HERO_BAG_KEY, JSON.stringify(bag)); } catch {}
+  return unique.find(project => project.id === selectedId) || unique[0];
+}
+
+function legacyHome() {
   const featured = state.projects.filter(project => project.featured);
   const source = featured.length ? featured : state.projects;
-  const hero = source[Math.floor(Math.random() * Math.max(source.length, 1))];
+  const hero = nextHeroFromBag(source);
 
   if (!hero) {
     app.innerHTML = '<div class="empty empty-page"><h2>Dubverse está listo</h2><p>Todavía no hay proyectos publicados.</p></div>';
@@ -359,7 +406,7 @@ function home() {
 
   app.innerHTML = `
     <section class="hero">
-      <div class="hero-bg" style="background-image:url('${esc(imageOrFallback(hero.banner || hero.poster))}')"></div>
+      <div class="hero-bg" style="background-image:url('${esc(cssUrl(imageOrFallback(hero.banner || hero.poster)))}')"></div>
       <div class="hero-content">
         <span class="eyebrow">● Proyecto destacado</span>
         <h1>${esc(hero.title)}</h1>
@@ -398,6 +445,33 @@ function home() {
   renderCards(source.slice(0, 6), $('#featuredGrid'));
 }
 
+function projectRow(section) {
+  return `<section class="section home-row" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2>${section.subtitle ? `<p>${esc(section.subtitle)}</p>` : ''}</div>${section.href ? `<a href="${esc(section.href)}">Ver todo →</a>` : ''}</div><div class="project-row" data-project-row></div></section>`;
+}
+
+function studioRow(section) {
+  return `<section class="section" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2>${section.subtitle ? `<p>${esc(section.subtitle)}</p>` : ''}</div><a href="/estudios">Conocer estudios →</a></div><div class="studio-strip">${section.items.map(studio => `<a class="studio-mini" href="/estudio/${encodeURIComponent(studio.id)}"><img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}"><div><strong>${esc(studio.name)}</strong><span>${studio.projects?.length || 0} proyectos</span></div></a>`).join('')}</div></section>`;
+}
+
+function editorialBanner(section) {
+  const banner = section.banner;
+  const external = /^https:\/\//i.test(banner.linkUrl || '');
+  return `<section class="section editorial-wrap" data-home-section="${esc(section.sectionKey)}"><article class="editorial-banner ${banner.imageUrl ? 'has-image' : ''}">${banner.imageUrl ? `<div class="editorial-image" style="background-image:url('${esc(cssUrl(banner.imageUrl))}')"></div>` : ''}<div class="editorial-copy">${banner.label ? `<span class="eyebrow">${esc(banner.label)}</span>` : ''}<h2>${esc(banner.title)}</h2>${banner.description ? `<p>${esc(banner.description)}</p>` : ''}${banner.linkUrl ? `<a class="btn btn-primary" href="${esc(banner.linkUrl)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${esc(banner.buttonText || 'Ver más')}</a>` : ''}</div></article></section>`;
+}
+
+function home() {
+  if (!state.home) return legacyHome();
+  const sections = state.home.sections || [];
+  const hero = nextHeroFromBag(sections.find(section => section.sectionType === 'HERO')?.items || []);
+  const content = sections.filter(section => section.sectionType !== 'HERO').map(section => section.sectionType === 'BANNER' ? editorialBanner(section) : section.sectionType === 'FEATURED_STUDIOS' ? studioRow(section) : projectRow(section)).join('');
+  const heroMarkup = hero ? `<section class="hero" data-home-section="hero"><div class="hero-bg" style="background-image:url('${esc(cssUrl(imageOrFallback(hero.banner || hero.poster)))}')"></div><div class="hero-content"><span class="eyebrow">● Proyecto destacado</span><h1>${esc(hero.title)}</h1><p>${esc(hero.synopsis)}</p><div class="hero-actions"><a class="btn btn-primary" href="/proyecto/${encodeURIComponent(hero.id)}">▶ Ver proyecto</a><a class="btn btn-secondary" href="/catalogo">Explorar catálogo</a></div></div></section>` : '';
+  app.innerHTML = heroMarkup + content || '<div class="empty empty-page"><h2>Portada en preparación</h2><p>Explora el catálogo mientras preparamos novedades.</p></div>';
+  sections.filter(section => !['HERO', 'BANNER', 'FEATURED_STUDIOS'].includes(section.sectionType)).forEach(section => {
+    const target = $(`[data-home-section="${CSS.escape(section.sectionKey)}"] [data-project-row]`);
+    section.items.forEach(project => target.append(projectCard(project)));
+  });
+}
+
 function catalog() {
   const genres = [...new Set(state.projects.flatMap(project => project.genres || []))].sort((a, b) => a.localeCompare(b, 'es'));
   const params = new URLSearchParams(location.search);
@@ -406,6 +480,7 @@ function catalog() {
   const selectedGenres = genres.filter(genre => selectedNormalized.has(normalizeText(genre)));
   const initialQuery = params.get('q') || '';
   const initialType = params.get('type') || '';
+  const initialStatus = params.get('status') || '';
   app.innerHTML = `
     <header class="page-header">
       <span class="eyebrow">Catálogo completo</span>
@@ -414,6 +489,7 @@ function catalog() {
       <div class="catalog-tools">
         <input id="catalogSearch" type="search" value="${esc(initialQuery)}" placeholder="Buscar por título o sinopsis" />
         <select id="typeFilter"><option value="">Todos los tipos</option><option value="SERIES">Series</option><option value="MOVIE">Películas</option><option value="OVA">OVA</option><option value="SPECIAL">Especiales</option><option value="MANGA_COMIC_DUB">Manga / Comic Dub</option></select>
+        <select id="statusFilter"><option value="">Todos los estados</option><option value="ONGOING">En emisión</option><option value="FINISHED">Finalizados</option><option value="PAUSED">Pausados</option><option value="CANCELLED">Cancelados</option></select>
       </div>
       <fieldset class="genre-filter"><legend>Géneros <small>Coincidencia amplia por relevancia</small></legend>
         <div>${genres.map(genre => `<label><input type="checkbox" name="genre" value="${esc(genre)}" ${selectedGenres.includes(genre) ? 'checked' : ''}> <span>${esc(genre)}</span></label>`).join('')}</div>
@@ -427,13 +503,16 @@ function catalog() {
   `;
 
   $('#typeFilter').value = initialType;
+  $('#statusFilter').value = initialStatus;
 
   const updateUrl = mode => {
     const next = new URLSearchParams();
     const query = $('#catalogSearch').value.trim();
     const type = $('#typeFilter').value;
+    const status = $('#statusFilter').value;
     if (query) next.set('q', query);
     if (type) next.set('type', type);
+    if (status) next.set('status', status);
     $$('input[name="genre"]:checked').forEach(input => next.append('genre', input.value));
     const destination = `/catalogo${next.size ? `?${next}` : ''}`;
     history[mode === 'push' ? 'pushState' : 'replaceState'](null, '', destination);
@@ -443,9 +522,11 @@ function catalog() {
     let list = [...state.projects];
     const query = normalizeText($('#catalogSearch').value.trim());
     const type = $('#typeFilter').value;
+    const status = $('#statusFilter').value;
     const chosen = $$('input[name="genre"]:checked').map(input => normalizeText(input.value));
     if (query) list = list.filter(project => normalizeText(`${project.title} ${project.synopsis}`).includes(query));
     if (type) list = list.filter(project => project.type === type);
+    if (status) list = list.filter(project => project.status === status);
     if (chosen.length) {
       list = list.map((project, index) => {
         const projectGenres = new Set((project.genres || []).map(normalizeText));
@@ -457,9 +538,10 @@ function catalog() {
 
   $('#catalogSearch').addEventListener('input', () => { updateUrl('replace'); draw(); });
   $('#typeFilter').addEventListener('change', () => { updateUrl('push'); draw(); });
+  $('#statusFilter').addEventListener('change', () => { updateUrl('push'); draw(); });
   $$('input[name="genre"]').forEach(input => input.addEventListener('change', () => { updateUrl('push'); draw(); }));
   $('#clearGenres').onclick = () => { $$('input[name="genre"]').forEach(input => { input.checked = false; }); updateUrl('push'); draw(); };
-  $('#clearFilters').onclick = () => { $('#catalogSearch').value = ''; $('#typeFilter').value = ''; $$('input[name="genre"]').forEach(input => { input.checked = false; }); updateUrl('push'); draw(); };
+  $('#clearFilters').onclick = () => { $('#catalogSearch').value = ''; $('#typeFilter').value = ''; $('#statusFilter').value = ''; $$('input[name="genre"]').forEach(input => { input.checked = false; }); updateUrl('push'); draw(); };
   draw();
 }
 

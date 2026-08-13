@@ -30,6 +30,7 @@ export default function AdminPage() {
           </a>
           <nav aria-label="Secciones del panel">
             <button data-tab="dashboard" className="active" type="button">▦ <span>Resumen</span></button>
+            <button data-tab="home" type="button">⌂ <span>Portada</span></button>
             <button data-tab="projects" type="button">▣ <span>Proyectos</span></button>
             <button data-tab="episodes" type="button">▶ <span>Episodios</span></button>
             <button data-tab="studios" type="button">◉ <span>Estudios</span></button>
