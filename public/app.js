@@ -14,6 +14,7 @@ const statusLabel = status => ({ ONGOING: 'En emisión', FINISHED: 'Finalizado',
 const imageOrFallback = value => value || '/assets/dubverse-icon.png';
 const cssUrl = value => String(value || '').replace(/["'\\()\s]/g, char => encodeURIComponent(char));
 const PUBLIC_PATH = /^\/(?:catalogo|estudios|acerca|perfil|(?:estudio|proyecto|ver|u)\/[^/]+)?\/?$/;
+const NEWS_V12_HIDDEN_KEY = 'dubverse:news:v1.2:hidden';
 const normalizeText = value => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const dateLabel = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value)) : '';
 const socialLabel = key => ({
@@ -1409,6 +1410,22 @@ function about() {
   `;
 }
 
+function newsV12IsHidden() {
+  try {
+    return localStorage.getItem(NEWS_V12_HIDDEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function showNewsV12() {
+  const newsDialog = $('#newsDialog');
+  if (!newsDialog || newsDialog.open || newsV12IsHidden()) return;
+  const hideOption = $('#newsHideDevice');
+  if (hideOption) hideOption.checked = false;
+  newsDialog.showModal();
+}
+
 async function router({ preserveScroll = false, recordHistory = true } = {}) {
   try {
     await loadBase();
@@ -1419,7 +1436,11 @@ async function router({ preserveScroll = false, recordHistory = true } = {}) {
       link.classList.toggle('active', linkPath === currentPath);
     });
     if (!preserveScroll) window.scrollTo(0, 0);
-    if (!parts.length) return home();
+    if (!parts.length) {
+      home();
+      showNewsV12();
+      return;
+    }
     if (parts[0] === 'catalogo') return catalog();
     if (parts[0] === 'estudios') return studios();
     if (parts[0] === 'estudio' && parts[1]) return studioPage(parts[1]);
@@ -1446,6 +1467,7 @@ const mainNav = $('#mainNav');
 const accountTrigger = $('#accountTrigger');
 const accountMenu = $('#accountMenu');
 const loginDialog = $('#loginDialog');
+const newsDialog = $('#newsDialog');
 const notificationTrigger = $('#notificationTrigger');
 const notificationPanel = $('#notificationPanel');
 
@@ -1477,6 +1499,15 @@ $('#readAllNotifications').onclick = async () => {
 $('#closeLogin').addEventListener('click', () => loginDialog.close());
 loginDialog.addEventListener('click', event => {
   if (event.target === loginDialog) loginDialog.close();
+});
+
+newsDialog?.addEventListener('close', () => {
+  if (!$('#newsHideDevice')?.checked) return;
+  try {
+    localStorage.setItem(NEWS_V12_HIDDEN_KEY, '1');
+  } catch {
+    // El modal sigue funcionando aunque el navegador bloquee el almacenamiento local.
+  }
 });
 
 document.addEventListener('click', event => {
