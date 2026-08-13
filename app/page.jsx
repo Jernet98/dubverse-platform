@@ -92,6 +92,40 @@ export default function HomePage() {
         </div>
       </dialog>
 
+      <dialog
+        id="newsDialog"
+        className="news-dialog"
+        aria-labelledby="newsTitle"
+        aria-describedby="newsIntro"
+      >
+        <form method="dialog" className="news-shell">
+          <button className="dialog-close" value="close" aria-label="Cerrar novedades">×</button>
+          <div className="news-brandmark" aria-hidden="true">
+            <img src="/assets/dubverse-icon.png" alt="" />
+          </div>
+          <span className="eyebrow">Novedades</span>
+          <h2 id="newsTitle">Dubverse v1.2 — La comunidad ya está aquí</h2>
+          <p id="newsIntro">Todo lo nuevo que ya puedes disfrutar en Dubverse:</p>
+          <ul className="news-list">
+            <li><span aria-hidden="true">✓</span><span>Inicio de sesión con Google y Discord.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Perfiles de usuario.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Likes, favoritos y Ver después.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Historial y episodios vistos.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Comentarios, respuestas y likes.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Seguidores y notificaciones.</span></li>
+            <li><span aria-hidden="true">✓</span><span>Nueva página principal con secciones, destacados y banners editoriales.</span></li>
+          </ul>
+          <label className="news-hide-option">
+            <input id="newsHideDevice" type="checkbox" />
+            <span>
+              <strong>No volver a mostrar en este dispositivo</strong>
+              <small>Esta preferencia se guarda únicamente en este navegador.</small>
+            </span>
+          </label>
+          <button className="btn btn-primary news-continue" value="close">Continuar en Dubverse</button>
+        </form>
+      </dialog>
+
       <Script src="/app.js" strategy="afterInteractive" />
     </>
   );
