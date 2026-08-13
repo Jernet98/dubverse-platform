@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  turbopack: { root: process.cwd() },
   async rewrites() {
     return [
       { source: '/catalogo', destination: '/' },
@@ -8,7 +9,9 @@ const nextConfig = {
       { source: '/acerca', destination: '/' },
       { source: '/estudio/:id', destination: '/' },
       { source: '/proyecto/:id', destination: '/' },
-      { source: '/ver/:episodeId', destination: '/' }
+      { source: '/ver/:episodeId', destination: '/' },
+      { source: '/u/:username', destination: '/' },
+      { source: '/perfil', destination: '/' }
     ];
   }
 };

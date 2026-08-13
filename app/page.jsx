@@ -32,6 +32,22 @@ export default function HomePage() {
         <button className="search-trigger" id="searchTrigger" type="button" aria-label="Buscar">
           ⌕
         </button>
+
+        <div className="notification-slot hidden" id="notificationSlot">
+          <button className="notification-trigger" id="notificationTrigger" type="button" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+            <span aria-hidden="true">🔔</span><strong className="hidden" id="notificationBadge">0</strong>
+          </button>
+          <section className="notification-panel hidden" id="notificationPanel" aria-label="Notificaciones recientes">
+            <header><strong>Notificaciones</strong><button id="readAllNotifications" type="button">Marcar todas como leídas</button></header>
+            <div className="notification-list" id="notificationList"></div>
+            <button className="notification-more hidden" id="moreNotifications" type="button">Ver más</button>
+          </section>
+        </div>
+
+        <div className="account-slot" id="accountSlot">
+          <button className="account-trigger" id="accountTrigger" type="button" aria-haspopup="dialog" aria-expanded="false">Iniciar sesión</button>
+          <div className="account-menu hidden" id="accountMenu" role="menu"></div>
+        </div>
       </header>
 
       <main id="app" aria-live="polite">
@@ -58,6 +74,22 @@ export default function HomePage() {
           </div>
           <div id="searchResults" className="search-results"></div>
         </form>
+      </dialog>
+
+      <dialog id="loginDialog" className="login-dialog">
+        <div className="login-shell">
+          <button className="dialog-close" id="closeLogin" type="button" aria-label="Cerrar">×</button>
+          <div className="login-brandmark" aria-hidden="true">
+            <img src="/assets/dubverse-icon.png" alt="" />
+          </div>
+          <span className="eyebrow">Comunidad Dubverse</span>
+          <h2>Iniciar sesión</h2>
+          <p className="login-intro">Entra a la comunidad para guardar proyectos, publicar reseñas y conversar sobre cada episodio.</p>
+          <div className="login-divider"><span>Elige una cuenta</span></div>
+          <div id="loginProviders" className="login-providers"></div>
+          <p id="loginStatus" className="form-message" role="status"></p>
+          <p className="login-note">Acceso seguro con tu proveedor. Dubverse no almacena contraseñas.</p>
+        </div>
       </dialog>
 
       <Script src="/app.js" strategy="afterInteractive" />

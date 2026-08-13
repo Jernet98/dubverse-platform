@@ -6,6 +6,20 @@ import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdmi
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
+import { socialSession } from '@/lib/social';
+import {
+  bannerValue,
+  DEFAULT_HOME_SECTIONS,
+  DEFAULT_SITE_SETTINGS,
+  diversifiedFallback,
+  HOME_DEFAULT_KEYS,
+  HOME_DEFAULT_TYPES,
+  isHomeSchemaMissing,
+  rankRecommendations,
+  sectionValue,
+  siteSettingsValue,
+  stableDailyRotate
+} from '@/lib/home-cms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -98,6 +112,115 @@ function socialsValue(value) {
   return socials;
 }
 
+function mapSiteSettings(row, legacy = {}) {
+  return {
+    siteName: row ? row.site_name : (legacy.siteName || DEFAULT_SITE_SETTINGS.siteName),
+    footerSlogan: row ? row.footer_slogan : (legacy.tagline || DEFAULT_SITE_SETTINGS.footerSlogan),
+    description: row ? row.description : DEFAULT_SITE_SETTINGS.description,
+    publicEmail: row?.public_email || '',
+    copyrightText: row?.copyright_text || '',
+    socials: row?.socials && typeof row.socials === 'object' ? row.socials : Object.fromEntries(
+      ['facebook', 'instagram', 'x', 'twitter', 'youtube', 'discord', 'tiktok', 'website', 'whatsapp']
+        .filter(key => legacy[key]).map(key => [key, legacy[key]])
+    )
+  };
+}
+
+function legacySiteSettings(legacy = {}) {
+  const legacySocials = Object.fromEntries(
+    ['facebook', 'instagram', 'x', 'twitter', 'youtube', 'discord', 'tiktok', 'website', 'whatsapp']
+      .filter(key => legacy[key]).map(key => [key, legacy[key]])
+  );
+  return {
+    siteName: legacy.siteName || DEFAULT_SITE_SETTINGS.siteName,
+    footerSlogan: legacy.tagline || DEFAULT_SITE_SETTINGS.footerSlogan,
+    description: DEFAULT_SITE_SETTINGS.description,
+    publicEmail: '',
+    copyrightText: '',
+    socials: legacySocials
+  };
+}
+
+function mapHomeSection(row) {
+  return {
+    id: row.id || null,
+    sectionKey: row.section_key || row.sectionKey,
+    sectionType: row.section_type || row.sectionType,
+    title: row.title || '',
+    subtitle: row.subtitle || '',
+    enabled: row.enabled !== false,
+    position: Number(row.position || 0),
+    maxItems: Number(row.max_items || row.maxItems || 6),
+    configuration: row.configuration && typeof row.configuration === 'object' ? row.configuration : {},
+    persisted: Boolean(row.id),
+    isDefault: HOME_DEFAULT_KEYS.has(row.section_key || row.sectionKey)
+  };
+}
+
+function mergeHomeSections(rows) {
+  const persisted = new Map(rows.map(row => [row.section_key, mapHomeSection(row)]));
+  const defaults = DEFAULT_HOME_SECTIONS.map(section => persisted.get(section.sectionKey) || mapHomeSection(section));
+  const custom = rows.filter(row => !HOME_DEFAULT_KEYS.has(row.section_key)).map(mapHomeSection);
+  return [...defaults, ...custom].sort((left, right) => left.position - right.position || left.sectionKey.localeCompare(right.sectionKey));
+}
+
+function mapEditorialBanner(row) {
+  return {
+    id: row.id,
+    label: row.label || '',
+    title: row.title,
+    description: row.description || '',
+    imageUrl: row.image_url || '',
+    linkUrl: row.link_url || '',
+    buttonText: row.button_text || '',
+    enabled: Boolean(row.enabled),
+    position: Number(row.position || 0),
+    startsAt: row.starts_at ? new Date(row.starts_at).toISOString() : null,
+    endsAt: row.ends_at ? new Date(row.ends_at).toISOString() : null
+  };
+}
+
+function existingSectionValue(row) {
+  const mapped = mapHomeSection(row);
+  return mapped;
+}
+
+function existingBannerValue(row) {
+  return mapEditorialBanner(row);
+}
+
+async function ensurePublishedProject(sql, id) {
+  const rows = await sql`SELECT id FROM projects WHERE id = ${id} AND published = true AND deleted_at IS NULL`;
+  if (!rows.length) throw new AppError(400, 'El proyecto no existe, está oculto o está en la papelera.');
+}
+
+async function ensurePublishedStudio(sql, id) {
+  const rows = await sql`SELECT id FROM studios WHERE id = ${id} AND published = true AND deleted_at IS NULL`;
+  if (!rows.length) throw new AppError(400, 'El estudio no existe, está oculto o está en la papelera.');
+}
+
+function curatedIdsValue(value) {
+  if (value === undefined) return null;
+  if (!Array.isArray(value)) throw new AppError(400, 'Los proyectos curados deben ser una lista.');
+  return [...new Set(value.map(item => requiredText(item, 'El proyecto curado')).slice(0, 12))];
+}
+
+function homeEnabledValue(value, fallback = true) {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'boolean') throw new AppError(400, 'El estado activo debe ser booleano.');
+  return value;
+}
+
+function projectCatalogUrl(section) {
+  if (section.sectionType === 'AUTO_STATUS') return `/catalogo?status=${encodeURIComponent(section.configuration.status)}`;
+  if (section.sectionType === 'AUTO_TYPE') return `/catalogo?type=${encodeURIComponent(section.configuration.type)}`;
+  return '/catalogo';
+}
+
+async function optionalHomeViewer(request) {
+  try { return await socialSession(request); } catch { return null; }
+}
+
 function assertWriteOrigin(request) {
   if (request.headers.get('x-admin-key')) return;
   const origin = request.headers.get('origin');
@@ -160,11 +283,22 @@ function isManagedBlobUrl(value) {
 }
 
 async function blobReferenceCount(sql, url) {
-  const rows = await sql`
-    SELECT
-      (SELECT COUNT(*) FROM projects WHERE poster = ${url} OR banner = ${url}) +
-      (SELECT COUNT(*) FROM studios WHERE logo = ${url}) AS references
-  `;
+  let rows;
+  try {
+    rows = await sql`
+      SELECT
+        (SELECT COUNT(*) FROM projects WHERE poster = ${url} OR banner = ${url}) +
+        (SELECT COUNT(*) FROM studios WHERE logo = ${url}) +
+        (SELECT COUNT(*) FROM editorial_banners WHERE image_url = ${url}) AS references
+    `;
+  } catch (error) {
+    if (!isHomeSchemaMissing(error)) throw error;
+    rows = await sql`
+      SELECT
+        (SELECT COUNT(*) FROM projects WHERE poster = ${url} OR banner = ${url}) +
+        (SELECT COUNT(*) FROM studios WHERE logo = ${url}) AS references
+    `;
+  }
   return Number(rows[0]?.references || 0);
 }
 
@@ -216,6 +350,170 @@ async function publicStudios(sql) {
     byStudio.get(relation.studio_id).push({ id: relation.id, title: relation.title, poster: relation.poster || '', type: relation.type });
   }
   return studios.map(row => mapStudio(row, { projects: byStudio.get(row.id) || [] }));
+}
+
+function automaticSectionProjects(section, projects) {
+  const eligible = projects.filter(project => project.published && !project.deletedAt);
+  if (section.sectionType === 'AUTO_STATUS') return eligible.filter(project => project.status === section.configuration.status);
+  if (section.sectionType === 'AUTO_TYPE') return eligible.filter(project => project.type === section.configuration.type);
+  if (section.sectionType === 'RECENT') return [...eligible].sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+  return eligible;
+}
+
+function completeManual(manual, candidates, maxItems, autoFill, salt) {
+  const chosen = [...manual];
+  if (!autoFill || chosen.length >= maxItems) return chosen.slice(0, maxItems);
+  const selected = new Set(chosen.map(item => item.id));
+  const available = stableDailyRotate(candidates.filter(item => !selected.has(item.id)), salt);
+  return [...chosen, ...available].slice(0, maxItems);
+}
+
+async function recommendationContext(sql, viewer, projects) {
+  if (!viewer) return { items: diversifiedFallback(stableDailyRotate(projects, 'anonymous')), reference: null };
+  const [references, watched] = await sql.transaction([
+    sql`SELECT p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count,
+          MAX(source.activity_at) AS activity_at
+        FROM (
+          SELECT project_id, created_at AS activity_at FROM favorites WHERE user_profile_id = ${viewer.row.id}
+          UNION ALL
+          SELECT e.project_id, h.last_viewed_at AS activity_at FROM episode_history h
+          JOIN episodes e ON e.id = h.episode_id WHERE h.user_profile_id = ${viewer.row.id}
+        ) source JOIN projects p ON p.id = source.project_id
+        LEFT JOIN episodes e ON e.project_id = p.id
+        WHERE p.published = true AND p.deleted_at IS NULL
+        GROUP BY p.id ORDER BY activity_at DESC LIMIT 8`,
+    sql`SELECT e.project_id, COUNT(DISTINCT w.episode_id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL)::int AS watched_count,
+          COUNT(DISTINCT published.id)::int AS episode_count
+        FROM episode_watched w JOIN episodes e ON e.id = w.episode_id
+        JOIN projects p ON p.id = e.project_id
+        LEFT JOIN episodes published ON published.project_id = p.id AND published.published = true AND published.deleted_at IS NULL
+        WHERE w.user_profile_id = ${viewer.row.id}
+        GROUP BY e.project_id`
+  ], { readOnly: true });
+  const completedIds = watched.filter(row => Number(row.episode_count) > 0 && Number(row.watched_count) >= Number(row.episode_count)).map(row => row.project_id);
+  const recommendation = rankRecommendations(references.map(row => mapProject(row)), projects, { completedIds });
+  if (recommendation.items.length) return recommendation;
+  return { items: diversifiedFallback(stableDailyRotate(projects, viewer.row.id)), reference: null };
+}
+
+async function publicHome(request, sql) {
+  const [projects, studios, legacyRows] = await Promise.all([
+    publicProjects(sql),
+    publicStudios(sql),
+    sql`SELECT key, value FROM settings`
+  ]);
+  const legacy = Object.fromEntries(legacyRows.map(row => [row.key, row.value]));
+  let site = mapSiteSettings(null, legacy);
+  let sections = DEFAULT_HOME_SECTIONS.map(mapHomeSection);
+  let manualProjects = [];
+  let manualStudios = [];
+  let heroProjects = [];
+  let curatedRows = [];
+  let banners = [];
+  let cmsAvailable = true;
+  try {
+    const result = await sql.transaction([
+      sql`SELECT * FROM site_settings WHERE id = 1`,
+      sql`SELECT * FROM home_sections ORDER BY position, section_key`,
+      sql`SELECT fp.*, p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
+          FROM home_featured_projects fp JOIN projects p ON p.id = fp.project_id
+          LEFT JOIN episodes e ON e.project_id = p.id
+          WHERE fp.enabled = true AND p.published = true AND p.deleted_at IS NULL
+          GROUP BY fp.project_id, fp.enabled, fp.position, fp.created_at, fp.updated_at, p.id ORDER BY fp.position, p.title`,
+      sql`SELECT fs.*, s.*, COUNT(DISTINCT ps.project_id) FILTER (WHERE p.published = true AND p.deleted_at IS NULL) AS project_count
+          FROM home_featured_studios fs JOIN studios s ON s.id = fs.studio_id
+          LEFT JOIN project_studios ps ON ps.studio_id = s.id LEFT JOIN projects p ON p.id = ps.project_id
+          WHERE fs.enabled = true AND s.published = true AND s.deleted_at IS NULL
+          GROUP BY fs.studio_id, fs.enabled, fs.position, fs.created_at, fs.updated_at, s.id ORDER BY fs.position, s.name`,
+      sql`SELECT hp.*, p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
+          FROM home_hero_projects hp JOIN projects p ON p.id = hp.project_id
+          LEFT JOIN episodes e ON e.project_id = p.id
+          WHERE hp.enabled = true AND p.published = true AND p.deleted_at IS NULL
+          GROUP BY hp.project_id, hp.enabled, hp.position, hp.weight, hp.created_at, hp.updated_at, p.id ORDER BY hp.position, p.title`,
+      sql`SELECT cp.section_id, cp.position, p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
+          FROM home_curated_projects cp JOIN projects p ON p.id = cp.project_id
+          LEFT JOIN episodes e ON e.project_id = p.id
+          WHERE cp.enabled = true AND p.published = true AND p.deleted_at IS NULL
+          GROUP BY cp.section_id, cp.project_id, cp.position, cp.created_at, p.id ORDER BY cp.section_id, cp.position, p.title`,
+      sql`SELECT * FROM editorial_banners WHERE enabled = true
+          AND (starts_at IS NULL OR starts_at <= now()) AND (ends_at IS NULL OR ends_at > now())
+          ORDER BY position, created_at`
+    ], { readOnly: true });
+    if (result[0].length) site = mapSiteSettings(result[0][0], legacy);
+    sections = mergeHomeSections(result[1]).filter(section => section.enabled);
+    manualProjects = result[2].map(row => mapProject(row));
+    manualStudios = result[3].map(row => mapStudio(row, { projects: Array(Number(row.project_count || 0)).fill(null) }));
+    heroProjects = result[4].map(row => ({ ...mapProject(row), heroWeight: Number(row.weight || 1) }));
+    curatedRows = result[5].map(row => ({ sectionId: row.section_id, project: mapProject(row) }));
+    banners = result[6].map(mapEditorialBanner);
+  } catch (error) {
+    if (!isHomeSchemaMissing(error)) throw error;
+    cmsAvailable = false;
+  }
+  const viewer = await optionalHomeViewer(request);
+  const recommendations = await recommendationContext(sql, viewer, projects).catch(() => ({ items: diversifiedFallback(projects), reference: null }));
+  const studioFallback = stableDailyRotate(studios, 'studios');
+  const heroFallback = projects.filter(project => project.featured);
+  const hero = heroProjects.length ? heroProjects : (heroFallback.length ? heroFallback : projects);
+  const resolvedSections = sections.sort((left, right) => left.position - right.position).map(section => {
+    const result = { ...section, items: [], href: projectCatalogUrl(section) };
+    if (section.sectionType === 'HERO') result.items = hero;
+    else if (section.sectionType === 'FEATURED_PROJECTS') result.items = completeManual(manualProjects, projects, section.maxItems, section.configuration.autoFill !== false, 'featured-projects');
+    else if (section.sectionType === 'FEATURED_STUDIOS') result.items = completeManual(manualStudios, studioFallback, section.maxItems, section.configuration.autoFill !== false, 'featured-studios');
+    else if (section.sectionType === 'CURATED') result.items = curatedRows.filter(row => row.sectionId === section.id).map(row => row.project).slice(0, section.maxItems);
+    else if (section.sectionType === 'RECOMMENDED') {
+      result.items = recommendations.items.slice(0, section.maxItems);
+      if (recommendations.reference) {
+        result.title = `Porque viste ${recommendations.reference.title}`;
+        result.subtitle = `Si te gustó ${recommendations.reference.title}, quizá te interese.`;
+      }
+    } else result.items = automaticSectionProjects(section, projects).slice(0, section.maxItems);
+    return result;
+  }).filter(section => section.items.length || section.sectionType === 'HERO');
+  const composed = [];
+  for (const section of resolvedSections) {
+    composed.push(section);
+    banners.filter(banner => banner.position >= section.position && banner.position < section.position + 10)
+      .forEach(banner => composed.push({ sectionType: 'BANNER', sectionKey: `banner-${banner.id}`, position: banner.position, banner }));
+  }
+  banners.filter(banner => !composed.some(item => item.banner?.id === banner.id))
+    .forEach(banner => composed.push({ sectionType: 'BANNER', sectionKey: `banner-${banner.id}`, position: banner.position, banner }));
+  composed.sort((left, right) => left.position - right.position);
+  return { site, sections: composed, catalog: { projects, studios }, cmsAvailable, viewer: viewer ? { authenticated: true } : { authenticated: false } };
+}
+
+async function adminHome(sql) {
+  let siteRows = [];
+  let sections = [];
+  let featuredProjects = [];
+  let featuredStudios = [];
+  let heroProjects = [];
+  let curated = [];
+  let banners = [];
+  try {
+    [siteRows, sections, featuredProjects, featuredStudios, heroProjects, curated, banners] = await sql.transaction([
+      sql`SELECT * FROM site_settings WHERE id = 1`,
+      sql`SELECT * FROM home_sections ORDER BY position, section_key`,
+      sql`SELECT fp.*, p.title, p.poster, p.published, p.deleted_at FROM home_featured_projects fp JOIN projects p ON p.id = fp.project_id ORDER BY fp.position, p.title`,
+      sql`SELECT fs.*, s.name, s.logo, s.published, s.deleted_at FROM home_featured_studios fs JOIN studios s ON s.id = fs.studio_id ORDER BY fs.position, s.name`,
+      sql`SELECT hp.*, p.title, p.poster, p.banner, p.published, p.deleted_at FROM home_hero_projects hp JOIN projects p ON p.id = hp.project_id ORDER BY hp.position, p.title`,
+      sql`SELECT cp.*, p.title, p.poster FROM home_curated_projects cp JOIN projects p ON p.id = cp.project_id ORDER BY cp.section_id, cp.position, p.title`,
+      sql`SELECT * FROM editorial_banners ORDER BY position, created_at`
+    ], { readOnly: true });
+  } catch (error) {
+    if (isHomeSchemaMissing(error)) throw new AppError(409, 'Aplica primero la migración Home CMS en la base de Preview.');
+    throw error;
+  }
+  return {
+    site: mapSiteSettings(siteRows[0]),
+    sitePersisted: Boolean(siteRows.length),
+    sections: mergeHomeSections(sections),
+    featuredProjects: featuredProjects.map(row => ({ projectId: row.project_id, enabled: row.enabled, position: Number(row.position), project: { id: row.project_id, title: row.title, poster: row.poster || '', published: Boolean(row.published), deletedAt: row.deleted_at } })),
+    featuredStudios: featuredStudios.map(row => ({ studioId: row.studio_id, enabled: row.enabled, position: Number(row.position), studio: { id: row.studio_id, name: row.name, logo: row.logo || '', published: Boolean(row.published), deletedAt: row.deleted_at } })),
+    heroProjects: heroProjects.map(row => ({ projectId: row.project_id, enabled: row.enabled, position: Number(row.position), weight: Number(row.weight), project: { id: row.project_id, title: row.title, poster: row.poster || '', banner: row.banner || '', published: Boolean(row.published), deletedAt: row.deleted_at } })),
+    curated: curated.map(row => ({ sectionId: row.section_id, projectId: row.project_id, enabled: row.enabled, position: Number(row.position), project: { id: row.project_id, title: row.title, poster: row.poster || '' } })),
+    banners: banners.map(mapEditorialBanner)
+  };
 }
 
 async function adminProjects(sql) {
@@ -337,6 +635,8 @@ export async function GET(request, context) {
       return json(Object.fromEntries(rows.map(row => [row.key, row.value])));
     }
 
+    if (path[0] === 'home' && path.length === 1) return json(await publicHome(request, sql));
+
     if (path[0] === 'projects' && path.length === 1) return json(await publicProjects(sql));
 
     if (path[0] === 'projects' && path[1]) {
@@ -440,6 +740,7 @@ export async function GET(request, context) {
     if (path[0] === 'admin' && path[1] === 'studios') return json(await adminStudios(sql));
     if (path[0] === 'admin' && path[1] === 'episodes') return json(await adminEpisodes(sql));
     if (path[0] === 'admin' && path[1] === 'trash') return json(await adminTrash(sql));
+    if (path[0] === 'admin' && path[1] === 'home' && path.length === 2) return json(await adminHome(sql));
 
     if (path[0] === 'admin' && path[1] === 'export') {
       const [settings, projects, studios, relations, episodes] = await sql.transaction([
@@ -449,7 +750,22 @@ export async function GET(request, context) {
         sql`SELECT * FROM project_studios ORDER BY project_id, studio_id`,
         sql`SELECT * FROM episodes ORDER BY project_id, season, number`
       ], { readOnly: true });
-      const backup = { version: 1, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes };
+      let homeCms = null;
+      try {
+        const [siteSettings, homeSections, featuredProjects, featuredStudios, heroProjects, curatedProjects, editorialBanners] = await sql.transaction([
+          sql`SELECT * FROM site_settings ORDER BY id`,
+          sql`SELECT * FROM home_sections ORDER BY position, section_key`,
+          sql`SELECT * FROM home_featured_projects ORDER BY position, project_id`,
+          sql`SELECT * FROM home_featured_studios ORDER BY position, studio_id`,
+          sql`SELECT * FROM home_hero_projects ORDER BY position, project_id`,
+          sql`SELECT * FROM home_curated_projects ORDER BY section_id, position, project_id`,
+          sql`SELECT * FROM editorial_banners ORDER BY position, created_at`
+        ], { readOnly: true });
+        homeCms = { siteSettings, homeSections, featuredProjects, featuredStudios, heroProjects, curatedProjects, editorialBanners };
+      } catch (error) {
+        if (!isHomeSchemaMissing(error)) throw error;
+      }
+      const backup = { version: 2, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes, homeCms };
       const filename = `dubverse-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
       return new NextResponse(JSON.stringify(backup, null, 2), {
         status: 200,
@@ -534,6 +850,88 @@ export async function POST(request, context) {
       const body = await bodyJson(request);
       const urls = Array.isArray(body.urls) ? body.urls.map(String).slice(0, 20) : [];
       return json({ ok: true, deleted: await cleanupBlobUrls(sql, urls) });
+    }
+
+    if (path[0] === 'admin' && path[1] === 'home' && path[2] === 'settings' && path.length === 3) {
+      const raw = await bodyJson(request);
+      const [currentRows, legacyRows] = await sql.transaction([
+        sql`SELECT * FROM site_settings WHERE id = 1`,
+        sql`SELECT key, value FROM settings`
+      ], { readOnly: true });
+      const legacy = Object.fromEntries(legacyRows.map(row => [row.key, row.value]));
+      const existing = currentRows.length ? mapSiteSettings(currentRows[0]) : legacySiteSettings(legacy);
+      const body = siteSettingsValue(raw, existing);
+      await sql`INSERT INTO site_settings (
+          id, site_name, footer_slogan, description, public_email, copyright_text, socials, updated_at
+        ) VALUES (1, ${body.siteName}, ${body.footerSlogan}, ${body.description}, ${body.publicEmail},
+          ${body.copyrightText}, ${JSON.stringify(body.socials)}::jsonb, now())
+        ON CONFLICT (id) DO UPDATE SET site_name = EXCLUDED.site_name, footer_slogan = EXCLUDED.footer_slogan,
+          description = EXCLUDED.description, public_email = EXCLUDED.public_email,
+          copyright_text = EXCLUDED.copyright_text, socials = EXCLUDED.socials, updated_at = now()`;
+      return json({ ok: true, site: body });
+    }
+
+    if (path[0] === 'admin' && path[1] === 'home' && path[2] === 'sections' && path.length === 3) {
+      const raw = await bodyJson(request);
+      const body = sectionValue(raw);
+      if (HOME_DEFAULT_KEYS.has(body.sectionKey) && HOME_DEFAULT_TYPES[body.sectionKey] !== body.sectionType) {
+        throw new AppError(400, 'La clave de una sección inicial no puede usarse con otro tipo.');
+      }
+      const curatedIds = curatedIdsValue(raw.projectIds);
+      if (body.sectionType !== 'CURATED' && curatedIds?.length) throw new AppError(400, 'Sólo una sección curada admite proyectos manuales.');
+      if (curatedIds) {
+        for (const projectId of curatedIds) await ensurePublishedProject(sql, projectId);
+      }
+      const id = crypto.randomUUID();
+      await sql`INSERT INTO home_sections (id, section_key, section_type, title, subtitle, enabled, position, max_items, configuration)
+        VALUES (${id}::uuid, ${body.sectionKey}, ${body.sectionType}, ${body.title}, ${body.subtitle}, ${body.enabled},
+          ${body.position}, ${body.maxItems}, ${JSON.stringify(body.configuration)}::jsonb)`;
+      if (body.sectionType === 'CURATED' && curatedIds?.length) {
+        const queries = curatedIds.map((projectId, index) => sql`INSERT INTO home_curated_projects (section_id, project_id, position)
+          VALUES (${id}::uuid, ${projectId}, ${index})`);
+        await sql.transaction(queries);
+      }
+      return json({ ok: true, id }, 201);
+    }
+
+    if (path[0] === 'admin' && path[1] === 'home' && path[2] === 'banners' && path.length === 3) {
+      const body = bannerValue(await bodyJson(request));
+      const id = crypto.randomUUID();
+      await sql`INSERT INTO editorial_banners (
+          id, label, title, description, image_url, link_url, button_text, enabled, position, starts_at, ends_at
+        ) VALUES (${id}::uuid, ${body.label}, ${body.title}, ${body.description}, ${body.imageUrl}, ${body.linkUrl},
+          ${body.buttonText}, ${body.enabled}, ${body.position}, ${body.startsAt}, ${body.endsAt})`;
+      return json({ ok: true, id }, 201);
+    }
+
+    if (path[0] === 'admin' && path[1] === 'home' && ['featured-projects', 'featured-studios', 'hero-projects'].includes(path[2]) && path.length === 3) {
+      const body = await bodyJson(request);
+      const resourceId = requiredText(body.resourceId, 'El recurso');
+      const position = Math.min(10000, Math.max(0, Number(body.position ?? 0)));
+      if (!Number.isInteger(position)) throw new AppError(400, 'La posición debe ser un entero.');
+      const enabled = homeEnabledValue(body.enabled);
+      if (path[2] === 'featured-projects') {
+        await ensurePublishedProject(sql, resourceId);
+        await sql`INSERT INTO home_featured_projects (project_id, enabled, position, updated_at)
+          VALUES (${resourceId}, ${enabled}, ${position}, now())
+          ON CONFLICT (project_id) DO UPDATE SET enabled = EXCLUDED.enabled, position = EXCLUDED.position, updated_at = now()`;
+      }
+      if (path[2] === 'featured-studios') {
+        await ensurePublishedStudio(sql, resourceId);
+        await sql`INSERT INTO home_featured_studios (studio_id, enabled, position, updated_at)
+          VALUES (${resourceId}, ${enabled}, ${position}, now())
+          ON CONFLICT (studio_id) DO UPDATE SET enabled = EXCLUDED.enabled, position = EXCLUDED.position, updated_at = now()`;
+      }
+      if (path[2] === 'hero-projects') {
+        await ensurePublishedProject(sql, resourceId);
+        const weight = Math.min(10, Math.max(1, Number(body.weight || 1)));
+        if (!Number.isInteger(weight)) throw new AppError(400, 'El peso debe ser un entero entre 1 y 10.');
+        await sql`INSERT INTO home_hero_projects (project_id, enabled, position, weight, updated_at)
+          VALUES (${resourceId}, ${enabled}, ${position}, ${weight}, now())
+          ON CONFLICT (project_id) DO UPDATE SET enabled = EXCLUDED.enabled, position = EXCLUDED.position,
+            weight = EXCLUDED.weight, updated_at = now()`;
+      }
+      return json({ ok: true });
     }
 
     if (path[0] === 'admin' && path[1] === 'trash' && path[2] === 'restore') {
@@ -636,6 +1034,57 @@ export async function PATCH(request, context) {
     if (path[0] !== 'admin' || !path[1] || !path[2]) throw new AppError(404, 'Ruta no encontrada.');
     const id = path[2];
 
+    if (path[1] === 'home' && path[2] === 'sections' && path[3]) {
+      const rows = await sql`SELECT * FROM home_sections WHERE id = ${path[3]}::uuid`;
+      if (!rows.length) throw new AppError(404, 'Sección no encontrada.');
+      const value = sectionValue(body, existingSectionValue(rows[0]));
+      if (HOME_DEFAULT_KEYS.has(rows[0].section_key) && value.sectionKey !== rows[0].section_key) throw new AppError(400, 'No puedes cambiar la clave de una sección inicial.');
+      if (!HOME_DEFAULT_KEYS.has(rows[0].section_key) && HOME_DEFAULT_KEYS.has(value.sectionKey)) throw new AppError(400, 'Una sección personalizada no puede ocupar una clave inicial.');
+      if (HOME_DEFAULT_KEYS.has(rows[0].section_key) && value.sectionType !== HOME_DEFAULT_TYPES[rows[0].section_key]) throw new AppError(400, 'No puedes cambiar el tipo de una sección inicial.');
+      const curatedIds = curatedIdsValue(body.projectIds);
+      if (curatedIds) {
+        for (const projectId of curatedIds) await ensurePublishedProject(sql, projectId);
+      }
+      await sql`UPDATE home_sections SET section_key = ${value.sectionKey}, section_type = ${value.sectionType},
+        title = ${value.title}, subtitle = ${value.subtitle}, enabled = ${value.enabled}, position = ${value.position},
+        max_items = ${value.maxItems}, configuration = ${JSON.stringify(value.configuration)}::jsonb, updated_at = now()
+        WHERE id = ${path[3]}::uuid`;
+      if (curatedIds !== null) {
+        const queries = [sql`DELETE FROM home_curated_projects WHERE section_id = ${path[3]}::uuid`];
+        curatedIds.forEach((projectId, index) => queries.push(sql`INSERT INTO home_curated_projects (section_id, project_id, position)
+          VALUES (${path[3]}::uuid, ${projectId}, ${index})`));
+        await sql.transaction(queries);
+      }
+      return json({ ok: true });
+    }
+
+    if (path[1] === 'home' && path[2] === 'banners' && path[3]) {
+      const rows = await sql`SELECT * FROM editorial_banners WHERE id = ${path[3]}::uuid`;
+      if (!rows.length) throw new AppError(404, 'Banner no encontrado.');
+      const value = bannerValue(body, existingBannerValue(rows[0]));
+      const oldImage = rows[0].image_url || '';
+      await sql`UPDATE editorial_banners SET label = ${value.label}, title = ${value.title}, description = ${value.description},
+        image_url = ${value.imageUrl}, link_url = ${value.linkUrl}, button_text = ${value.buttonText}, enabled = ${value.enabled},
+        position = ${value.position}, starts_at = ${value.startsAt}, ends_at = ${value.endsAt}, updated_at = now()
+        WHERE id = ${path[3]}::uuid`;
+      if (oldImage !== value.imageUrl) await cleanupBlobUrls(sql, [oldImage]);
+      return json({ ok: true });
+    }
+
+    if (path[1] === 'home' && ['featured-projects', 'featured-studios', 'hero-projects'].includes(path[2]) && path[3]) {
+      const position = Math.min(10000, Math.max(0, Number(body.position ?? 0)));
+      if (!Number.isInteger(position)) throw new AppError(400, 'La posición debe ser un entero.');
+      const enabled = homeEnabledValue(body.enabled);
+      if (path[2] === 'featured-projects') await sql`UPDATE home_featured_projects SET enabled = ${enabled}, position = ${position}, updated_at = now() WHERE project_id = ${path[3]}`;
+      if (path[2] === 'featured-studios') await sql`UPDATE home_featured_studios SET enabled = ${enabled}, position = ${position}, updated_at = now() WHERE studio_id = ${path[3]}`;
+      if (path[2] === 'hero-projects') {
+        const weight = Math.min(10, Math.max(1, Number(body.weight || 1)));
+        if (!Number.isInteger(weight)) throw new AppError(400, 'El peso debe ser un entero entre 1 y 10.');
+        await sql`UPDATE home_hero_projects SET enabled = ${enabled}, position = ${position}, weight = ${weight}, updated_at = now() WHERE project_id = ${path[3]}`;
+      }
+      return json({ ok: true });
+    }
+
     if (path[1] === 'projects') {
       const rows = await sql`SELECT * FROM projects WHERE id = ${id} AND deleted_at IS NULL`;
       if (!rows.length) throw new AppError(404, 'Proyecto no encontrado.');
@@ -722,6 +1171,28 @@ export async function DELETE(request, context) {
     const sql = await readySql();
 
     if (path[0] !== 'admin') throw new AppError(404, 'Ruta no encontrada.');
+
+    if (path[1] === 'home' && ['featured-projects', 'featured-studios', 'hero-projects'].includes(path[2]) && path[3]) {
+      if (path[2] === 'featured-projects') await sql`DELETE FROM home_featured_projects WHERE project_id = ${path[3]}`;
+      if (path[2] === 'featured-studios') await sql`DELETE FROM home_featured_studios WHERE studio_id = ${path[3]}`;
+      if (path[2] === 'hero-projects') await sql`DELETE FROM home_hero_projects WHERE project_id = ${path[3]}`;
+      return json({ ok: true, removed: true });
+    }
+
+    if (path[1] === 'home' && path[2] === 'sections' && path[3]) {
+      const rows = await sql`SELECT section_key FROM home_sections WHERE id = ${path[3]}::uuid`;
+      if (!rows.length) throw new AppError(404, 'Sección no encontrada.');
+      if (HOME_DEFAULT_KEYS.has(rows[0].section_key)) throw new AppError(400, 'Las secciones iniciales se desactivan; no se eliminan.');
+      await sql`DELETE FROM home_sections WHERE id = ${path[3]}::uuid`;
+      return json({ ok: true, removed: true });
+    }
+
+    if (path[1] === 'home' && path[2] === 'banners' && path[3]) {
+      const rows = await sql`DELETE FROM editorial_banners WHERE id = ${path[3]}::uuid RETURNING image_url`;
+      if (!rows.length) throw new AppError(404, 'Banner no encontrado.');
+      await cleanupBlobUrls(sql, [rows[0].image_url]);
+      return json({ ok: true, removed: true });
+    }
 
     if (TRASH_KINDS.has(path[1]) && path[2]) {
       let rows;

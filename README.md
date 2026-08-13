@@ -13,7 +13,8 @@ Dubverse genera el catálogo público y el panel administrativo desde Neon. Los 
 - Límite temporal después de intentos fallidos de inicio de sesión.
 - Subida de imágenes con vista previa, estado de carga y limpieza de archivos reemplazados o cancelados.
 - Limpieza automática de imágenes de Vercel Blob al sustituirlas o eliminar definitivamente un registro.
-- Migraciones automáticas de esquema: no es necesario volver a abrir `/setup` para futuras columnas.
+- Migraciones SQL explícitas y versionadas; las peticiones web normales nunca ejecutan DDL.
+- Cuentas sociales Google/Discord, perfiles, likes, listas, historial, comentarios, reseñas y moderación (Social v1).
 - Dubverse Uploader para enviar MP4 directamente desde Windows a Archive.org.
 
 ## Variables de Vercel
@@ -40,7 +41,9 @@ BLOB_READ_WRITE_TOKEN=...
 SETUP_ENABLED=true
 ```
 
-No es necesario habilitarlo para este parche: la API aplica las nuevas columnas automáticamente.
+No habilites `/setup` para ampliaciones. Aplica cada archivo de `database/migrations` manualmente después de revisarlo y respaldar la base. La API no aplica columnas automáticamente.
+
+Las variables, callbacks OAuth, configuración de R2/CORS, activación y rollback de Social v1 están documentados en [docs/dubverse-social-v1.md](docs/dubverse-social-v1.md). Usa `.env.example` como inventario sin secretos.
 
 ## Imágenes
 
@@ -48,6 +51,7 @@ No es necesario habilitarlo para este parche: la API aplica las nuevas columnas 
 - El panel acepta una ruta local, una URL externa o una imagen de hasta 4 MB subida a Vercel Blob.
 - Al reemplazar una imagen administrada por Dubverse, el archivo anterior se elimina si ya no está usado por otro registro.
 - Los MP4 nunca pasan por Vercel Blob.
+- Avatar, banner e imágenes de comentarios usan dos buckets Cloudflare R2 separados; las subidas temporales permanecen privadas hasta su validación.
 
 ## Videos de Archive.org
 
