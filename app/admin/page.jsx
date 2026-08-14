@@ -37,6 +37,7 @@ export default function AdminPage() {
             <button data-tab="upload" type="button">⇧ <span>Subir a Archive</span></button>
             <button data-tab="moderation" type="button">⚑ <span>Moderación</span></button>
             <button data-tab="trash" type="button">♲ <span>Papelera</span></button>
+            <button data-tab="ids" type="button"># <span>IDs y aliases</span></button>
           </nav>
           <button id="logoutButton" className="logout" type="button">Salir</button>
         </aside>
@@ -72,6 +73,40 @@ export default function AdminPage() {
           <footer>
             <button type="button" className="secondary" id="cancelEditor">Cancelar</button>
             <button type="submit" id="saveEditor">Guardar</button>
+          </footer>
+        </form>
+      </dialog>
+
+      <dialog id="idRenameDialog">
+        <form id="idRenameForm" className="editor-form id-rename-form">
+          <header>
+            <div>
+              <span className="kicker">OPERACIÓN SENSIBLE</span>
+              <h2>Cambiar ID / slug</h2>
+            </div>
+            <button type="button" className="icon-btn" id="closeIdRename" aria-label="Cerrar">×</button>
+          </header>
+          <div className="id-record-summary">
+            <span id="idRenameKind"></span>
+            <strong id="idRenameName"></strong>
+            <small>ID actual: <code id="idRenameCurrent"></code></small>
+          </div>
+          <label className="field">
+            Nuevo ID / slug
+            <input id="idRenameNew" name="newId" required maxLength="160" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" autoComplete="off" />
+            <small>Sólo minúsculas, números y guiones simples. Se comprobarán registros y aliases existentes.</small>
+          </label>
+          <label className="field">
+            Escribe el ID actual para confirmar
+            <input id="idRenameConfirm" name="confirmId" required autoComplete="off" />
+          </label>
+          <div className="id-rename-warning">
+            El registro no se eliminará. Sus relaciones cambiarán dentro de la misma transacción y el ID anterior quedará como alias histórico.
+          </div>
+          <p id="idRenameStatus" className="editor-status" aria-live="polite"></p>
+          <footer>
+            <button type="button" className="secondary" id="cancelIdRename">Cancelar</button>
+            <button type="submit" id="confirmIdRename">Confirmar cambio</button>
           </footer>
         </form>
       </dialog>

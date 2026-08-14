@@ -12,6 +12,7 @@ const state = {
   overview: null,
   config: null,
   home: null,
+  idAudit: null,
   moderation: { reports: { items: [] }, users: [] },
   moderationStatus: 'OPEN',
   trash: { projects: [], studios: [], episodes: [] }
@@ -23,6 +24,7 @@ const titles = {
   projects: 'Proyectos',
   episodes: 'Episodios',
   studios: 'Estudios',
+  ids: 'IDs y aliases',
   upload: 'Subir a Archive',
   moderation: 'Moderación',
   trash: 'Papelera'
@@ -47,6 +49,13 @@ const PROJECT_TYPE_OPTIONS = [
 const STUDIO_SOCIAL_KEYS = ['website', 'facebook', 'youtube', 'instagram', 'tiktok', 'twitter', 'x', 'discord', 'twitch'];
 const episodeStatusLabel = status => EPISODE_STATUS_OPTIONS.find(option => option.value === status)?.label || status;
 const projectTypeLabel = type => PROJECT_TYPE_OPTIONS.find(option => option.value === type)?.label || type;
+const slugValue = value => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+
+function recommendedId(kind, record) {
+  if (kind === 'projects') return slugValue(record.title);
+  if (kind === 'studios') return slugValue(record.name);
+  return slugValue(`${record.project_id}-s${String(record.season || 1).padStart(2, '0')}-e${String(record.number || 1).padStart(3, '0')}`);
+}
 
 let flashTimer = null;
 
@@ -126,7 +135,7 @@ $('#logoutButton').addEventListener('click', logout);
 $('#topLogoutButton').addEventListener('click', logout);
 $$('.sidebar nav button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.tab)));
 
-async function refresh(includeTrash = false, includeModeration = false, includeHome = false) {
+async function refresh(includeTrash = false, includeModeration = false, includeHome = false, includeIds = false) {
   const requests = [
     api('/api/admin/projects'),
     api('/api/admin/episodes'),
@@ -137,12 +146,15 @@ async function refresh(includeTrash = false, includeModeration = false, includeH
   if (includeTrash) requests.push(api('/api/admin/trash'));
   if (includeModeration) requests.push(api(`/api/admin/moderation/list?status=${encodeURIComponent(state.moderationStatus)}`));
   if (includeHome) requests.push(api('/api/admin/home'));
+  if (includeIds) requests.push(api('/api/admin/ids/audit'));
   const result = await Promise.all(requests);
   [state.projects, state.episodes, state.studios, state.overview, state.config] = result;
   let index = 5;
   if (includeTrash) state.trash = result[index++];
   if (includeModeration) state.moderation = result[index++];
   if (includeHome) state.home = result[index];
+  if (includeHome) index += 1;
+  if (includeIds) state.idAudit = result[index];
 }
 
 async function navigate(tab) {
@@ -151,8 +163,8 @@ async function navigate(tab) {
   $('#tabTitle').textContent = titles[tab] || titles.dashboard;
   $('#content').innerHTML = '<div class="loading">Cargando…</div>';
   try {
-    await refresh(tab === 'trash', tab === 'moderation', tab === 'home');
-    ({ dashboard, home, projects, episodes, studios, upload, moderation, trash }[tab] || dashboard)();
+    await refresh(tab === 'trash', tab === 'moderation', tab === 'home', tab === 'ids');
+    ({ dashboard, home, projects, episodes, studios, ids, upload, moderation, trash }[tab] || dashboard)();
   } catch (error) {
     if (/Sesión|administrativa requerida/i.test(error.message)) return location.reload();
     $('#content').innerHTML = `
@@ -397,7 +409,7 @@ function projects() {
         <td>${badge(project.status, project.status === 'FINISHED' ? 'green' : 'yellow')}</td>
         <td>${project.studios?.length || 0}</td><td>${project.episodeCount}</td>
         <td>${project.published ? badge('Publicado', 'green') : badge('Oculto', 'red')}</td>
-        <td><div class="row-actions"><button class="action-btn edit-project" data-id="${esc(project.id)}">Editar</button><button class="action-btn danger trash-project" data-id="${esc(project.id)}">Papelera</button></div></td>
+        <td><div class="row-actions"><button class="action-btn edit-project" data-id="${esc(project.id)}">Editar</button><button class="action-btn rename-project" data-id="${esc(project.id)}">Cambiar ID / slug</button><button class="action-btn danger trash-project" data-id="${esc(project.id)}">Papelera</button></div></td>
       </tr>`).join('') || '<tr><td colspan="7" class="empty">Sin resultados</td></tr>';
     bindProjectRows();
   };
@@ -409,6 +421,10 @@ function projects() {
 
 function bindProjectRows() {
   $$('.edit-project').forEach(button => button.onclick = () => openProject(state.projects.find(project => project.id === button.dataset.id)));
+  $$('.rename-project').forEach(button => button.onclick = () => {
+    const project = state.projects.find(item => item.id === button.dataset.id);
+    openIdRename({ kind: 'projects', name: project.title, currentId: project.id, recommendedId: recommendedId('projects', project) });
+  });
   $$('.trash-project').forEach(button => button.onclick = () => moveToTrash('projects', button.dataset.id, 'El proyecto dejará de mostrarse, pero sus episodios y relaciones podrán restaurarse.'));
 }
 
@@ -437,6 +453,7 @@ function episodes() {
         <td><span class="modified-date">${esc(dateLabel(episode.updatedAt || episode.updated_at))}</span></td>
         <td><div class="row-actions">
           <button class="action-btn edit-episode" data-id="${esc(episode.id)}">Editar</button>
+          <button class="action-btn rename-episode" data-id="${esc(episode.id)}">Cambiar ID / slug</button>
           ${episode.provider === 'ARCHIVE' && episode.archive_identifier ? `<button class="action-btn check-archive" data-id="${esc(episode.id)}">Revisar Archive</button>` : ''}
           <button class="action-btn danger trash-episode" data-id="${esc(episode.id)}">Papelera</button>
         </div></td>
@@ -452,6 +469,10 @@ function episodes() {
 
 function bindEpisodeRows() {
   $$('.edit-episode').forEach(button => button.onclick = () => openEpisode(state.episodes.find(episode => episode.id === button.dataset.id)));
+  $$('.rename-episode').forEach(button => button.onclick = () => {
+    const episode = state.episodes.find(item => item.id === button.dataset.id);
+    openIdRename({ kind: 'episodes', name: `${episode.project_title} · T${episode.season} E${episode.number} — ${episode.title}`, currentId: episode.id, recommendedId: recommendedId('episodes', episode) });
+  });
   $$('.trash-episode').forEach(button => button.onclick = () => moveToTrash('episodes', button.dataset.id, 'El episodio se ocultará y podrá restaurarse desde la papelera.'));
   $$('.check-archive').forEach(button => button.onclick = async () => {
     button.disabled = true;
@@ -487,7 +508,7 @@ function studios() {
         <td><div class="record-cell"><img class="logo-thumb" src="${esc(studio.logo || '/assets/dubverse-icon.png')}" alt=""><div><div class="record-title">${esc(studio.name)}</div><div class="record-sub">${esc(studio.id)}</div></div></div></td>
         <td>${esc(studio.director || '—')}</td><td>${studio.projects.length}</td>
         <td>${studio.published ? badge('Publicado', 'green') : badge('Oculto', 'red')}</td>
-        <td><div class="row-actions"><button class="action-btn edit-studio" data-id="${esc(studio.id)}">Editar</button><button class="action-btn danger trash-studio" data-id="${esc(studio.id)}">Papelera</button></div></td>
+        <td><div class="row-actions"><button class="action-btn edit-studio" data-id="${esc(studio.id)}">Editar</button><button class="action-btn rename-studio" data-id="${esc(studio.id)}">Cambiar ID / slug</button><button class="action-btn danger trash-studio" data-id="${esc(studio.id)}">Papelera</button></div></td>
       </tr>`).join('') || '<tr><td colspan="5" class="empty">Sin resultados</td></tr>';
     bindStudioRows();
   };
@@ -499,7 +520,71 @@ function studios() {
 
 function bindStudioRows() {
   $$('.edit-studio').forEach(button => button.onclick = () => openStudio(state.studios.find(studio => studio.id === button.dataset.id)));
+  $$('.rename-studio').forEach(button => button.onclick = () => {
+    const studio = state.studios.find(item => item.id === button.dataset.id);
+    openIdRename({ kind: 'studios', name: studio.name, currentId: studio.id, recommendedId: recommendedId('studios', studio) });
+  });
   $$('.trash-studio').forEach(button => button.onclick = () => moveToTrash('studios', button.dataset.id, 'El estudio se ocultará sin perder sus relaciones con los proyectos.'));
+}
+
+function idKindLabel(kind) {
+  return ({ projects: 'Proyecto', studios: 'Estudio', episodes: 'Episodio' })[kind] || kind;
+}
+
+function idStatusBadge(item) {
+  if (item.status === 'CORRECT') return badge('Correcto', 'green');
+  if (item.status === 'CONFLICT') return badge('Conflicto', 'red');
+  return badge('Incorrecto', 'yellow');
+}
+
+function ids() {
+  const audit = state.idAudit;
+  $('#content').innerHTML = `
+    <div class="id-audit-intro">
+      <div><span class="kicker">AUDITORÍA DE SOLO LECTURA</span><h2>IDs, slugs y aliases históricos</h2><p>Esta lista no corrige nada automáticamente. Revisa cada recomendación y decide manualmente qué registro cambiar.</p></div>
+      ${badge(`${audit.summary.aliases} aliases`, 'green')}
+    </div>
+    <div class="stats id-audit-stats">
+      <div class="stat"><span>Total</span><strong>${audit.summary.total}</strong></div>
+      <div class="stat"><span>Correctos</span><strong>${audit.summary.correct}</strong></div>
+      <div class="stat"><span>Por revisar</span><strong>${audit.summary.incorrect}</strong></div>
+      <div class="stat"><span>Conflictos</span><strong>${audit.summary.conflicts}</strong></div>
+    </div>
+    <div class="toolbar id-audit-toolbar">
+      <input id="idAuditSearch" type="search" placeholder="Buscar nombre o ID" />
+      <select id="idAuditKind"><option value="">Todos los tipos</option><option value="projects">Proyectos</option><option value="studios">Estudios</option><option value="episodes">Episodios</option></select>
+      <select id="idAuditStatus"><option value="">Todos los estados</option><option value="INCORRECT">Incorrectos</option><option value="CONFLICT">Conflictos</option><option value="CORRECT">Correctos</option></select>
+    </div>
+    <div class="table-wrap"><table class="data-table id-audit-table">
+      <thead><tr><th>Tipo</th><th>Nombre</th><th>ID actual</th><th>ID recomendado</th><th>Estado</th><th>Aliases</th><th>Acción</th></tr></thead>
+      <tbody id="idAuditRows"></tbody>
+    </table></div>`;
+
+  const draw = () => {
+    const query = $('#idAuditSearch').value.trim().toLowerCase();
+    const kind = $('#idAuditKind').value;
+    const status = $('#idAuditStatus').value;
+    const rows = audit.items.filter(item => (!kind || item.kind === kind) && (!status || item.status === status)
+      && (!query || `${item.name} ${item.currentId} ${item.recommendedId}`.toLowerCase().includes(query)));
+    $('#idAuditRows').innerHTML = rows.map(item => {
+      const index = audit.items.indexOf(item);
+      return `<tr>
+        <td>${badge(idKindLabel(item.kind))}${item.deleted ? `<div class="record-sub">En papelera</div>` : ''}</td>
+        <td><div class="record-title">${esc(item.name)}</div><div class="record-sub">${esc(item.detail)}</div></td>
+        <td><code class="id-code">${esc(item.currentId)}</code></td>
+        <td><code class="id-code recommended">${esc(item.recommendedId)}</code></td>
+        <td>${idStatusBadge(item)}</td>
+        <td>${item.aliasCount}</td>
+        <td><button class="action-btn audit-rename" type="button" data-index="${index}">Cambiar ID / slug</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">Sin resultados</td></tr>';
+    $$('.audit-rename').forEach(button => button.onclick = () => openIdRename(audit.items[Number(button.dataset.index)]));
+  };
+
+  $('#idAuditSearch').oninput = draw;
+  $('#idAuditKind').onchange = draw;
+  $('#idAuditStatus').onchange = draw;
+  draw();
 }
 
 function upload() {
@@ -672,6 +757,80 @@ async function purgeItem(kind, id, name) {
     flash(error.message, 'error');
   }
 }
+
+const idRenameDialog = $('#idRenameDialog');
+const idRenameForm = $('#idRenameForm');
+let idRenameTarget = null;
+let idRenameBusy = false;
+
+function openIdRename(target) {
+  idRenameTarget = target;
+  $('#idRenameKind').textContent = idKindLabel(target.kind);
+  $('#idRenameName').textContent = target.name;
+  $('#idRenameCurrent').textContent = target.currentId;
+  $('#idRenameNew').value = target.recommendedId || '';
+  $('#idRenameConfirm').value = '';
+  $('#idRenameStatus').textContent = target.status === 'CONFLICT' ? target.detail : '';
+  idRenameBusy = false;
+  $('#confirmIdRename').disabled = false;
+  $('#cancelIdRename').disabled = false;
+  $('#closeIdRename').disabled = false;
+  idRenameDialog.showModal();
+  $('#idRenameNew').focus();
+  $('#idRenameNew').select();
+}
+
+function closeIdRename() {
+  if (idRenameBusy) return;
+  if (idRenameDialog.open) idRenameDialog.close();
+  idRenameTarget = null;
+}
+
+$('#closeIdRename').onclick = closeIdRename;
+$('#cancelIdRename').onclick = closeIdRename;
+idRenameDialog.addEventListener('cancel', event => { event.preventDefault(); closeIdRename(); });
+
+idRenameForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!idRenameTarget) return;
+  const newId = $('#idRenameNew').value;
+  const confirmId = $('#idRenameConfirm').value;
+  const status = $('#idRenameStatus');
+  if (confirmId !== idRenameTarget.currentId) {
+    status.textContent = 'La confirmación debe coincidir exactamente con el ID actual.';
+    return;
+  }
+  if (newId === idRenameTarget.currentId) {
+    status.textContent = 'El nuevo ID debe ser diferente del actual.';
+    return;
+  }
+  if (!confirm(`¿Confirmas cambiar ${idRenameTarget.currentId} por ${newId}?\n\nEl ID anterior se conservará como alias.`)) return;
+  const button = $('#confirmIdRename');
+  const oldId = idRenameTarget.currentId;
+  idRenameBusy = true;
+  button.disabled = true;
+  $('#cancelIdRename').disabled = true;
+  $('#closeIdRename').disabled = true;
+  status.textContent = 'Validando y actualizando todas las relaciones…';
+  try {
+    await api('/api/admin/ids/rename', {
+      method: 'POST',
+      body: JSON.stringify({ kind: idRenameTarget.kind, currentId: idRenameTarget.currentId, newId, confirmId })
+    });
+    idRenameBusy = false;
+    closeIdRename();
+    flash(`ID actualizado. ${oldId} quedó registrado como alias.`);
+    await navigate(state.tab);
+  } catch (error) {
+    status.textContent = error.message;
+    flash(error.message, 'error');
+  } finally {
+    idRenameBusy = false;
+    button.disabled = false;
+    $('#cancelIdRename').disabled = false;
+    $('#closeIdRename').disabled = false;
+  }
+});
 
 const dialog = $('#editorDialog');
 const fields = $('#editorFields');

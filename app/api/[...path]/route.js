@@ -7,6 +7,7 @@ import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
+import { isAliasSchemaMissing } from '@/lib/content-ids';
 import {
   bannerValue,
   DEFAULT_HOME_SECTIONS,
@@ -36,6 +37,44 @@ const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
 async function readySql() {
   return getSql();
+}
+
+async function projectAliasTarget(sql, requestedId) {
+  try {
+    const aliases = await sql`SELECT project_id FROM project_slug_aliases WHERE alias = ${requestedId}`;
+    return aliases[0]?.project_id || null;
+  } catch (error) {
+    if (isAliasSchemaMissing(error)) return null;
+    throw error;
+  }
+}
+
+async function studioAliasTarget(sql, requestedId) {
+  try {
+    const aliases = await sql`SELECT studio_id FROM studio_slug_aliases WHERE alias = ${requestedId}`;
+    return aliases[0]?.studio_id || null;
+  } catch (error) {
+    if (isAliasSchemaMissing(error)) return null;
+    throw error;
+  }
+}
+
+async function episodeAliasTarget(sql, requestedId) {
+  try {
+    const aliases = await sql`SELECT episode_id FROM episode_slug_aliases WHERE alias = ${requestedId}`;
+    return aliases[0]?.episode_id || null;
+  } catch (error) {
+    if (isAliasSchemaMissing(error)) return null;
+    throw error;
+  }
+}
+
+function aliasRedirect(request, collection, requestedId, canonicalId) {
+  if (!canonicalId || requestedId === canonicalId) return null;
+  const target = new URL(`/api/${collection}/${encodeURIComponent(canonicalId)}`, request.url);
+  const response = NextResponse.redirect(target, 308);
+  response.headers.set('Cache-Control', 'public, max-age=3600');
+  return response;
 }
 
 function json(payload, status = 200, headers = {}) {
@@ -647,7 +686,11 @@ export async function GET(request, context) {
         WHERE p.id = ${path[1]} AND p.published = true AND p.deleted_at IS NULL
         GROUP BY p.id
       `;
-      if (!projectRows.length) throw new AppError(404, 'Proyecto no encontrado.');
+      if (!projectRows.length) {
+        const redirect = aliasRedirect(request, 'projects', path[1], await projectAliasTarget(sql, path[1]));
+        if (redirect) return redirect;
+        throw new AppError(404, 'Proyecto no encontrado.');
+      }
       const [episodes, studios] = await sql.transaction([
         sql`SELECT * FROM episodes WHERE project_id = ${path[1]} AND published = true AND deleted_at IS NULL ORDER BY season, number`,
         sql`SELECT s.*, ps.role, ps.notes
@@ -668,7 +711,11 @@ export async function GET(request, context) {
         SELECT * FROM studios
         WHERE id = ${path[1]} AND published = true AND deleted_at IS NULL
       `;
-      if (!studioRows.length) throw new AppError(404, 'Estudio no encontrado.');
+      if (!studioRows.length) {
+        const redirect = aliasRedirect(request, 'studios', path[1], await studioAliasTarget(sql, path[1]));
+        if (redirect) return redirect;
+        throw new AppError(404, 'Estudio no encontrado.');
+      }
       const projects = await sql`
         SELECT p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
         FROM project_studios ps
@@ -693,7 +740,11 @@ export async function GET(request, context) {
           AND p.published = true
           AND p.deleted_at IS NULL
       `;
-      if (!rows.length) throw new AppError(404, 'Episodio no encontrado.');
+      if (!rows.length) {
+        const redirect = aliasRedirect(request, 'episodes', path[1], await episodeAliasTarget(sql, path[1]));
+        if (redirect) return redirect;
+        throw new AppError(404, 'Episodio no encontrado.');
+      }
       const row = rows[0];
       return json(mapEpisode(row, {
         project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' }
@@ -765,7 +816,18 @@ export async function GET(request, context) {
       } catch (error) {
         if (!isHomeSchemaMissing(error)) throw error;
       }
-      const backup = { version: 2, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes, homeCms };
+      let contentAliases = null;
+      try {
+        const [projectAliases, studioAliases, episodeAliases] = await sql.transaction([
+          sql`SELECT * FROM project_slug_aliases ORDER BY created_at, alias`,
+          sql`SELECT * FROM studio_slug_aliases ORDER BY created_at, alias`,
+          sql`SELECT * FROM episode_slug_aliases ORDER BY created_at, alias`
+        ], { readOnly: true });
+        contentAliases = { projects: projectAliases, studios: studioAliases, episodes: episodeAliases };
+      } catch (error) {
+        if (!isAliasSchemaMissing(error)) throw error;
+      }
+      const backup = { version: 3, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes, contentAliases, homeCms };
       const filename = `dubverse-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
       return new NextResponse(JSON.stringify(backup, null, 2), {
         status: 200,

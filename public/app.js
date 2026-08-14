@@ -107,6 +107,11 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+function canonicalizeContentPath(segment, requestedId, canonicalId) {
+  if (!canonicalId || requestedId === canonicalId) return;
+  history.replaceState(history.state, '', `/${segment}/${encodeURIComponent(canonicalId)}${location.search}`);
+}
+
 async function socialApi(path, options = {}) {
   return api(`/api/social${path}`, options);
 }
@@ -679,7 +684,9 @@ function bindReviewActions(projectId) {
 
 async function projectPage(id) {
   const project = await api(`/api/projects/${encodeURIComponent(id)}`);
-  const social = await optionalSocial(`/projects/${encodeURIComponent(id)}`);
+  const projectId = project.id;
+  canonicalizeContentPath('proyecto', id, projectId);
+  const social = await optionalSocial(`/projects/${encodeURIComponent(projectId)}`);
   const dubbing = dubbingPanel(project);
   const watched = new Set(social?.watchedEpisodeIds || []);
   const viewer = state.social.viewer;
@@ -743,7 +750,7 @@ async function projectPage(id) {
     if (!requireViewer()) return;
     const action = button.dataset.socialAction;
     const active = action === 'like' ? social.viewer.liked : action === 'favorite' ? social.viewer.favorite : social.viewer.watchLater;
-    try { await socialWrite(`/projects/${encodeURIComponent(id)}/${action}`, active ? 'DELETE' : 'POST'); await projectPage(id); } catch (error) { alert(error.message); }
+    try { await socialWrite(`/projects/${encodeURIComponent(projectId)}/${action}`, active ? 'DELETE' : 'POST'); await projectPage(projectId); } catch (error) { alert(error.message); }
   });
   $$('[data-episode-watched]').forEach(button => button.onclick = async () => {
     const episodeId = button.dataset.episodeWatched;
@@ -769,16 +776,16 @@ async function projectPage(id) {
     submit.disabled = true;
     message.textContent = 'Guardando…';
     try {
-      await socialWrite(`/projects/${encodeURIComponent(id)}/reviews`, 'POST', { rating: Number(form.elements.rating.value), body: form.elements.body.value });
-      await projectPage(id);
+      await socialWrite(`/projects/${encodeURIComponent(projectId)}/reviews`, 'POST', { rating: Number(form.elements.rating.value), body: form.elements.body.value });
+      await projectPage(projectId);
     } catch (error) { message.textContent = error.message; submit.disabled = false; }
   };
-  bindReviewActions(id);
+  bindReviewActions(projectId);
   if ($('#moreReviews')) $('#moreReviews').onclick = async () => {
-    const next = await socialApi(`/projects/${encodeURIComponent(id)}?page=2`);
+    const next = await socialApi(`/projects/${encodeURIComponent(projectId)}?page=2`);
     $('#reviewList').insertAdjacentHTML('beforeend', next.reviews.items.map(reviewMarkup).join(''));
     $('#moreReviews').remove();
-    bindReviewActions(id);
+    bindReviewActions(projectId);
   };
 }
 
@@ -1150,9 +1157,11 @@ document.addEventListener('keydown', event => {
 
 async function watch(id, recordHistory = true) {
   const episode = await api(`/api/episodes/${encodeURIComponent(id)}`);
+  const episodeId = episode.id;
+  canonicalizeContentPath('ver', id, episodeId);
   const [project, social] = await Promise.all([
     api(`/api/projects/${encodeURIComponent(episode.project_id)}`),
-    optionalSocial(`/episodes/${encodeURIComponent(id)}`)
+    optionalSocial(`/episodes/${encodeURIComponent(episodeId)}`)
   ]);
   const episodes = [...(project.episodes || [])].sort((left, right) => left.season - right.season || left.number - right.number);
   const currentIndex = episodes.findIndex(item => item.id === episode.id);
@@ -1189,10 +1198,10 @@ async function watch(id, recordHistory = true) {
       </section>` : ''}
     </section>
   `;
-  if (state.social.viewer && recordHistory) socialWrite(`/episodes/${encodeURIComponent(id)}/view`, 'POST').catch(() => {});
+  if (state.social.viewer && recordHistory) socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => {});
   if ($('#episodeLike')) $('#episodeLike').onclick = async () => {
     if (!requireViewer()) return;
-    try { await socialWrite(`/episodes/${encodeURIComponent(id)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(id, false); } catch (error) { alert(error.message); }
+    try { await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(episodeId, false); } catch (error) { alert(error.message); }
   };
   if ($('#commentLogin')) $('#commentLogin').onclick = openLogin;
   if ($('#commentImage')) {
@@ -1228,20 +1237,20 @@ async function watch(id, recordHistory = true) {
     submit.disabled = true;
     message.textContent = 'Publicando…';
     try {
-      const created = await socialWrite(`/episodes/${encodeURIComponent(id)}/comments`, 'POST', { body: form.elements.body.value });
+      const created = await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/comments`, 'POST', { body: form.elements.body.value });
       const file = form.elements.image.files[0];
       if (file) {
         message.textContent = 'Validando imagen…';
         await uploadUserImage(file, 'COMMENT', created.comment.id);
       }
-      await watch(id, false);
+      await watch(episodeId, false);
     } catch (error) { message.textContent = `${error.message} Si el texto ya se publicó, puedes añadir la imagen al crear un comentario nuevo.`; submit.disabled = false; }
   };
-  bindCommentActions(id);
+  bindCommentActions(episodeId);
   if ($('#moreComments')) $('#moreComments').onclick = async () => {
-    const nextPage = await socialApi(`/episodes/${encodeURIComponent(id)}?page=2`);
+    const nextPage = await socialApi(`/episodes/${encodeURIComponent(episodeId)}?page=2`);
     $('#commentList').insertAdjacentHTML('beforeend', nextPage.comments.items.map(commentMarkup).join(''));
-    $('#moreComments').remove(); bindCommentActions(id);
+    $('#moreComments').remove(); bindCommentActions(episodeId);
   };
   const commentTarget = new URLSearchParams(location.search).get('comment');
   const rootTarget = new URLSearchParams(location.search).get('root');
@@ -1252,7 +1261,7 @@ async function watch(id, recordHistory = true) {
       direct.scrollIntoView({ behavior: 'smooth', block: 'center' });
       direct.focus?.();
     } else if (rootTarget && rootCommentCard(rootTarget)) {
-      await loadReplies(rootTarget, id, { reset: true, target: commentTarget });
+      await loadReplies(rootTarget, episodeId, { reset: true, target: commentTarget });
       const reply = $(`[data-comment-id="${CSS.escape(commentTarget)}"]`);
       if (reply) {
         reply.classList.add('comment-target');
@@ -1285,6 +1294,7 @@ function studios() {
 
 async function studioPage(id) {
   const studio = await api(`/api/studios/${encodeURIComponent(id)}`);
+  canonicalizeContentPath('estudio', id, studio.id);
   app.innerHTML = `
     <section class="studio-profile">
       <div class="studio-profile-head">
