@@ -3,20 +3,23 @@ import http from 'node:http';
 const upstream = 'http://localhost:3000';
 const projects = [
   { id: 'alpha', title: 'Alpha Romance', synopsis: 'Mechas en acción', type: 'SERIES', status: 'ONGOING', genres: ['Romance', 'Mecha', 'Acción'], poster: '', banner: '', published: true, featured: true, episodeCount: 1 },
-  { id: 'beta', title: 'Beta Corazones', synopsis: 'Drama de robots', type: 'SERIES', status: 'ONGOING', genres: ['Romance', 'Mecha'], poster: '', banner: '', published: true, featured: false, episodeCount: 0 },
+  { id: 'beta', title: 'Beta Corazones', synopsis: 'Drama de robots', type: 'SERIES', status: 'UPCOMING', genres: ['Romance', 'Mecha'], poster: '', banner: '', published: true, featured: false, episodeCount: 0 },
   { id: 'gamma', title: 'Gamma Acción', synopsis: 'Batallas', type: 'MOVIE', status: 'FINISHED', genres: ['Acción'], poster: '', banner: '', published: true, featured: false, episodeCount: 0 },
   { id: 'delta', title: 'Delta Comedia', synopsis: 'Risas', type: 'SPECIAL', status: 'FINISHED', genres: ['Comedia'], poster: '', banner: '', published: true, featured: false, episodeCount: 0 }
 ];
-const episode = { id: 'episode-alpha-1', project_id: 'alpha', season: 1, number: 1, title: 'El comienzo', description: 'Primer episodio', provider: 'EXTERNAL', video_url: '', project: { id: 'alpha', title: 'Alpha Romance', poster: '', banner: '' } };
-const project = { ...projects[0], projectDirector: 'Dirección segura', dubbingInfo: 'Información del fandoblaje', credits: 'Créditos', studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', role: 'Fandoblaje' }], episodes: [episode] };
+const episode = { id: 'episode-alpha-1', project_id: 'alpha', season: 1, number: 1, title: 'El comienzo', description: 'Primer episodio', provider: 'DIRECT', video_url: 'http://127.0.0.1:3100/missing-video.mp4', playback: { provider: 'DIRECT', source: { kind: 'VIDEO', url: 'http://127.0.0.1:3100/missing-video.mp4' }, fallback: null }, project: { id: 'alpha', title: 'Alpha Romance', poster: '', banner: '' } };
+const promos = [{ id: 'promo-1', projectId: 'alpha', type: 'TRAILER', provider: 'OTHER', title: 'Tráiler de Alpha', url: 'https://example.com/trailer', providerIdentifier: '', providerFile: '', thumbnailUrl: '/assets/projects/dandadan-season-2/banner.jpg', position: 0, isActive: true, playback: { kind: 'LINK', url: 'https://example.com/trailer' } }];
+const project = { ...projects[0], projectDirector: 'Dirección segura', dubbingInfo: 'Información del fandoblaje', credits: 'Créditos', studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', role: 'Fandoblaje' }], episodes: [episode], promos };
+const upcomingProject = { ...projects[1], projectDirector: 'Dirección próxima', dubbingInfo: 'Proyecto anunciado', credits: 'Créditos próximos', studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', role: 'Fandoblaje' }], episodes: [], promos };
 const studios = [
-  { id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', published: true, socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] },
+  { id: 'studio', name: 'Estudio Mock', director: 'Directora', description: 'Descripción', logo: '', banner: '/assets/projects/dandadan-season-2/banner.jpg', isVerified: true, followerCount: 42, published: true, socials: { website: 'https://example.com', youtube: 'https://youtube.com', tiktok: 'https://tiktok.com' }, projects: [projects[0]] },
   { id: 'studio-dos', name: 'Voces del Norte', director: 'Equipo Norte', description: 'Fandoblaje comunitario', logo: '/assets/studios/essential-fandubs/logo.jpeg', published: true, socials: {}, projects: [projects[1]] }
 ];
 const homeSections = [
   { id: '10000000-0000-4000-8000-000000000001', sectionKey: 'hero', sectionType: 'HERO', title: '', subtitle: '', enabled: true, position: 0, maxItems: 6, configuration: {}, persisted: true, isDefault: true, items: projects.slice(0, 3) },
   { id: '10000000-0000-4000-8000-000000000002', sectionKey: 'featured-projects', sectionType: 'FEATURED_PROJECTS', title: 'Proyectos destacados', subtitle: 'Elegidos por el equipo de Dubverse.', enabled: true, position: 10, maxItems: 6, configuration: { autoFill: true }, persisted: true, isDefault: true, href: '/catalogo', items: projects },
   { sectionType: 'BANNER', sectionKey: 'banner-demo', position: 25, banner: { id: '20000000-0000-4000-8000-000000000001', label: 'NOVEDAD', title: 'La comunidad crece contigo', description: 'Descubre proyectos, estudios y nuevas voces de fandoblaje.', imageUrl: '/assets/projects/dandadan-season-2/banner.jpg', linkUrl: '/estudios', buttonText: 'Conocer estudios', enabled: true, position: 25, startsAt: null, endsAt: null } },
+  { sectionType: 'BANNER', sectionKey: 'banner-demo-2', position: 26, banner: { id: '20000000-0000-4000-8000-000000000002', label: 'ESTRENO', title: 'Una portada que se adapta', description: 'El carrusel usa una composición compacta en cualquier pantalla.', imageUrl: '/assets/projects/kowloon-generic-romance/banner.jpg', mobileImageUrl: '/assets/projects/kowloon-generic-romance/poster.jpg', linkUrl: '/proyecto/alpha', buttonText: 'Ver proyecto', enabled: true, position: 26, startsAt: null, endsAt: null } },
   { id: '10000000-0000-4000-8000-000000000003', sectionKey: 'ongoing', sectionType: 'AUTO_STATUS', title: 'En emisión', subtitle: 'Nuevos episodios en camino.', enabled: true, position: 30, maxItems: 8, configuration: { status: 'ONGOING' }, persisted: true, isDefault: true, href: '/catalogo?status=ONGOING', items: projects.filter(item => item.status === 'ONGOING') },
   { id: '10000000-0000-4000-8000-000000000004', sectionKey: 'featured-studios', sectionType: 'FEATURED_STUDIOS', title: 'Estudios destacados', subtitle: 'Conoce a quienes dan voz a estas historias.', enabled: true, position: 50, maxItems: 5, configuration: { autoFill: true }, persisted: true, isDefault: true, items: studios }
 ];
@@ -118,9 +121,13 @@ async function apiResponse(path, request, response) {
   const { pageUrl, viewerId, profile } = requestContext(request);
   const authenticated = Boolean(profile);
   const watched = authenticated ? viewerSet(watchedByViewer, viewerId) : new Set();
-  if (path === '/api/home') return sendJson(response, { site: siteSettings, sections: homeSections, catalog: { projects, studios }, cmsAvailable: true, viewer: { authenticated } });
+  if (path === '/api/home') {
+    const sections = authenticated ? [{ sectionType: 'CONTINUE_WATCHING', sectionKey: 'continue-watching', position: 5, title: 'Seguir viendo', subtitle: 'Continúa desde donde lo dejaste, en cualquier dispositivo.', items: [{ episode: { id: episode.id, title: episode.title, season: episode.season, number: episode.number }, project: projects[0], positionSeconds: 637, durationSeconds: 1440, progress: 44.24 }] }, ...homeSections] : homeSections;
+    return sendJson(response, { site: siteSettings, sections, catalog: { projects, studios }, cmsAvailable: true, viewer: { authenticated } });
+  }
   if (path === '/api/projects') return sendJson(response, projects);
   if (path === '/api/projects/alpha') return sendJson(response, project);
+  if (path === '/api/projects/beta') return sendJson(response, upcomingProject);
   if (path === '/api/episodes/episode-alpha-1') return sendJson(response, episode);
   if (path === '/api/studios') return sendJson(response, studios);
   if (path === '/api/studios/studio') return sendJson(response, studios[0]);
@@ -130,7 +137,7 @@ async function apiResponse(path, request, response) {
     return sendJson(response, { success: true });
   }
   if (path === '/api/social/config') return sendJson(response, { authAvailable: true, providers: ['google', 'discord'], mediaAvailable: true });
-  if (path === '/api/social/session') return sendJson(response, { user: profile });
+  if (path === '/api/social/session') return sendJson(response, { user: profile ? { ...profile, managedStudios: [{ id: 'studio', name: 'Estudio Mock', logo: '', isVerified: true, role: 'ADMIN' }] } : null });
   if (path === '/api/social/projects/alpha') {
     const review = viewerReview(profile);
     return sendJson(response, { likes: 2, reviewCount: 1, reviewAverage: review.rating, viewer: { authenticated, liked: authenticated, favorite: false, watchLater: authenticated }, watchedEpisodeIds: [...watched], reviews: { page: 1, hasMore: false, items: [{ id: '550e8400-e29b-41d4-a716-446655440000', projectId: 'alpha', rating: review.rating, body: review.body, createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z', edited: authenticated, own: authenticated, author: profile || profiles['1'] }] } });
@@ -140,6 +147,13 @@ async function apiResponse(path, request, response) {
     const liked = authenticated && viewerSet(commentLikesByViewer, viewerId).has('63f3027e-0b65-4b23-a36b-1e98aa6f5e90');
     return sendJson(response, { likes: 3, viewer: { authenticated, liked: authenticated, watched: watched.has(episode.id) }, comments: { page: 1, hasMore: false, items: [{ id: '63f3027e-0b65-4b23-a36b-1e98aa6f5e90', episodeId: episode.id, body: comment.body, image: commentImage(pageUrl), createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z', edited: authenticated, own: authenticated, author: profile || profiles['1'], replyCount: 7, likeCount: liked ? 3 : 2, likedByViewer: liked }] } });
   }
+  if (path === '/api/social/episodes/episode-alpha-1/progress' && request.method === 'GET') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    return sendJson(response, { progress: { positionSeconds: 637, durationSeconds: 1440, updatedAt: '2026-08-17T20:00:00Z' } });
+  }
+  if (path === '/api/social/episodes/episode-alpha-1/progress' && request.method === 'PUT') return sendJson(response, { complete: false, watched: false });
+  if (path === '/api/social/studios/studio') return sendJson(response, { followers: 42, viewer: { authenticated, following: authenticated } });
+  if (path === '/api/social/studios/studio/follow' && ['POST', 'DELETE'].includes(request.method)) return sendJson(response, { following: request.method === 'POST', followers: request.method === 'POST' ? 43 : 42 });
   if (path === '/api/social/comments/63f3027e-0b65-4b23-a36b-1e98aa6f5e90/replies' && request.method === 'GET') {
     const page = Number(new URL(request.url, 'http://localhost:3100').searchParams.get('page') || 1);
     const replies = mockReplies(profile);
@@ -230,6 +244,17 @@ async function apiResponse(path, request, response) {
   }
   if (/^\/api\/social\/(?:projects\/alpha\/(?:like|favorite|watch-later)|episodes\/episode-alpha-1\/like)$/.test(path) && ['POST', 'DELETE'].includes(request.method)) return sendJson(response, { active: request.method === 'POST' });
   if (path === '/api/admin/session') return sendJson(response, { authenticated: true });
+  if (path === '/api/admin/studio-access' && request.method === 'GET') return sendJson(response, { studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', isVerified: true }], memberships: [{ id: 'membership-1', role: 'ADMIN', studio_id: 'studio', studio_name: 'Estudio Mock', profile_id: profiles['1'].id, username: profiles['1'].username, display_name: profiles['1'].displayName }], users: new URL(request.url, 'http://localhost:3100').searchParams.get('query') ? [{ id: profiles['2'].id, username: profiles['2'].username, display_name: profiles['2'].displayName }] : [] });
+  if (path === '/api/admin/studio-access' && request.method === 'POST') return sendJson(response, { ok: true, id: 'membership-2' }, 201);
+  if (/^\/api\/admin\/studio-access\/.+/.test(path) && request.method === 'DELETE') return sendJson(response, { ok: true, revoked: true });
+  if (path === '/api/admin/promos' && request.method === 'GET') return sendJson(response, { promos });
+  if (path === '/api/admin/promos' && request.method === 'POST') return sendJson(response, { promo: promos[0] }, 201);
+  if (/^\/api\/admin\/promos\/.+/.test(path) && ['PATCH', 'DELETE'].includes(request.method)) return sendJson(response, request.method === 'DELETE' ? { deleted: true } : { promo: promos[0] });
+  if (path === '/api/studio-panel') {
+    if (!authenticated) return sendJson(response, { error: 'Inicia sesión para continuar.' }, 401);
+    return sendJson(response, { studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', banner: studios[0].banner, isVerified: true, role: 'ADMIN' }] });
+  }
+  if (path === '/api/studio-panel/studio') return sendJson(response, { studio: studios[0], membership: { role: 'ADMIN' }, projects: [project], episodes: [{ ...episode, projectTitle: project.title, status: 'PUBLISHED', published: true }], promos });
   if (path === '/api/admin/projects') return sendJson(response, projects.map(item => ({ ...item, studios: [], episodeCount: item.episodeCount })));
   if (path === '/api/admin/episodes') return sendJson(response, [{ ...episode, project_title: project.title, status: 'PUBLISHED', published: true, updatedAt: '2026-08-09T00:00:00Z' }]);
   if (path === '/api/admin/studios') return sendJson(response, studios);
@@ -252,11 +277,12 @@ async function apiResponse(path, request, response) {
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, 'http://localhost:3100');
   if (url.pathname.startsWith('/api/')) return await apiResponse(url.pathname, request, response);
-  const sourcePath = url.pathname === '/admin' || url.pathname.startsWith('/_next/') || /\.(?:js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/.test(url.pathname) ? url.pathname : '/';
+  const sourcePath = ['/admin', '/panel-estudio'].includes(url.pathname) || url.pathname.startsWith('/_next/') || /\.(?:js|css|png|jpg|jpeg|webp|svg|ico|woff2?|mp4)$/.test(url.pathname) ? url.pathname : '/';
   const upstreamResponse = await fetch(`${upstream}${sourcePath}`);
   let body = Buffer.from(await upstreamResponse.arrayBuffer());
-  if (sourcePath === '/') body = Buffer.from(body.toString('utf8').replace('</body>', '<script src="/app.js"></script></body>'));
+  if (sourcePath === '/') body = Buffer.from(body.toString('utf8').replace('</body>', '<script src="/player.js"></script><script src="/app.js"></script></body>'));
   if (sourcePath === '/admin') body = Buffer.from(body.toString('utf8').replace('</body>', '<script src="/admin.js"></script></body>'));
+  if (sourcePath === '/panel-estudio') body = Buffer.from(body.toString('utf8').replace('</body>', '<script src="/studio-panel.js"></script></body>'));
   const headers = Object.fromEntries([...upstreamResponse.headers].filter(([name]) => !['content-encoding', 'content-length', 'transfer-encoding'].includes(name.toLowerCase())));
   response.writeHead(upstreamResponse.status, headers);
   response.end(body);

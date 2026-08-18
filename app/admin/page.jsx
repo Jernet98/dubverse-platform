@@ -6,6 +6,7 @@ export default function AdminPage() {
   return (
     <>
       <link rel="stylesheet" href="/admin.css" />
+      <link rel="stylesheet" href="/admin-update2.css" />
 
       <div id="loginView" className="login-view">
         <form id="loginForm" className="login-card">

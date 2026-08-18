@@ -34,6 +34,8 @@ import {
   rejectPendingObject,
   validateAndProcessUpload
 } from '@/lib/r2';
+import { assertStudioIdentity, managedStudios } from '@/lib/studio-access';
+import { normalizedProgress } from '@/lib/update2';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +70,15 @@ function mapProject(row) {
 }
 
 function mapComment(row, viewerId = '') {
+  const studioAuthor = row.author_studio_id ? {
+    id: row.author_studio_id,
+    studioId: row.author_studio_id,
+    username: '',
+    displayName: row.author_studio_name,
+    avatar: row.author_studio_logo || '',
+    isStudio: true,
+    isVerified: Boolean(row.author_studio_verified)
+  } : null;
   return {
     id: row.id,
     episodeId: row.episode_id,
@@ -81,15 +92,23 @@ function mapComment(row, viewerId = '') {
     replyCount: Number(row.reply_count || 0),
     likeCount: Number(row.like_count || 0),
     likedByViewer: Boolean(row.liked_by_viewer),
-    replyTo: row.reply_to_profile_id ? {
+    replyTo: row.reply_to_studio_id ? {
+      studioId: row.reply_to_studio_id,
+      username: '',
+      displayName: row.reply_to_studio_name,
+      isStudio: true,
+      isVerified: Boolean(row.reply_to_studio_verified)
+    } : row.reply_to_profile_id ? {
       username: row.reply_to_username,
-      displayName: row.reply_to_display_name
+      displayName: row.reply_to_display_name,
+      isStudio: false
     } : null,
-    author: row.author_profile_id ? {
+    author: studioAuthor || (row.author_profile_id ? {
       username: row.username,
       displayName: row.display_name,
-      avatar: row.avatar_url || row.provider_image || ''
-    } : null
+      avatar: row.avatar_url || row.provider_image || '',
+      isStudio: false
+    } : null)
   };
 }
 
@@ -102,18 +121,25 @@ function mapProfileSummary(row) {
 }
 
 function mapNotification(row) {
+  const studioActor = row.actor_studio_id ? {
+    studioId: row.actor_studio_id,
+    username: '', displayName: row.actor_studio_name, avatar: row.actor_studio_logo || '',
+    isStudio: true, isVerified: Boolean(row.actor_studio_verified)
+  } : null;
   return {
     id: row.id,
     type: row.type,
     targetType: row.target_type,
     targetId: row.target_type === 'COMMENT' ? row.target_id : null,
     episodeId: row.episode_id || null,
+    projectId: row.project_id || null,
+    studioId: row.studio_id || null,
     rootCommentId: row.root_comment_id || null,
     createdAt: dateValue(row.created_at),
     readAt: dateValue(row.read_at),
     commentKind: row.context_kind || 'COMMENT',
     projectTitle: row.project_title || '',
-    actor: mapProfileSummary(row)
+    actor: studioActor || (row.username ? { ...mapProfileSummary(row), isStudio: false } : null)
   };
 }
 
@@ -146,6 +172,16 @@ function ownAuthorRow(content, profile) {
   };
 }
 
+function commentAuthorRow(content, profile, studio = null) {
+  return {
+    ...ownAuthorRow(content, profile),
+    author_studio_id: studio?.id || null,
+    author_studio_name: studio?.name || null,
+    author_studio_logo: studio?.logo || null,
+    author_studio_verified: studio?.is_verified || false
+  };
+}
+
 async function requireProject(sql, id) {
   const rows = await sql`SELECT id FROM projects WHERE id = ${id} AND published = true AND deleted_at IS NULL`;
   if (!rows.length) throw new AppError(404, 'Proyecto no encontrado.');
@@ -166,11 +202,14 @@ async function requirePublicComment(sql, id) {
   const commentId = uuidValue(id, 'El comentario');
   const rows = await sql`
     SELECT c.id, c.episode_id, c.parent_comment_id, c.author_profile_id,
-      up.username, up.display_name
+      c.author_studio_id, up.username, up.display_name,
+      author_studio.name AS author_studio_name, author_studio.logo AS author_studio_logo,
+      author_studio.is_verified AS author_studio_verified
     FROM episode_comments c
     JOIN episodes e ON e.id = c.episode_id
     JOIN projects p ON p.id = e.project_id
     LEFT JOIN user_profiles up ON up.id = c.author_profile_id
+    LEFT JOIN studios author_studio ON author_studio.id = c.author_studio_id
     WHERE c.id = ${commentId}::uuid
       AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
       AND e.published = true AND e.deleted_at IS NULL
@@ -338,6 +377,8 @@ async function episodeSocial(request, sql, episodeId, page) {
     sql`SELECT COUNT(*)::int AS count FROM episode_likes WHERE episode_id = ${episodeId}`,
     sql`SELECT c.*, up.username, up.display_name, au.image AS provider_image,
           avatar.public_url AS avatar_url, image.public_url AS image_url,
+          author_studio.name AS author_studio_name, author_studio.logo AS author_studio_logo,
+          author_studio.is_verified AS author_studio_verified,
           (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS like_count,
           EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_profile_id = ${viewerId}) AS liked_by_viewer,
           (SELECT COUNT(*) FROM episode_comments reply
@@ -346,6 +387,7 @@ async function episodeSocial(request, sql, episodeId, page) {
         LEFT JOIN auth_users au ON au.id = up.auth_user_id
         LEFT JOIN user_media_uploads avatar ON avatar.id = up.avatar_media_id AND avatar.status = 'ACTIVE'
         LEFT JOIN user_media_uploads image ON image.id = c.image_media_id AND image.status = 'ACTIVE'
+        LEFT JOIN studios author_studio ON author_studio.id = c.author_studio_id
         WHERE c.episode_id = ${episodeId} AND c.parent_comment_id IS NULL
           AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
         ORDER BY c.created_at DESC LIMIT ${PAGE_SIZE + 1} OFFSET ${offset}`,
@@ -385,6 +427,9 @@ async function commentReplies(request, sql, rootId, page) {
     SELECT c.*, up.username, up.display_name, au.image AS provider_image,
       avatar.public_url AS avatar_url, image.public_url AS image_url,
       reply_to.username AS reply_to_username, reply_to.display_name AS reply_to_display_name,
+      author_studio.name AS author_studio_name, author_studio.logo AS author_studio_logo,
+      author_studio.is_verified AS author_studio_verified,
+      reply_to_studio.name AS reply_to_studio_name, reply_to_studio.is_verified AS reply_to_studio_verified,
       (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS like_count,
       EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_profile_id = ${viewerId}) AS liked_by_viewer
     FROM episode_comments c
@@ -393,6 +438,8 @@ async function commentReplies(request, sql, rootId, page) {
     LEFT JOIN user_media_uploads avatar ON avatar.id = up.avatar_media_id AND avatar.status = 'ACTIVE'
     LEFT JOIN user_media_uploads image ON image.id = c.image_media_id AND image.status = 'ACTIVE'
     LEFT JOIN user_profiles reply_to ON reply_to.id = c.reply_to_profile_id
+    LEFT JOIN studios author_studio ON author_studio.id = c.author_studio_id
+    LEFT JOIN studios reply_to_studio ON reply_to_studio.id = c.reply_to_studio_id
     WHERE c.parent_comment_id = ${root.id}::uuid
       AND c.episode_id = ${root.episode_id}
       AND c.moderation_status = 'VISIBLE' AND c.deleted_at IS NULL
@@ -451,12 +498,13 @@ async function createComment(request, episodeId) {
   const session = await socialSession(request, { required: true, active: true });
   const episode = await requireEpisode(session.sql, episodeId);
   const body = await jsonBody(request);
+  const authorStudio = await assertStudioIdentity(session.sql, session.row.id, String(body['authorStudioId'] || '').trim() || null);
   await enforceSocialRateLimit(session.sql, session.row.id, 'comment', 5, 60);
   const rows = await session.sql`
-    INSERT INTO episode_comments (id, episode_id, author_profile_id, body)
-    VALUES (${crypto.randomUUID()}::uuid, ${episode.id}, ${session.row.id}, ${commentValue(body.body)}) RETURNING *
+    INSERT INTO episode_comments (id, episode_id, author_profile_id, author_studio_id, body)
+    VALUES (${crypto.randomUUID()}::uuid, ${episode.id}, ${session.row.id}, ${authorStudio?.id || null}, ${commentValue(body.body)}) RETURNING *
   `;
-  return json({ comment: mapComment(ownAuthorRow(rows[0], session.row), session.row.id) }, 201);
+  return json({ comment: mapComment(commentAuthorRow(rows[0], session.row, authorStudio), session.row.id) }, 201);
 }
 
 async function createReply(request, targetId) {
@@ -471,8 +519,9 @@ async function createReply(request, targetId) {
   `;
   if (!roots.length) throw new AppError(409, 'El comentario principal ya no está disponible.');
   const body = await jsonBody(request);
+  const authorStudio = await assertStudioIdentity(session.sql, session.row.id, String(body['authorStudioId'] || '').trim() || null);
   await enforceSocialRateLimit(session.sql, session.row.id, 'comment-reply', 10, 60);
-  const rows = await session.sql`
+  let rows = await session.sql`
     WITH created AS (
       INSERT INTO episode_comments (id, episode_id, author_profile_id, body, parent_comment_id, reply_to_profile_id)
       VALUES (${crypto.randomUUID()}::uuid, ${target.episode_id}, ${session.row.id}, ${commentValue(body.body)},
@@ -480,9 +529,9 @@ async function createReply(request, targetId) {
       RETURNING *
     ), notified AS (
       INSERT INTO social_notifications (
-        id, recipient_profile_id, actor_profile_id, type, target_type, target_id, context_kind, root_comment_id, episode_id, dedupe_key
+        id, recipient_profile_id, actor_profile_id, actor_studio_id, type, target_type, target_id, context_kind, root_comment_id, episode_id, dedupe_key
       )
-      SELECT ${crypto.randomUUID()}::uuid, ${target.author_profile_id || null}::uuid, ${session.row.id},
+      SELECT ${crypto.randomUUID()}::uuid, ${target.author_profile_id || null}::uuid, ${session.row.id}, ${authorStudio?.id || null},
         'COMMENT_REPLY', 'COMMENT', created.id,
         ${target.parent_comment_id ? 'REPLY' : 'COMMENT'}, ${rootId}::uuid, created.episode_id, 'reply:' || created.id::text
       FROM created
@@ -492,17 +541,28 @@ async function createReply(request, targetId) {
     )
     SELECT * FROM created
   `;
+  if (authorStudio || target.author_studio_id) {
+    rows = await session.sql`
+      UPDATE episode_comments
+      SET author_studio_id = ${authorStudio?.id || null}, reply_to_studio_id = ${target.author_studio_id || null}
+      WHERE id = ${rows[0].id}::uuid
+      RETURNING *
+    `;
+  }
   const counts = await session.sql`
     SELECT COUNT(*)::int AS count FROM episode_comments
     WHERE parent_comment_id = ${rootId}::uuid AND moderation_status = 'VISIBLE' AND deleted_at IS NULL
   `;
-  const reply = ownAuthorRow({
+  const reply = commentAuthorRow({
     ...rows[0],
     reply_to_username: target.username,
     reply_to_display_name: target.display_name,
+    reply_to_studio_id: target.author_studio_id || null,
+    reply_to_studio_name: target.author_studio_name || null,
+    reply_to_studio_verified: target.author_studio_verified || false,
     like_count: 0,
     liked_by_viewer: false
-  }, session.row);
+  }, session.row, authorStudio);
   return json({ reply: mapComment(reply, session.row.id), replyCount: Number(counts[0].count) }, 201);
 }
 
@@ -579,19 +639,89 @@ async function writeFollow(request, username, present) {
   return json({ following: rows[0].following, followers: Number(rows[0].followers) });
 }
 
+async function studioSocial(request, sql, studioId) {
+  const studios = await sql`SELECT id FROM studios WHERE id = ${studioId} AND published = true AND deleted_at IS NULL`;
+  if (!studios.length) throw new AppError(404, 'Estudio no encontrado.');
+  const viewer = await optionalSession(request);
+  const rows = viewer ? await sql`SELECT COUNT(*)::int AS followers,
+      EXISTS(SELECT 1 FROM studio_follows WHERE user_profile_id = ${viewer.row.id} AND studio_id = ${studioId}) AS following
+      FROM studio_follows WHERE studio_id = ${studioId}`
+    : await sql`SELECT COUNT(*)::int AS followers, false AS following FROM studio_follows WHERE studio_id = ${studioId}`;
+  return { followers: Number(rows[0].followers), viewer: { authenticated: Boolean(viewer), following: Boolean(rows[0].following) } };
+}
+
+async function writeStudioFollow(request, studioId, present) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const studios = await session.sql`SELECT id FROM studios WHERE id = ${studioId} AND published = true AND deleted_at IS NULL`;
+  if (!studios.length) throw new AppError(404, 'Estudio no encontrado.');
+  await enforceSocialRateLimit(session.sql, session.row.id, 'studio-follow', 40, 3600);
+  if (present) await session.sql`INSERT INTO studio_follows (user_profile_id, studio_id) VALUES (${session.row.id}, ${studioId}) ON CONFLICT DO NOTHING`;
+  else await session.sql`DELETE FROM studio_follows WHERE user_profile_id = ${session.row.id} AND studio_id = ${studioId}`;
+  const rows = await session.sql`SELECT COUNT(*)::int AS followers,
+    EXISTS(SELECT 1 FROM studio_follows WHERE user_profile_id = ${session.row.id} AND studio_id = ${studioId}) AS following
+    FROM studio_follows WHERE studio_id = ${studioId}`;
+  return json({ followers: Number(rows[0].followers), following: Boolean(rows[0].following) });
+}
+
+async function readProgress(request, episodeId) {
+  const session = await socialSession(request, { required: true, active: true });
+  const episode = await requireEpisode(session.sql, episodeId);
+  const rows = await session.sql`SELECT position_seconds, duration_seconds, updated_at FROM watch_progress
+    WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}`;
+  return { progress: rows.length ? { positionSeconds: Number(rows[0].position_seconds), durationSeconds: Number(rows[0].duration_seconds), updatedAt: dateValue(rows[0].updated_at) } : null };
+}
+
+async function writeProgress(request, episodeId) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const episode = await requireEpisode(session.sql, episodeId);
+  const body = await jsonBody(request);
+  const progress = normalizedProgress(body.positionSeconds, body.durationSeconds);
+  await enforceSocialRateLimit(session.sql, session.row.id, 'watch-progress', 360, 3600);
+  if (progress.complete) {
+    await session.sql.transaction([
+      session.sql`DELETE FROM watch_progress WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}`,
+      session.sql`INSERT INTO episode_watched (user_profile_id, episode_id, marked_at)
+        VALUES (${session.row.id}, ${episode.id}, now()) ON CONFLICT (user_profile_id, episode_id) DO UPDATE SET marked_at = now()`,
+      session.sql`INSERT INTO episode_history (user_profile_id, episode_id) VALUES (${session.row.id}, ${episode.id})
+        ON CONFLICT (user_profile_id, episode_id) DO UPDATE SET last_viewed_at = now()`
+    ]);
+    return json({ complete: true, watched: true, progress: null });
+  }
+  const rows = await session.sql`INSERT INTO watch_progress (user_profile_id, episode_id, position_seconds, duration_seconds, updated_at)
+    VALUES (${session.row.id}, ${episode.id}, ${progress.position}, ${progress.duration}, now())
+    ON CONFLICT (user_profile_id, episode_id) DO UPDATE SET position_seconds = EXCLUDED.position_seconds,
+      duration_seconds = EXCLUDED.duration_seconds, updated_at = now()
+    RETURNING position_seconds, duration_seconds, updated_at`;
+  return json({ complete: false, watched: false, progress: { positionSeconds: Number(rows[0].position_seconds), durationSeconds: Number(rows[0].duration_seconds), updatedAt: dateValue(rows[0].updated_at) } });
+}
+
+async function deleteProgress(request, episodeId) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const episode = await requireEpisode(session.sql, episodeId);
+  await session.sql`DELETE FROM watch_progress WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}`;
+  return json({ progress: null });
+}
+
 async function notifications(session, page) {
   const offset = (page - 1) * NOTIFICATION_PAGE_SIZE;
   const [rows, counts] = await session.sql.transaction([
     session.sql`
       SELECT n.*, actor.username, actor.display_name, au.image AS provider_image,
-        avatar.public_url AS avatar_url, p.title AS project_title
+        avatar.public_url AS avatar_url, COALESCE(direct_project.title, p.title) AS project_title,
+        actor_studio.name AS actor_studio_name, actor_studio.logo AS actor_studio_logo,
+        actor_studio.is_verified AS actor_studio_verified
       FROM social_notifications n
-      JOIN user_profiles actor ON actor.id = n.actor_profile_id
-      JOIN auth_users au ON au.id = actor.auth_user_id
+      LEFT JOIN user_profiles actor ON actor.id = n.actor_profile_id
+      LEFT JOIN auth_users au ON au.id = actor.auth_user_id
       LEFT JOIN user_media_uploads avatar ON avatar.id = actor.avatar_media_id AND avatar.status = 'ACTIVE'
+      LEFT JOIN studios actor_studio ON actor_studio.id = n.actor_studio_id
       LEFT JOIN episode_comments c ON n.target_type = 'COMMENT' AND c.id = n.target_id
       LEFT JOIN episodes e ON e.id = n.episode_id
       LEFT JOIN projects p ON p.id = e.project_id
+      LEFT JOIN projects direct_project ON direct_project.id = n.project_id
       WHERE n.recipient_profile_id = ${session.row.id}
       ORDER BY n.created_at DESC LIMIT ${NOTIFICATION_PAGE_SIZE + 1} OFFSET ${offset}
     `,
@@ -631,9 +761,14 @@ async function updateComment(request, id) {
   await enforceSocialRateLimit(session.sql, session.row.id, 'comment-edit', 20, 3600);
   const commentId = uuidValue(id, 'El comentario');
   const rows = await session.sql`
-    UPDATE episode_comments SET body = ${commentValue(body.body)}, updated_at = now()
-    WHERE id = ${commentId}::uuid AND author_profile_id = ${session.row.id}
-      AND moderation_status <> 'DELETED' AND deleted_at IS NULL RETURNING *
+    WITH updated AS (
+      UPDATE episode_comments SET body = ${commentValue(body.body)}, updated_at = now()
+      WHERE id = ${commentId}::uuid AND author_profile_id = ${session.row.id}
+        AND moderation_status <> 'DELETED' AND deleted_at IS NULL RETURNING *
+    )
+    SELECT updated.*, studio.name AS author_studio_name, studio.logo AS author_studio_logo,
+      studio.is_verified AS author_studio_verified
+    FROM updated LEFT JOIN studios studio ON studio.id = updated.author_studio_id
   `;
   if (!rows.length) throw new AppError(404, 'Comentario propio no encontrado.');
   return json({ comment: mapComment(ownAuthorRow(rows[0], session.row), session.row.id) });
@@ -651,11 +786,16 @@ async function deleteComment(request, id) {
   if (!rows.length) throw new AppError(404, 'Comentario propio no encontrado.');
   if (rows[0].object_key) await deleteR2Object(rows[0].object_key);
   const queries = [session.sql`
-    UPDATE episode_comments SET body = '[Comentario eliminado]', moderation_status = 'DELETED', deleted_at = now(), updated_at = now()
-    WHERE id = ${commentId}::uuid AND author_profile_id = ${session.row.id} AND deleted_at IS NULL
+    UPDATE episode_comments SET parent_comment_id = NULL, reply_to_profile_id = NULL, reply_to_studio_id = NULL, updated_at = now()
+    WHERE parent_comment_id = ${commentId}::uuid
   `, session.sql`
     DELETE FROM social_notifications WHERE target_type = 'COMMENT'
       AND (target_id = ${commentId}::uuid OR root_comment_id = ${commentId}::uuid)
+  `, session.sql`
+    DELETE FROM content_reports WHERE target_type = 'COMMENT' AND target_id = ${commentId}::uuid
+  `, session.sql`
+    DELETE FROM episode_comments
+    WHERE id = ${commentId}::uuid AND author_profile_id = ${session.row.id} AND deleted_at IS NULL
   `];
   if (rows[0].media_id) queries.push(session.sql`UPDATE user_media_uploads SET status = 'DELETED', object_key = NULL, public_url = NULL, deleted_at = now() WHERE id = ${rows[0].media_id}`);
   await session.sql.transaction(queries);
@@ -848,7 +988,9 @@ export async function GET(request, context) {
     }
     if (path[0] === 'session' && path.length === 1) {
       const session = await optionalSession(request);
-      return json({ user: session ? mapSocialProfile(session.row) : null });
+      if (!session) return json({ user: null });
+      const studios = await managedStudios(session.sql, session.row.id);
+      return json({ user: { ...mapSocialProfile(session.row), managedStudios: studios.map(row => ({ id: row.id, name: row.name, logo: row.logo || '', isVerified: row.is_verified, role: row.role })) } });
     }
     const sql = getSql();
     if (path[0] === 'users' && path[1] && path.length === 2) return json(await publicProfile(request, sql, usernameValue(path[1]), page));
@@ -864,6 +1006,8 @@ export async function GET(request, context) {
       return json({ unreadCount: Number(counts[0].unread) });
     }
     if (path[0] === 'projects' && path[1] && path.length === 2) return json(await projectSocial(request, sql, path[1], page));
+    if (path[0] === 'studios' && path[1] && path.length === 2) return json(await studioSocial(request, sql, path[1]));
+    if (path[0] === 'episodes' && path[1] && path[2] === 'progress' && path.length === 3) return json(await readProgress(request, path[1]));
     if (path[0] === 'episodes' && path[1] && path.length === 2) return json(await episodeSocial(request, sql, path[1], page));
     if (path[0] === 'comments' && path[1] && path[2] === 'replies' && path.length === 3) return json(await commentReplies(request, sql, path[1], page));
     throw new AppError(404, 'Ruta social no encontrada.');
@@ -893,6 +1037,7 @@ export async function POST(request, context) {
     if (path[0] === 'comments' && path[1] && path[2] === 'replies' && path.length === 3) return await createReply(request, path[1]);
     if (path[0] === 'comments' && path[1] && path[2] === 'like' && path.length === 3) return await writeCommentLike(request, path[1], true);
     if (path[0] === 'users' && path[1] && path[2] === 'follow' && path.length === 3) return await writeFollow(request, path[1], true);
+    if (path[0] === 'studios' && path[1] && path[2] === 'follow' && path.length === 3) return await writeStudioFollow(request, path[1], true);
     if (path[0] === 'projects' && path[1] && path[2] === 'reviews') return await saveReview(request, path[1]);
     if (path[0] === 'reports' && path.length === 1) return await createReport(request);
     if (path[0] === 'media' && path[1] === 'presign') return await createPresign(request);
@@ -900,6 +1045,17 @@ export async function POST(request, context) {
     throw new AppError(404, 'Ruta social no encontrada.');
   } catch (error) {
     if (Number(error?.status || 500) >= 500) console.error('Social POST:', error);
+    return socialErrorResponse(error);
+  }
+}
+
+export async function PUT(request, context) {
+  try {
+    const path = await segments(context);
+    if (path[0] === 'episodes' && path[1] && path[2] === 'progress' && path.length === 3) return await writeProgress(request, path[1]);
+    throw new AppError(404, 'Ruta social no encontrada.');
+  } catch (error) {
+    if (Number(error?.status || 500) >= 500) console.error('Social PUT:', error);
     return socialErrorResponse(error);
   }
 }
@@ -942,6 +1098,8 @@ export async function DELETE(request, context) {
     if (path[0] === 'episodes' && path[1] && path[2] === 'watched' && path.length === 3) return await writeWatched(request, path[1], false);
     if (path[0] === 'comments' && path[1] && path[2] === 'like' && path.length === 3) return await writeCommentLike(request, path[1], false);
     if (path[0] === 'users' && path[1] && path[2] === 'follow' && path.length === 3) return await writeFollow(request, path[1], false);
+    if (path[0] === 'studios' && path[1] && path[2] === 'follow' && path.length === 3) return await writeStudioFollow(request, path[1], false);
+    if (path[0] === 'episodes' && path[1] && path[2] === 'progress' && path.length === 3) return await deleteProgress(request, path[1]);
     if (path[0] === 'comments' && path[1] && path[2] === 'image' && path.length === 3) return await deleteCommentImage(request, path[1]);
     if (path[0] === 'comments' && path[1] && path.length === 2) return await deleteComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await deleteReview(request, path[1]);

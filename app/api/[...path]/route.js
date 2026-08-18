@@ -8,6 +8,8 @@ import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
+import { episodePlayback, isUpdate2SchemaMissing, mapPromo } from '@/lib/update2';
+import { notifyStudioFollowers } from '@/lib/studio-notifications';
 import {
   bannerValue,
   DEFAULT_HOME_SECTIONS,
@@ -27,8 +29,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const PROJECT_TYPES = new Set(['SERIES', 'MOVIE', 'OVA', 'SPECIAL', 'MANGA_COMIC_DUB']);
-const PROJECT_STATUSES = new Set(['ONGOING', 'FINISHED', 'PAUSED', 'CANCELLED']);
-const EPISODE_PROVIDERS = new Set(['ARCHIVE', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']);
+const PROJECT_STATUSES = new Set(['ONGOING', 'UPCOMING', 'FINISHED', 'PAUSED', 'CANCELLED']);
+const EPISODE_PROVIDERS = new Set(['ARCHIVE', 'DIRECT', 'HLS', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']);
 const EPISODE_STATUSES = new Set(['DRAFT', 'UPLOADING', 'PROCESSING', 'READY', 'PUBLISHED', 'ERROR', 'RETIRED']);
 const TRASH_KINDS = new Set(['projects', 'studios', 'episodes']);
 const LOGIN_MAX_FAILURES = 5;
@@ -210,6 +212,7 @@ function mapEditorialBanner(row) {
     title: row.title,
     description: row.description || '',
     imageUrl: row.image_url || '',
+    mobileImageUrl: row.mobile_image_url || '',
     linkUrl: row.link_url || '',
     buttonText: row.button_text || '',
     enabled: Boolean(row.enabled),
@@ -435,6 +438,36 @@ async function recommendationContext(sql, viewer, projects) {
   return { items: diversifiedFallback(stableDailyRotate(projects, viewer.row.id)), reference: null };
 }
 
+async function continueWatching(sql, viewer) {
+  if (!viewer) return [];
+  try {
+    const rows = await sql`
+      SELECT wp.position_seconds, wp.duration_seconds, wp.updated_at,
+        e.id AS episode_id, e.title AS episode_title, e.season, e.number,
+        p.id AS project_id, p.title AS project_title, p.poster, p.banner
+      FROM watch_progress wp
+      JOIN episodes e ON e.id = wp.episode_id
+      JOIN projects p ON p.id = e.project_id
+      WHERE wp.user_profile_id = ${viewer.row.id}
+        AND wp.position_seconds > 2 AND wp.duration_seconds > 0
+        AND (wp.position_seconds / NULLIF(wp.duration_seconds, 0)) < 0.92
+        AND e.published = true AND e.deleted_at IS NULL
+        AND p.published = true AND p.deleted_at IS NULL
+      ORDER BY wp.updated_at DESC LIMIT 12
+    `;
+    return rows.map(row => ({
+      episode: { id: row.episode_id, title: row.episode_title, season: Number(row.season), number: Number(row.number) },
+      project: { id: row.project_id, title: row.project_title, poster: row.poster || '', banner: row.banner || '' },
+      positionSeconds: Number(row.position_seconds), durationSeconds: Number(row.duration_seconds),
+      progress: Math.min(100, Math.max(0, Number(row.position_seconds) / Number(row.duration_seconds) * 100)),
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+    }));
+  } catch (error) {
+    if (isUpdate2SchemaMissing(error)) return [];
+    throw error;
+  }
+}
+
 async function publicHome(request, sql) {
   const [projects, studios, legacyRows] = await Promise.all([
     publicProjects(sql),
@@ -490,7 +523,10 @@ async function publicHome(request, sql) {
     cmsAvailable = false;
   }
   const viewer = await optionalHomeViewer(request);
-  const recommendations = await recommendationContext(sql, viewer, projects).catch(() => ({ items: diversifiedFallback(projects), reference: null }));
+  const [recommendations, progressItems] = await Promise.all([
+    recommendationContext(sql, viewer, projects).catch(() => ({ items: diversifiedFallback(projects), reference: null })),
+    continueWatching(sql, viewer)
+  ]);
   const studioFallback = stableDailyRotate(studios, 'studios');
   const heroFallback = projects.filter(project => project.featured);
   const hero = heroProjects.length ? heroProjects : (heroFallback.length ? heroFallback : projects);
@@ -515,6 +551,10 @@ async function publicHome(request, sql) {
     banners.filter(banner => banner.position >= section.position && banner.position < section.position + 10)
       .forEach(banner => composed.push({ sectionType: 'BANNER', sectionKey: `banner-${banner.id}`, position: banner.position, banner }));
   }
+  if (progressItems.length) composed.push({
+    sectionType: 'CONTINUE_WATCHING', sectionKey: 'continue-watching', position: 5,
+    title: 'Seguir viendo', subtitle: 'Continúa desde donde lo dejaste, en cualquier dispositivo.', items: progressItems
+  });
   banners.filter(banner => !composed.some(item => item.banner?.id === banner.id))
     .forEach(banner => composed.push({ sectionType: 'BANNER', sectionKey: `banner-${banner.id}`, position: banner.position, banner }));
   composed.sort((left, right) => left.position - right.position);
@@ -698,10 +738,16 @@ export async function GET(request, context) {
             WHERE ps.project_id = ${path[1]} AND s.published = true AND s.deleted_at IS NULL
             ORDER BY s.name`
       ], { readOnly: true });
-      return json(mapProject(projectRows[0], {
+      let promos = [];
+      try {
+        promos = await sql`SELECT * FROM project_promo_media WHERE project_id = ${path[1]} AND is_active = true ORDER BY position, created_at`;
+      } catch (error) {
+        if (!isUpdate2SchemaMissing(error)) throw error;
+      }
+      return json({ ...mapProject(projectRows[0], {
         episodes: episodes.map(row => mapEpisode(row)),
         studios: studios.map(row => ({ ...mapStudio(row), role: row.role, notes: row.notes }))
-      }));
+      }), promos: promos.map(mapPromo) });
     }
 
     if (path[0] === 'studios' && path.length === 1) return json(await publicStudios(sql));
@@ -747,7 +793,8 @@ export async function GET(request, context) {
       }
       const row = rows[0];
       return json(mapEpisode(row, {
-        project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' }
+        project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' },
+        playback: episodePlayback(row)
       }));
     }
 
@@ -827,7 +874,19 @@ export async function GET(request, context) {
       } catch (error) {
         if (!isAliasSchemaMissing(error)) throw error;
       }
-      const backup = { version: 3, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes, contentAliases, homeCms };
+      let update2 = null;
+      try {
+        const [studioMemberships, studioFollows, watchProgress, projectPromoMedia] = await sql.transaction([
+          sql`SELECT * FROM studio_memberships ORDER BY studio_id, created_at`,
+          sql`SELECT * FROM studio_follows ORDER BY studio_id, created_at`,
+          sql`SELECT * FROM watch_progress ORDER BY user_profile_id, updated_at`,
+          sql`SELECT * FROM project_promo_media ORDER BY project_id, position, created_at`
+        ], { readOnly: true });
+        update2 = { studioMemberships, studioFollows, watchProgress, projectPromoMedia };
+      } catch (error) {
+        if (!isUpdate2SchemaMissing(error)) throw error;
+      }
+      const backup = { version: 3, generatedAt: new Date().toISOString(), settings, projects, studios, projectStudios: relations, episodes, contentAliases, homeCms, update2 };
       const filename = `dubverse-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
       return new NextResponse(JSON.stringify(backup, null, 2), {
         status: 200,
@@ -960,8 +1019,8 @@ export async function POST(request, context) {
       const body = bannerValue(await bodyJson(request));
       const id = crypto.randomUUID();
       await sql`INSERT INTO editorial_banners (
-          id, label, title, description, image_url, link_url, button_text, enabled, position, starts_at, ends_at
-        ) VALUES (${id}::uuid, ${body.label}, ${body.title}, ${body.description}, ${body.imageUrl}, ${body.linkUrl},
+          id, label, title, description, image_url, mobile_image_url, link_url, button_text, enabled, position, starts_at, ends_at
+        ) VALUES (${id}::uuid, ${body.label}, ${body.title}, ${body.description}, ${body.imageUrl}, ${body.mobileImageUrl}, ${body.linkUrl},
           ${body.buttonText}, ${body.enabled}, ${body.position}, ${body.startsAt}, ${body.endsAt})`;
       return json({ ok: true, id }, 201);
     }
@@ -1033,6 +1092,7 @@ export async function POST(request, context) {
           WHERE EXISTS (SELECT 1 FROM studios WHERE id = ${studioId} AND deleted_at IS NULL)`);
       }
       await sql.transaction(queries);
+      if (booleanValue(body.published)) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_PROJECT', projectId: id });
       return json({ ok: true, id }, 201);
     }
 
@@ -1040,9 +1100,11 @@ export async function POST(request, context) {
       const body = await bodyJson(request);
       const name = requiredText(body.name, 'El nombre');
       const id = slugify(body.id || name);
-      await sql`INSERT INTO studios (id, name, director, description, logo, socials, published, deleted_at, updated_at)
+      const verified = booleanValue(body.isVerified);
+      await sql`INSERT INTO studios (id, name, director, description, logo, banner, socials, is_verified, verified_at, verified_by, published, deleted_at, updated_at)
         VALUES (${id}, ${name}, ${String(body.director || '')}, ${String(body.description || '')},
-          ${String(body.logo || '') || null}, ${JSON.stringify(socialsValue(body.socials))}::jsonb,
+          ${String(body.logo || '') || null}, ${String(body.banner || '') || null}, ${JSON.stringify(socialsValue(body.socials))}::jsonb,
+          ${verified}, ${verified ? new Date() : null}, ${verified ? 'global-admin' : null},
           ${body.published === undefined ? true : booleanValue(body.published)}, NULL, now())`;
       return json({ ok: true, id }, 201);
     }
@@ -1069,6 +1131,7 @@ export async function POST(request, context) {
           ${id}, ${projectId}, ${season}, ${number}, ${requiredText(body.title || `Episodio ${number}`, 'El título')},
           ${String(body.description || '')}, ${provider}, ${videoUrl}, ${archiveIdentifier}, ${archiveFile},
           ${status}, ${booleanValue(body.published)}, NULL, now())`;
+      if (booleanValue(body.published)) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_EPISODE', projectId, episodeId: id });
       return json({ ok: true, id }, 201);
     }
 
@@ -1125,11 +1188,12 @@ export async function PATCH(request, context) {
       if (!rows.length) throw new AppError(404, 'Banner no encontrado.');
       const value = bannerValue(body, existingBannerValue(rows[0]));
       const oldImage = rows[0].image_url || '';
+      const oldMobileImage = rows[0].mobile_image_url || '';
       await sql`UPDATE editorial_banners SET label = ${value.label}, title = ${value.title}, description = ${value.description},
-        image_url = ${value.imageUrl}, link_url = ${value.linkUrl}, button_text = ${value.buttonText}, enabled = ${value.enabled},
+        image_url = ${value.imageUrl}, mobile_image_url = ${value.mobileImageUrl}, link_url = ${value.linkUrl}, button_text = ${value.buttonText}, enabled = ${value.enabled},
         position = ${value.position}, starts_at = ${value.startsAt}, ends_at = ${value.endsAt}, updated_at = now()
         WHERE id = ${path[3]}::uuid`;
-      if (oldImage !== value.imageUrl) await cleanupBlobUrls(sql, [oldImage]);
+      await cleanupBlobUrls(sql, [oldImage !== value.imageUrl ? oldImage : null, oldMobileImage !== value.mobileImageUrl ? oldMobileImage : null]);
       return json({ ok: true });
     }
 
@@ -1156,6 +1220,7 @@ export async function PATCH(request, context) {
       const status = body.status !== undefined ? enumValue(body.status, PROJECT_STATUSES, old.status) : old.status;
       const poster = body.poster !== undefined ? (String(body.poster).trim() || null) : old.poster;
       const banner = body.banner !== undefined ? (String(body.banner).trim() || null) : old.banner;
+      const published = body.published !== undefined ? booleanValue(body.published) : old.published;
       await sql`UPDATE projects SET
           title = ${title},
           alternate_title = ${body.alternateTitle !== undefined ? String(body.alternateTitle) : old.alternate_title},
@@ -1166,12 +1231,13 @@ export async function PATCH(request, context) {
           type = ${type}, status = ${status},
           genres = ${JSON.stringify(body.genres !== undefined ? genresValue(body.genres) : old.genres)}::jsonb,
           poster = ${poster}, banner = ${banner},
-          published = ${body.published !== undefined ? booleanValue(body.published) : old.published},
+          published = ${published},
           featured = ${body.featured !== undefined ? booleanValue(body.featured) : old.featured},
           updated_at = now()
         WHERE id = ${id}`;
       await replaceProjectStudios(sql, id, studioIdsValue(body.studioIds));
       await cleanupBlobUrls(sql, [old.poster !== poster ? old.poster : null, old.banner !== banner ? old.banner : null]);
+      if (!old.published && published) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_PROJECT', projectId: id });
       return json({ ok: true });
     }
 
@@ -1180,16 +1246,22 @@ export async function PATCH(request, context) {
       if (!rows.length) throw new AppError(404, 'Estudio no encontrado.');
       const old = rows[0];
       const logo = body.logo !== undefined ? (String(body.logo).trim() || null) : old.logo;
+      const banner = body.banner !== undefined ? (String(body.banner).trim() || null) : old.banner;
+      const verified = body.isVerified !== undefined ? booleanValue(body.isVerified) : old.is_verified;
       await sql`UPDATE studios SET
           name = ${body.name !== undefined ? requiredText(body.name, 'El nombre') : old.name},
           director = ${body.director !== undefined ? String(body.director) : old.director},
           description = ${body.description !== undefined ? String(body.description) : old.description},
           logo = ${logo},
+          banner = ${banner},
           socials = ${JSON.stringify(body.socials !== undefined ? socialsValue(body.socials) : old.socials)}::jsonb,
+          is_verified = ${verified},
+          verified_at = ${verified ? (old.verified_at || new Date()) : null},
+          verified_by = ${verified ? 'global-admin' : null},
           published = ${body.published !== undefined ? booleanValue(body.published) : old.published},
           updated_at = now()
         WHERE id = ${id}`;
-      await cleanupBlobUrls(sql, [old.logo !== logo ? old.logo : null]);
+      await cleanupBlobUrls(sql, [old.logo !== logo ? old.logo : null, old.banner !== banner ? old.banner : null]);
       return json({ ok: true });
     }
 
@@ -1209,13 +1281,15 @@ export async function PATCH(request, context) {
       const archiveFile = body.archiveFile !== undefined ? (String(body.archiveFile).trim() || null) : old.archive_file;
       let videoUrl = body.videoUrl !== undefined ? String(body.videoUrl).trim() : old.video_url;
       if (provider === 'ARCHIVE' && archiveIdentifier && !videoUrl) videoUrl = archiveEmbedUrl(archiveIdentifier, archiveFile || '');
+      const published = body.published !== undefined ? booleanValue(body.published) : old.published;
       await sql`UPDATE episodes SET
           project_id = ${projectId}, season = ${season}, number = ${number},
           title = ${body.title !== undefined ? requiredText(body.title, 'El título') : old.title},
           description = ${body.description !== undefined ? String(body.description) : old.description},
           provider = ${provider}, video_url = ${videoUrl}, archive_identifier = ${archiveIdentifier}, archive_file = ${archiveFile},
-          status = ${status}, published = ${body.published !== undefined ? booleanValue(body.published) : old.published}, updated_at = now()
+          status = ${status}, published = ${published}, updated_at = now()
         WHERE id = ${id}`;
+      if (!old.published && published) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_EPISODE', projectId, episodeId: id });
       return json({ ok: true });
     }
 

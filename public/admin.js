@@ -12,6 +12,7 @@ const state = {
   overview: null,
   config: null,
   home: null,
+  studioAccess: { studios: [], memberships: [], users: [] },
   idAudit: null,
   moderation: { reports: { items: [] }, users: [] },
   moderationStatus: 'OPEN',
@@ -236,8 +237,15 @@ const HOME_SECTION_TYPE_OPTIONS = [
   { value: 'CURATED', label: 'Selección manual' },
   { value: 'RECOMMENDED', label: 'Recomendaciones' }
 ];
+const PROJECT_STATUS_OPTIONS = [
+  { value: 'UPCOMING', label: 'Próximamente' },
+  { value: 'ONGOING', label: 'En emisión' },
+  { value: 'FINISHED', label: 'Finalizado' },
+  { value: 'PAUSED', label: 'Pausado' },
+  { value: 'CANCELLED', label: 'Cancelado' }
+];
 const HOME_STATUS_OPTIONS = [
-  { value: 'ONGOING', label: 'En emisión' }, { value: 'FINISHED', label: 'Finalizados' },
+  { value: 'UPCOMING', label: 'Próximamente' }, { value: 'ONGOING', label: 'En emisión' }, { value: 'FINISHED', label: 'Finalizados' },
   { value: 'PAUSED', label: 'Pausados' }, { value: 'CANCELLED', label: 'Cancelados' }
 ];
 
@@ -409,7 +417,7 @@ function projects() {
         <td>${badge(project.status, project.status === 'FINISHED' ? 'green' : 'yellow')}</td>
         <td>${project.studios?.length || 0}</td><td>${project.episodeCount}</td>
         <td>${project.published ? badge('Publicado', 'green') : badge('Oculto', 'red')}</td>
-        <td><div class="row-actions"><button class="action-btn edit-project" data-id="${esc(project.id)}">Editar</button><button class="action-btn rename-project" data-id="${esc(project.id)}">Cambiar ID / slug</button><button class="action-btn danger trash-project" data-id="${esc(project.id)}">Papelera</button></div></td>
+        <td><div class="row-actions"><button class="action-btn edit-project" data-id="${esc(project.id)}">Editar</button><button class="action-btn promo-project" data-id="${esc(project.id)}">Material promocional</button><button class="action-btn rename-project" data-id="${esc(project.id)}">Cambiar ID / slug</button><button class="action-btn danger trash-project" data-id="${esc(project.id)}">Papelera</button></div></td>
       </tr>`).join('') || '<tr><td colspan="7" class="empty">Sin resultados</td></tr>';
     bindProjectRows();
   };
@@ -421,6 +429,7 @@ function projects() {
 
 function bindProjectRows() {
   $$('.edit-project').forEach(button => button.onclick = () => openProject(state.projects.find(project => project.id === button.dataset.id)));
+  $$('.promo-project').forEach(button => button.onclick = () => openProjectPromos(state.projects.find(project => project.id === button.dataset.id)));
   $$('.rename-project').forEach(button => button.onclick = () => {
     const project = state.projects.find(item => item.id === button.dataset.id);
     openIdRename({ kind: 'projects', name: project.title, currentId: project.id, recommendedId: recommendedId('projects', project) });
@@ -498,14 +507,15 @@ function studios() {
     <div class="table-wrap"><table class="data-table">
       <thead><tr><th>Estudio</th><th>Dirección</th><th>Proyectos</th><th>Visible</th><th>Acciones</th></tr></thead>
       <tbody id="studioRows"></tbody>
-    </table></div>`;
+    </table></div>
+    <section class="panel-card studio-access-admin" id="studioAccessAdmin"><header><div><h2>Administradores de estudios</h2><p>Asigna cuentas personales por @username. Estos permisos no conceden acceso al Admin global.</p></div></header><div class="home-add-row"><input id="studioAdminSearch" type="search" placeholder="Buscar @username"><button id="searchStudioAdmin" type="button">Buscar</button></div><div id="studioAdminResults"></div><div id="studioMembershipList"><p class="muted">Cargando membresías…</p></div></section>`;
 
   const draw = () => {
     const query = $('#tableSearch').value.toLowerCase();
     const rows = state.studios.filter(studio => studio.name.toLowerCase().includes(query));
     $('#studioRows').innerHTML = rows.map(studio => `
       <tr>
-        <td><div class="record-cell"><img class="logo-thumb" src="${esc(studio.logo || '/assets/dubverse-icon.png')}" alt=""><div><div class="record-title">${esc(studio.name)}</div><div class="record-sub">${esc(studio.id)}</div></div></div></td>
+        <td><div class="record-cell"><img class="logo-thumb" src="${esc(studio.logo || '/assets/dubverse-icon.png')}" alt=""><div><div class="record-title">${esc(studio.name)} ${studio.isVerified ? '✓' : ''}</div><div class="record-sub">${esc(studio.id)}${studio.isVerified ? ' · verificado' : ''}</div></div></div></td>
         <td>${esc(studio.director || '—')}</td><td>${studio.projects.length}</td>
         <td>${studio.published ? badge('Publicado', 'green') : badge('Oculto', 'red')}</td>
         <td><div class="row-actions"><button class="action-btn edit-studio" data-id="${esc(studio.id)}">Editar</button><button class="action-btn rename-studio" data-id="${esc(studio.id)}">Cambiar ID / slug</button><button class="action-btn danger trash-studio" data-id="${esc(studio.id)}">Papelera</button></div></td>
@@ -516,6 +526,69 @@ function studios() {
   $('#tableSearch').addEventListener('input', draw);
   $('#newStudio').onclick = () => openStudio();
   draw();
+  loadStudioAccessAdmin();
+}
+
+async function openProjectPromos(project) {
+  let modal = $('#projectPromosDialog');
+  if (!modal) {
+    modal = document.createElement('dialog');
+    modal.id = 'projectPromosDialog';
+    modal.className = 'promo-admin-dialog';
+    document.body.appendChild(modal);
+  }
+  const result = await api(`/api/admin/promos?projectId=${encodeURIComponent(project.id)}`);
+  modal.innerHTML = `<div class="promo-admin-shell"><header><div><span class="kicker">Material promocional</span><h2>${esc(project.title)}</h2></div><button type="button" data-close-promos aria-label="Cerrar">×</button></header><div class="promo-admin-list">${result.promos.map(promo => `<article data-promo-record="${esc(promo.id)}"><span><strong>${esc(promo.title)}</strong><small>${esc(promo.type)} · ${esc(promo.provider)} · posición ${promo.position}</small></span>${promo.isActive ? badge('Activo', 'green') : badge('Inactivo', 'red')}<button class="action-btn" data-edit-promo type="button">Editar</button><button class="action-btn danger" data-delete-promo type="button">Eliminar</button></article>`).join('') || '<p class="muted">Todavía no hay tráilers o teasers.</p>'}</div><form id="promoAdminForm"><input name="id" type="hidden"><div class="form-grid">${field('title', 'Título', '')}${field('type', 'Tipo', 'TRAILER', 'select', false, ['TRAILER', 'TEASER', 'PV', 'SPECIAL'])}${field('provider', 'Proveedor', 'YOUTUBE', 'select', false, ['YOUTUBE', 'ARCHIVE', 'DIRECT', 'OTHER'])}${field('url', 'URL', '', 'text', true)}${field('providerIdentifier', 'ID de YouTube / Archive', '')}${field('providerFile', 'Archivo de Archive', '')}${field('thumbnailUrl', 'URL de miniatura', '', 'text', true)}${field('position', 'Posición', 0, 'number')}${field('isActive', 'Material activo', true, 'checkbox')}</div><p class="editor-status" role="status"></p><footer><button class="secondary" type="reset">Limpiar</button><button type="submit">Guardar material</button></footer></form></div>`;
+  $('[data-close-promos]', modal).onclick = () => modal.close();
+  const form = $('#promoAdminForm', modal);
+  $$('[data-promo-record]', modal).forEach(card => {
+    const promo = result.promos.find(item => item.id === card.dataset.promoRecord);
+    $('[data-edit-promo]', card).onclick = () => {
+      ['id', 'title', 'type', 'provider', 'url', 'providerIdentifier', 'providerFile', 'thumbnailUrl', 'position'].forEach(key => { form.elements[key].value = promo[key] ?? ''; });
+      form.elements.isActive.checked = promo.isActive;
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    $('[data-delete-promo]', card).onclick = async () => {
+      if (!confirm('¿Eliminar definitivamente este material promocional?')) return;
+      await api(`/api/admin/promos/${encodeURIComponent(promo.id)}`, { method: 'DELETE' });
+      modal.close(); await openProjectPromos(project);
+    };
+  });
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    values.projectId = project.id; values.position = Number(values.position || 0); values.isActive = form.elements.isActive.checked;
+    const message = $('.editor-status', form); message.textContent = 'Guardando…';
+    try {
+      await api(values.id ? `/api/admin/promos/${encodeURIComponent(values.id)}` : '/api/admin/promos', { method: values.id ? 'PATCH' : 'POST', body: JSON.stringify(values) });
+      modal.close(); await openProjectPromos(project);
+    } catch (error) { message.textContent = error.message; }
+  };
+  modal.showModal();
+}
+
+async function loadStudioAccessAdmin(query = '') {
+  const root = $('#studioAccessAdmin');
+  if (!root) return;
+  try {
+    const result = await api(`/api/admin/studio-access${query ? `?query=${encodeURIComponent(query)}` : ''}`);
+    state.studioAccess = result;
+    $('#studioAdminResults').innerHTML = result.users.length ? `<div class="studio-admin-search-results">${result.users.map(user => `<article><span><strong>@${esc(user.username)}</strong><small>${esc(user.display_name)}</small></span><select data-studio-for-user="${esc(user.username)}">${result.studios.map(studio => `<option value="${esc(studio.id)}">${esc(studio.name)}</option>`).join('')}</select><button data-grant-studio="${esc(user.username)}" type="button">Dar permiso</button></article>`).join('')}</div>` : query ? '<p class="muted">No se encontraron usuarios activos.</p>' : '';
+    $('#studioMembershipList').innerHTML = `<div class="studio-membership-list">${result.studios.map(studio => { const members = result.memberships.filter(item => item.studio_id === studio.id); return `<article><header><strong>${esc(studio.name)} ${studio.isVerified ? '✓' : ''}</strong><small>${members.length} administrador${members.length === 1 ? '' : 'es'}</small></header>${members.map(member => `<div><span><strong>@${esc(member.username)}</strong><small>${esc(member.display_name)} · ${esc(member.role)}</small></span><button class="action-btn danger" data-revoke-membership="${esc(member.id)}" type="button">Revocar</button></div>`).join('') || '<p class="muted">Sin administradores asignados.</p>'}</article>`; }).join('')}</div>`;
+    $('#searchStudioAdmin').onclick = () => loadStudioAccessAdmin($('#studioAdminSearch').value.trim().replace(/^@/, ''));
+    $('#studioAdminSearch').onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); $('#searchStudioAdmin').click(); } };
+    $$('[data-grant-studio]').forEach(button => button.onclick = async () => {
+      const studioId = $(`[data-studio-for-user="${CSS.escape(button.dataset.grantStudio)}"]`).value;
+      try { await api('/api/admin/studio-access', { method: 'POST', body: JSON.stringify({ username: button.dataset.grantStudio, studioId, role: 'ADMIN' }) }); flash('Administrador asignado.'); await loadStudioAccessAdmin(); } catch (error) { flash(error.message, 'error'); }
+    });
+    $$('[data-revoke-membership]').forEach(button => button.onclick = async () => {
+      if (!confirm('¿Revocar el acceso de este administrador al estudio?')) return;
+      try { await api(`/api/admin/studio-access/${encodeURIComponent(button.dataset.revokeMembership)}`, { method: 'DELETE' }); flash('Permiso revocado.'); await loadStudioAccessAdmin(); } catch (error) { flash(error.message, 'error'); }
+    });
+  } catch (error) {
+    $('#studioMembershipList').innerHTML = `<p class="error">${esc(error.message)}</p>`;
+    $('#searchStudioAdmin').onclick = () => loadStudioAccessAdmin($('#studioAdminSearch').value.trim().replace(/^@/, ''));
+  }
 }
 
 function bindStudioRows() {
@@ -1010,7 +1083,7 @@ function openProject(project = null) {
     field('title', 'Título', project?.title || '') +
     field('type', 'Tipo', project?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
     field('alternateTitle', 'Título alternativo', project?.alternateTitle || project?.alternate_title || '') +
-    field('status', 'Estado', project?.status || 'ONGOING', 'select', false, ['ONGOING', 'FINISHED', 'PAUSED', 'CANCELLED']) +
+    field('status', 'Estado', project?.status || 'ONGOING', 'select', false, PROJECT_STATUS_OPTIONS) +
     field('synopsis', 'Sinopsis', project?.synopsis || '', 'textarea', true) +
     field('projectDirector', 'Director/a del proyecto', project?.projectDirector || project?.project_director || '', 'text', true) +
     field('dubbingInfo', 'Información del fandoblaje', project?.dubbingInfo || project?.dubbing_info || '', 'textarea', true) +
@@ -1034,7 +1107,9 @@ function openStudio(studio = null) {
     field('director', 'Dirección / administración', studio?.director || '') +
     field('description', 'Descripción', studio?.description || '', 'textarea', true) +
     imageField('logo', 'Logo', studio?.logo || '', 'studios', true) +
+    imageField('banner', 'Banner', studio?.banner || '', 'studio-banners', true) +
     studioSocialFields(studio?.socials || {}) +
+    field('isVerified', 'Estudio verificado (sólo Admin global)', studio?.isVerified || false, 'checkbox', true) +
     field('published', 'Publicado', studio?.published ?? true, 'checkbox');
   dialog.showModal();
   bindImageUploads();
@@ -1048,7 +1123,7 @@ function openEpisode(episode = null) {
   const projectOptions = availableProjects.map(project => ({ value: project.id, label: project.title }));
   fields.innerHTML =
     field('projectId', 'Proyecto', episode?.project_id || projectOptions[0]?.value, 'select', false, projectOptions) +
-    field('provider', 'Proveedor', episode?.provider || 'ARCHIVE', 'select', false, ['ARCHIVE', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']) +
+    field('provider', 'Proveedor', episode?.provider || 'ARCHIVE', 'select', false, ['ARCHIVE', 'DIRECT', 'HLS', 'PIXELDRAIN', 'EXTERNAL', 'LOCAL']) +
     field('season', 'Temporada', episode?.season || 1, 'number') +
     field('number', 'Número', episode?.number || 1, 'number') +
     field('title', 'Título', episode?.title || '', 'text', true) +
@@ -1110,6 +1185,7 @@ function openHomeBanner(banner = null) {
     field('title', 'Título', banner?.title || '') +
     field('description', 'Descripción', banner?.description || '', 'textarea', true) +
     imageField('imageUrl', 'Imagen horizontal opcional', banner?.imageUrl || '', 'home-banners', true) +
+    imageField('mobileImageUrl', 'Imagen móvil opcional', banner?.mobileImageUrl || '', 'home-banners-mobile', true) +
     field('linkUrl', 'Enlace interno o HTTPS', banner?.linkUrl || '', 'text', true) +
     field('buttonText', 'Texto del botón', banner?.buttonText || '') +
     field('position', 'Posición en portada', banner?.position ?? 25, 'number') +

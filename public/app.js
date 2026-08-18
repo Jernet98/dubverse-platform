@@ -4,13 +4,27 @@ const state = {
   social: { config: { authAvailable: false, providers: [], mediaAvailable: false }, configLoad: { status: 'idle', error: '' }, viewer: null, sessionLoaded: false,
     notifications: { unreadCount: 0, page: 0, hasMore: false, items: [], loaded: false } }
 };
+let activePlayer = null;
+let activeProgressSaver = null;
+const activePromoPlayers = new Set();
+let activeCarouselCleanup = null;
+
+function destroyActivePlayer() {
+  activePlayer?.destroy();
+  activePlayer = null;
+  activeProgressSaver = null;
+  activePromoPlayers.forEach(player => player.destroy());
+  activePromoPlayers.clear();
+  activeCarouselCleanup?.();
+  activeCarouselCleanup = null;
+}
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
 const typeLabel = type => ({ SERIES: 'Serie', MOVIE: 'Película', OVA: 'OVA', SPECIAL: 'Especial', MANGA_COMIC_DUB: 'Manga / Comic Dub' }[type] || type);
-const statusLabel = status => ({ ONGOING: 'En emisión', FINISHED: 'Finalizado', PAUSED: 'Pausado', CANCELLED: 'Cancelado' }[status] || status);
+const statusLabel = status => ({ ONGOING: 'En emisión', UPCOMING: 'Próximamente', FINISHED: 'Finalizado', PAUSED: 'Pausado', CANCELLED: 'Cancelado' }[status] || status);
 const imageOrFallback = value => value || '/assets/dubverse-icon.png';
 const cssUrl = value => String(value || '').replace(/["'\\()\s]/g, char => encodeURIComponent(char));
 const PUBLIC_PATH = /^\/(?:catalogo|estudios|acerca|perfil|(?:estudio|proyecto|ver|u)\/[^/]+)?\/?$/;
@@ -124,7 +138,7 @@ let sessionSyncPromise = null;
 let socialConfigPromise = null;
 
 function sessionViewerKey(viewer) {
-  return viewer ? JSON.stringify([viewer.id, viewer.username, viewer.displayName, viewer.avatar, viewer.banner, viewer.status]) : '';
+  return viewer ? JSON.stringify([viewer.id, viewer.username, viewer.displayName, viewer.avatar, viewer.banner, viewer.status, (viewer.managedStudios || []).map(studio => studio.id)]) : '';
 }
 
 async function syncSocialSession({ force = false } = {}) {
@@ -301,6 +315,7 @@ function renderAccount() {
     <a href="/perfil?tab=favoritos" role="menuitem">${uiIcon('heart')}<span>Favoritos</span></a>
     <a href="/perfil?tab=ver-despues" role="menuitem">${uiIcon('bookmark')}<span>Ver después</span></a>
     <a href="/perfil?tab=historial" role="menuitem">${uiIcon('clock')}<span>Historial</span></a>
+    ${(viewer.managedStudios || []).length ? `<a href="/panel-estudio" role="menuitem">${uiIcon('globe')}<span>Panel de estudio</span></a>` : ''}
     <button id="signOutButton" type="button" role="menuitem"><span>Cerrar sesión</span></button>`;
   $('#signOutButton').onclick = async () => {
     await api('/api/auth/sign-out', { method: 'POST', body: '{}' });
@@ -321,12 +336,16 @@ function relativeTime(value) {
 
 function notificationCopy(item) {
   if (item.type === 'FOLLOW') return 'comenzó a seguirte';
+  if (item.type === 'STUDIO_NEW_PROJECT') return `publicó un nuevo proyecto${item.projectTitle ? `: ${item.projectTitle}` : ''}`;
+  if (item.type === 'STUDIO_NEW_EPISODE') return `publicó un nuevo episodio${item.projectTitle ? ` de ${item.projectTitle}` : ''}`;
   if (item.type === 'COMMENT_REPLY') return `respondió a tu ${item.commentKind === 'REPLY' ? 'respuesta' : 'comentario'}${item.projectTitle ? ` en ${item.projectTitle}` : ''}`;
   return `dio Me gusta a tu ${item.commentKind === 'REPLY' ? 'respuesta' : 'comentario'}${item.projectTitle ? ` en ${item.projectTitle}` : ''}`;
 }
 
 function notificationUrl(item) {
   if (item.type === 'FOLLOW') return `/u/${encodeURIComponent(item.actor.username)}`;
+  if (item.type === 'STUDIO_NEW_PROJECT') return `/proyecto/${encodeURIComponent(item.projectId)}`;
+  if (item.type === 'STUDIO_NEW_EPISODE') return `/ver/${encodeURIComponent(item.episodeId)}`;
   return `/ver/${encodeURIComponent(item.episodeId)}?comment=${encodeURIComponent(item.targetId)}${item.rootCommentId ? `&root=${encodeURIComponent(item.rootCommentId)}` : ''}`;
 }
 
@@ -345,7 +364,7 @@ function renderNotifications() {
   const list = $('#notificationList');
   if (!list) return;
   list.innerHTML = state.social.notifications.items.map(item => `<a class="notification-item ${item.readAt ? '' : 'unread'}" href="${notificationUrl(item)}" data-notification-id="${esc(item.id)}">
-    <img src="${avatarImage(item.actor)}" alt=""><span><strong>${esc(item.actor.displayName)}</strong><small>@${esc(item.actor.username)} ${esc(notificationCopy(item))}</small><time>${esc(relativeTime(item.createdAt))}</time></span></a>`).join('') || '<div class="empty compact-empty">No tienes notificaciones.</div>';
+    <img src="${avatarImage(item.actor)}" alt=""><span><strong>${esc(item.actor?.displayName || 'Dubverse')}</strong><small>${item.actor?.isStudio ? '' : item.actor?.username ? `@${esc(item.actor.username)} ` : ''}${esc(notificationCopy(item))}</small><time>${esc(relativeTime(item.createdAt))}</time></span></a>`).join('') || '<div class="empty compact-empty">No tienes notificaciones.</div>';
   $('#moreNotifications').classList.toggle('hidden', !state.social.notifications.hasMore);
   $$('[data-notification-id]', list).forEach(link => link.onclick = async event => {
     const item = state.social.notifications.items.find(value => value.id === link.dataset.notificationId);
@@ -511,23 +530,100 @@ function studioRow(section) {
   return `<section class="section" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2>${section.subtitle ? `<p>${esc(section.subtitle)}</p>` : ''}</div><a href="/estudios">Conocer estudios →</a></div><div class="studio-strip">${section.items.map(studio => `<a class="studio-mini" href="/estudio/${encodeURIComponent(studio.id)}"><img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}"><div><strong>${esc(studio.name)}</strong><span>${studio.projects?.length || 0} proyectos</span></div></a>`).join('')}</div></section>`;
 }
 
-function editorialBanner(section) {
-  const banner = section.banner;
+function editorialBannerSlide(banner, index) {
   const external = /^https:\/\//i.test(banner.linkUrl || '');
-  return `<section class="section editorial-wrap" data-home-section="${esc(section.sectionKey)}"><article class="editorial-banner ${banner.imageUrl ? 'has-image' : ''}">${banner.imageUrl ? `<div class="editorial-image" style="background-image:url('${esc(cssUrl(banner.imageUrl))}')"></div>` : ''}<div class="editorial-copy">${banner.label ? `<span class="eyebrow">${esc(banner.label)}</span>` : ''}<h2>${esc(banner.title)}</h2>${banner.description ? `<p>${esc(banner.description)}</p>` : ''}${banner.linkUrl ? `<a class="btn btn-primary" href="${esc(banner.linkUrl)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${esc(banner.buttonText || 'Ver más')}</a>` : ''}</div></article></section>`;
+  const desktop = banner.imageUrl || banner.mobileImageUrl;
+  const mobile = banner.mobileImageUrl || desktop;
+  return `<article class="editorial-banner-slide ${desktop ? 'has-image' : ''}" data-carousel-slide aria-hidden="${index ? 'true' : 'false'}">${desktop ? `<picture class="editorial-image"><source media="(max-width: 640px)" srcset="${esc(mobile)}"><img src="${esc(desktop)}" alt="" loading="${index ? 'lazy' : 'eager'}"></picture>` : ''}<div class="editorial-copy">${banner.label ? `<span class="eyebrow">${esc(banner.label)}</span>` : ''}<h2>${esc(banner.title)}</h2>${banner.description ? `<p>${esc(banner.description)}</p>` : ''}${banner.linkUrl ? `<a class="btn btn-primary" href="${esc(banner.linkUrl)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${esc(banner.buttonText || 'Ver más')}</a>` : ''}</div></article>`;
 }
 
-function home() {
+function editorialCarousel(banners) {
+  return `<section class="section editorial-carousel-wrap" data-editorial-carousel aria-roledescription="carrusel" aria-label="Novedades de Dubverse"><div class="editorial-carousel-viewport"><div class="editorial-carousel-track">${banners.map(editorialBannerSlide).join('')}</div><button class="carousel-arrow previous" type="button" data-carousel-previous aria-label="Banner anterior">‹</button><button class="carousel-arrow next" type="button" data-carousel-next aria-label="Banner siguiente">›</button></div><div class="carousel-dots" role="tablist" aria-label="Elegir banner">${banners.map((banner, index) => `<button type="button" role="tab" data-carousel-dot="${index}" aria-label="Mostrar banner ${index + 1}: ${esc(banner.title)}" aria-selected="${index === 0}"></button>`).join('')}</div></section>`;
+}
+
+function progressTime(value) {
+  const seconds = Math.max(0, Math.floor(Number(value) || 0));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function continueWatchingRow(section) {
+  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div></div><div class="continue-row">${section.items.map(item => `<a class="continue-card" href="/ver/${encodeURIComponent(item.episode.id)}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt=""><span>▶</span><i style="width:${Math.round(item.progress)}%"></i></div><div><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number} — ${esc(item.episode.title)}</span><small>${progressTime(item.positionSeconds)} de ${progressTime(item.durationSeconds)} · ${Math.round(item.progress)}%</small></div></a>`).join('')}</div></section>`;
+}
+
+function initializeEditorialCarousel() {
+  activeCarouselCleanup?.();
+  activeCarouselCleanup = null;
+  const root = $('[data-editorial-carousel]');
+  if (!root) return;
+  const slides = $$('[data-carousel-slide]', root);
+  const dots = $$('[data-carousel-dot]', root);
+  const track = $('.editorial-carousel-track', root);
+  if (slides.length < 2) {
+    $('.carousel-arrow.previous', root).hidden = $('.carousel-arrow.next', root).hidden = true;
+    $('.carousel-dots', root).hidden = true;
+    return;
+  }
+  let index = 0; let timer = null; let resumeTimer = null; let pausedUntil = 0; let startX = null;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const draw = next => {
+    index = (next + slides.length) % slides.length;
+    track.style.transform = `translateX(-${index * 100}%)`;
+    slides.forEach((slide, current) => slide.setAttribute('aria-hidden', String(current !== index)));
+    dots.forEach((dot, current) => dot.setAttribute('aria-selected', String(current === index)));
+  };
+  const stop = () => { if (timer) clearInterval(timer); timer = null; };
+  const start = () => {
+    stop();
+    if (reduced || document.hidden || Date.now() < pausedUntil) return;
+    timer = setInterval(() => draw(index + 1), 8000);
+  };
+  const pauseTemporarily = () => {
+    pausedUntil = Date.now() + 12000;
+    stop();
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(start, 12100);
+  };
+  const interact = next => { pauseTemporarily(); draw(next); };
+  $('[data-carousel-previous]', root).onclick = () => interact(index - 1);
+  $('[data-carousel-next]', root).onclick = () => interact(index + 1);
+  dots.forEach(dot => dot.onclick = () => interact(Number(dot.dataset.carouselDot)));
+  root.addEventListener('mouseenter', stop); root.addEventListener('mouseleave', start);
+  root.addEventListener('focusin', stop); root.addEventListener('focusout', event => { if (!root.contains(event.relatedTarget)) start(); });
+  root.addEventListener('pointerdown', event => { startX = event.clientX; stop(); });
+  root.addEventListener('pointerup', event => { if (startX !== null && Math.abs(event.clientX - startX) > 45) interact(index + (event.clientX < startX ? 1 : -1)); else pauseTemporarily(); startX = null; });
+  const onVisibility = () => document.hidden ? stop() : start();
+  document.addEventListener('visibilitychange', onVisibility);
+  activeCarouselCleanup = () => {
+    stop();
+    if (resumeTimer) clearTimeout(resumeTimer);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
+  start();
+}
+
+async function home() {
+  const latest = await api('/api/home').catch(() => null);
+  if (latest?.catalog) {
+    state.home = latest;
+    state.projects = latest.catalog.projects || state.projects;
+    state.studios = latest.catalog.studios || state.studios;
+    state.settings = latest.site || state.settings;
+    applySiteSettings();
+  }
   if (!state.home) return legacyHome();
   const sections = state.home.sections || [];
   const hero = nextHeroFromBag(sections.find(section => section.sectionType === 'HERO')?.items || []);
-  const content = sections.filter(section => section.sectionType !== 'HERO').map(section => section.sectionType === 'BANNER' ? editorialBanner(section) : section.sectionType === 'FEATURED_STUDIOS' ? studioRow(section) : projectRow(section)).join('');
+  const banners = sections.filter(section => section.sectionType === 'BANNER').map(section => section.banner);
+  const carousel = banners.length ? { sectionType: 'BANNER_CAROUSEL', sectionKey: 'editorial-carousel', position: Math.min(...sections.filter(section => section.sectionType === 'BANNER').map(section => section.position)), items: banners } : null;
+  const contentSections = [...sections.filter(section => !['HERO', 'BANNER'].includes(section.sectionType)), ...(carousel ? [carousel] : [])].sort((left, right) => Number(left.position || 0) - Number(right.position || 0));
+  const content = contentSections.map(section => section.sectionType === 'BANNER_CAROUSEL' ? editorialCarousel(section.items) : section.sectionType === 'CONTINUE_WATCHING' ? continueWatchingRow(section) : section.sectionType === 'FEATURED_STUDIOS' ? studioRow(section) : projectRow(section)).join('');
   const heroMarkup = hero ? `<section class="hero" data-home-section="hero"><div class="hero-bg" style="background-image:url('${esc(cssUrl(imageOrFallback(hero.banner || hero.poster)))}')"></div><div class="hero-content"><span class="eyebrow">● Proyecto destacado</span><h1>${esc(hero.title)}</h1><p>${esc(hero.synopsis)}</p><div class="hero-actions"><a class="btn btn-primary" href="/proyecto/${encodeURIComponent(hero.id)}">▶ Ver proyecto</a><a class="btn btn-secondary" href="/catalogo">Explorar catálogo</a></div></div></section>` : '';
   app.innerHTML = heroMarkup + content || '<div class="empty empty-page"><h2>Portada en preparación</h2><p>Explora el catálogo mientras preparamos novedades.</p></div>';
-  sections.filter(section => !['HERO', 'BANNER', 'FEATURED_STUDIOS'].includes(section.sectionType)).forEach(section => {
+  sections.filter(section => !['HERO', 'BANNER', 'FEATURED_STUDIOS', 'CONTINUE_WATCHING'].includes(section.sectionType)).forEach(section => {
     const target = $(`[data-home-section="${CSS.escape(section.sectionKey)}"] [data-project-row]`);
     section.items.forEach(project => target.append(projectCard(project)));
   });
+  initializeEditorialCarousel();
 }
 
 function catalog() {
@@ -547,7 +643,7 @@ function catalog() {
       <div class="catalog-tools">
         <input id="catalogSearch" type="search" value="${esc(initialQuery)}" placeholder="Buscar por título o sinopsis" />
         <select id="typeFilter"><option value="">Todos los tipos</option><option value="SERIES">Series</option><option value="MOVIE">Películas</option><option value="OVA">OVA</option><option value="SPECIAL">Especiales</option><option value="MANGA_COMIC_DUB">Manga / Comic Dub</option></select>
-        <select id="statusFilter"><option value="">Todos los estados</option><option value="ONGOING">En emisión</option><option value="FINISHED">Finalizados</option><option value="PAUSED">Pausados</option><option value="CANCELLED">Cancelados</option></select>
+        <select id="statusFilter"><option value="">Todos los estados</option><option value="UPCOMING">Próximamente</option><option value="ONGOING">En emisión</option><option value="FINISHED">Finalizados</option><option value="PAUSED">Pausados</option><option value="CANCELLED">Cancelados</option></select>
       </div>
       <fieldset class="genre-filter"><legend>Géneros <small>Coincidencia amplia por relevancia</small></legend>
         <div>${genres.map(genre => `<label><input type="checkbox" name="genre" value="${esc(genre)}" ${selectedGenres.includes(genre) ? 'checked' : ''}> <span>${esc(genre)}</span></label>`).join('')}</div>
@@ -682,6 +778,39 @@ function bindReviewActions(projectId) {
   });
 }
 
+function promoMediaSection(promos = []) {
+  if (!promos.length) return '';
+  return `<section class="section promo-section" id="material-promocional"><div class="section-heading"><div><h2>Material promocional</h2><p>Tráilers, teasers y PV oficiales compartidos por el estudio.</p></div></div><div class="promo-grid">${promos.map(promo => `<article class="promo-card" data-promo-id="${esc(promo.id)}"><div class="promo-preview">${promo.thumbnailUrl ? `<img src="${esc(promo.thumbnailUrl)}" alt="Miniatura de ${esc(promo.title)}" loading="lazy">` : '<span>▶</span>'}</div><div><span class="eyebrow">${esc(promo.type)}</span><h3>${esc(promo.title)}</h3><small>${esc(promo.provider)}</small><button class="btn btn-secondary" type="button" data-open-promo>Ver ${promo.type === 'TRAILER' ? 'tráiler' : 'video'}</button></div><div class="promo-player hidden" data-promo-player></div></article>`).join('')}</div></section>`;
+}
+
+function bindPromoMedia(promos = []) {
+  $$('[data-promo-id]').forEach(card => {
+    const promo = promos.find(item => item.id === card.dataset.promoId);
+    $('[data-open-promo]', card).onclick = () => {
+      const target = $('[data-promo-player]', card);
+      if (!target.classList.contains('hidden')) {
+        target._dubversePlayer?.destroy();
+        activePromoPlayers.delete(target._dubversePlayer);
+        target._dubversePlayer = null;
+        target.classList.add('hidden'); target.innerHTML = ''; return;
+      }
+      target.classList.remove('hidden');
+      const playback = promo.playback || {};
+      if (playback.kind === 'YOUTUBE') target.innerHTML = `<iframe src="${esc(playback.url)}" title="${esc(promo.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+      else if (playback.kind === 'LINK') window.open(playback.url, '_blank', 'noopener,noreferrer');
+      else if (window.DubversePlayer) {
+        const player = new window.DubversePlayer(target, {
+          title: promo.title, poster: promo.thumbnailUrl,
+          playback: { source: playback.url ? { kind: playback.kind === 'HLS' ? 'HLS' : 'VIDEO', url: playback.url } : null, fallback: playback.fallbackUrl ? { kind: 'IFRAME', url: playback.fallbackUrl } : null }
+        });
+        target._dubversePlayer = player;
+        activePromoPlayers.add(player);
+      }
+      target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    };
+  });
+}
+
 async function projectPage(id) {
   const project = await api(`/api/projects/${encodeURIComponent(id)}`);
   const projectId = project.id;
@@ -690,6 +819,8 @@ async function projectPage(id) {
   const dubbing = dubbingPanel(project);
   const watched = new Set(social?.watchedEpisodeIds || []);
   const viewer = state.social.viewer;
+  const promos = project.promos || [];
+  const primaryPromo = promos.find(promo => promo.type === 'TRAILER') || promos[0];
   app.innerHTML = `
     <section class="project-hero">
       <div class="project-hero-bg" style="background-image:url('${esc(imageOrFallback(project.banner || project.poster))}')"></div>
@@ -709,7 +840,8 @@ async function projectPage(id) {
         <div class="project-details">
           <p class="synopsis">${esc(project.synopsis)}</p>
           <div class="actions project-actions">
-            ${project.episodes.length ? `<a class="btn btn-primary" href="/ver/${encodeURIComponent(project.episodes[0].id)}">${uiIcon('play')}<span>Reproducir desde el inicio</span></a>` : '<span class="chip">Sin episodios publicados</span>'}
+            ${project.episodes.length ? `<a class="btn btn-primary" href="/ver/${encodeURIComponent(project.episodes[0].id)}">${uiIcon('play')}<span>Reproducir desde el inicio</span></a>` : project.status === 'UPCOMING' ? '<span class="chip upcoming-chip">PRÓXIMAMENTE</span>' : '<span class="chip">Sin episodios publicados</span>'}
+            ${primaryPromo ? `<a class="btn btn-secondary" href="#material-promocional" id="projectTrailer">${uiIcon('play')}<span>Ver ${primaryPromo.type === 'TRAILER' ? 'tráiler' : 'video'}</span></a>` : ''}
             ${social ? `<div class="social-action-group" role="group" aria-label="Acciones de comunidad">
               <button class="social-toggle ${social.viewer.liked ? 'active' : ''}" data-social-action="like" type="button" aria-pressed="${social.viewer.liked}">${uiIcon('heart')}<span>Me gusta</span><strong class="social-count">${social.likes}</strong></button>
               <button class="social-toggle ${social.viewer.favorite ? 'active' : ''}" data-social-action="favorite" type="button" aria-pressed="${social.viewer.favorite}">${uiIcon('heart')}<span>Favorito</span></button>
@@ -720,8 +852,10 @@ async function projectPage(id) {
       </div>
     </section>
 
+    ${promoMediaSection(promos)}
+
     <section class="section">
-      <div class="section-heading"><div><h2>Episodios</h2><p>Servidor principal: Archive.org. Reproductor limpio y sin anuncios propios.</p></div></div>
+      <div class="section-heading"><div><h2>Episodios</h2><p>${project.status === 'UPCOMING' && !project.episodes.length ? 'Próximamente' : 'Reproductor de Dubverse, limpio y sin anuncios propios.'}</p></div></div>
       <div class="episode-list">
         ${project.episodes.map(episode => `
           <article class="episode-row ${watched.has(episode.id) ? 'episode-watched' : ''}" data-episode-row="${esc(episode.id)}">
@@ -745,6 +879,13 @@ async function projectPage(id) {
       ${social.reviews.hasMore ? '<button class="btn btn-secondary load-more" id="moreReviews" type="button">Cargar más reseñas</button>' : ''}
     </section>` : ''}
   `;
+  bindPromoMedia(promos);
+  if ($('#projectTrailer')) $('#projectTrailer').onclick = event => {
+    event.preventDefault();
+    const card = $(`[data-promo-id="${CSS.escape(primaryPromo.id)}"]`);
+    card?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    $('[data-open-promo]', card)?.click();
+  };
 
   $$('[data-social-action]').forEach(button => button.onclick = async () => {
     if (!requireViewer()) return;
@@ -793,12 +934,14 @@ function commentMarkup(comment, { reply = Boolean(comment.parentCommentId) } = {
   const author = comment.author;
   const rootId = comment.parentCommentId || comment.id;
   const replyCount = Number(comment.replyCount || 0);
-  return `<article class="social-entry comment-card ${reply ? 'comment-reply' : 'comment-root'}" data-comment-id="${esc(comment.id)}" data-root-comment-id="${esc(rootId)}" data-author-username="${esc(author?.username || '')}">
+  const authorHref = author?.isStudio ? `/estudio/${encodeURIComponent(author.studioId)}` : author?.username ? `/u/${encodeURIComponent(author.username)}` : '';
+  const authorLabel = author?.isStudio ? author.displayName : author?.username ? `@${author.username}` : '';
+  return `<article class="social-entry comment-card ${reply ? 'comment-reply' : 'comment-root'}" data-comment-id="${esc(comment.id)}" data-root-comment-id="${esc(rootId)}" data-author-username="${esc(authorLabel)}">
     <div class="social-entry-head">
-      ${author ? `<a class="social-author" href="/u/${encodeURIComponent(author.username)}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)}</strong><small>@${esc(author.username)}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
+      ${author ? `<a class="social-author" href="${authorHref}"><img src="${avatarImage(author)}" alt="Avatar de ${esc(author.displayName)}"><span><strong>${esc(author.displayName)} ${author.isVerified ? '<i class="verified-mark" title="Estudio verificado">✓</i>' : ''}</strong><small>${author.isStudio ? 'Estudio de fandoblaje' : `@${esc(author.username)}`}</small></span></a>` : '<span class="social-author anonymous-author">Usuario eliminado</span>'}
       <time class="entry-date" datetime="${esc(comment.updatedAt)}">${esc(dateLabel(comment.updatedAt))}</time>
     </div>
-    ${comment.replyTo?.username ? `<a class="reply-mention" href="/u/${encodeURIComponent(comment.replyTo.username)}">@${esc(comment.replyTo.username)}</a>` : ''}
+    ${comment.replyTo?.isStudio ? `<a class="reply-mention" href="/estudio/${encodeURIComponent(comment.replyTo.studioId)}">${esc(comment.replyTo.displayName)}${comment.replyTo.isVerified ? ' ✓' : ''}</a>` : comment.replyTo?.username ? `<a class="reply-mention" href="/u/${encodeURIComponent(comment.replyTo.username)}">@${esc(comment.replyTo.username)}</a>` : ''}
     <p class="entry-copy">${esc(comment.body)}</p>
     ${comment.image ? `<button class="comment-image-button" type="button" data-lightbox-image="${esc(comment.image)}" aria-label="Abrir imagen adjunta"><img class="comment-image" loading="lazy" src="${esc(comment.image)}" alt="Imagen adjunta al comentario"></button>` : ''}
     <footer><span class="entry-status">${comment.edited ? (reply ? 'Respuesta editada' : 'Comentario editado') : (reply ? 'Respuesta pública' : 'Comentario público')}</span><span class="entry-actions">
@@ -811,6 +954,12 @@ function commentMarkup(comment, { reply = Boolean(comment.parentCommentId) } = {
       <div class="reply-thread hidden" data-reply-thread><div class="reply-list" data-reply-list></div><button class="reply-more hidden" type="button" data-more-replies>Ver más respuestas</button></div>
     </div>`}
   </article>`;
+}
+
+function commentIdentityPicker() {
+  const studios = state.social.viewer?.managedStudios || [];
+  if (!studios.length) return '';
+  return `<label class="comment-identity"><span>Publicar como</span><select name="authorStudioId"><option value="">@${esc(state.social.viewer.username)}</option>${studios.map(studio => `<option value="${esc(studio.id)}">${esc(studio.name)}${studio.isVerified ? ' ✓' : ''}</option>`).join('')}</select></label>`;
 }
 
 let replyPagination = new Map();
@@ -1013,7 +1162,8 @@ function bindCommentActions(episodeId) {
     const form = document.createElement('form');
     form.className = 'reply-composer';
     form.dataset.replyComposer = item.dataset.commentId;
-    form.innerHTML = `<label><span>Respondiendo a ${username ? `<strong>@${esc(username)}</strong>` : 'este comentario'}</span><textarea name="body" maxlength="1500" required placeholder="Escribe una respuesta…"></textarea></label>
+    form.innerHTML = `<label><span>Respondiendo a ${username ? `<strong>${esc(username)}</strong>` : 'este comentario'}</span><textarea name="body" maxlength="1500" required placeholder="Escribe una respuesta…"></textarea></label>
+      ${commentIdentityPicker()}
       ${state.social.config.mediaAvailable ? `<div class="reply-image-tools"><label class="file-picker">${uiIcon('image')}<span>Añadir imagen</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span data-reply-file-name>JPEG, PNG o WebP</span></div><div class="comment-image-preview hidden" data-reply-image-preview><img alt="Vista previa de la imagen"><button type="button" aria-label="Quitar imagen">×</button></div>` : ''}
       <div class="reply-composer-actions"><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button><button class="btn btn-secondary" type="button" data-cancel-reply>Cancelar</button></div><p class="form-message" role="status"></p>`;
     const region = $('[data-reply-region]', root);
@@ -1049,7 +1199,7 @@ function bindCommentActions(episodeId) {
       submit.disabled = true;
       message.textContent = 'Publicando respuesta…';
       try {
-        const result = await socialWrite(`/comments/${item.dataset.commentId}/replies`, 'POST', { body: form.elements.body.value });
+        const result = await socialWrite(`/comments/${item.dataset.commentId}/replies`, 'POST', { body: form.elements.body.value, authorStudioId: form.elements.authorStudioId?.value || null });
         const file = form.elements.image?.files[0];
         if (file) {
           message.textContent = 'Validando imagen…';
@@ -1156,26 +1306,25 @@ document.addEventListener('keydown', event => {
 });
 
 async function watch(id, recordHistory = true) {
+  destroyActivePlayer();
   const episode = await api(`/api/episodes/${encodeURIComponent(id)}`);
   const episodeId = episode.id;
   canonicalizeContentPath('ver', id, episodeId);
-  const [project, social] = await Promise.all([
+  const [project, social, savedProgress] = await Promise.all([
     api(`/api/projects/${encodeURIComponent(episode.project_id)}`),
-    optionalSocial(`/episodes/${encodeURIComponent(episodeId)}`)
+    optionalSocial(`/episodes/${encodeURIComponent(episodeId)}`),
+    state.social.viewer ? optionalSocial(`/episodes/${encodeURIComponent(episodeId)}/progress`) : null
   ]);
   const episodes = [...(project.episodes || [])].sort((left, right) => left.season - right.season || left.number - right.number);
   const currentIndex = episodes.findIndex(item => item.id === episode.id);
   const previous = currentIndex > 0 ? episodes[currentIndex - 1] : null;
   const next = currentIndex >= 0 && currentIndex < episodes.length - 1 ? episodes[currentIndex + 1] : null;
-  const player = episode.provider === 'ARCHIVE'
-    ? `<iframe src="${esc(episode.video_url)}" title="${esc(episode.title)}" allow="fullscreen; autoplay" allowfullscreen loading="eager"></iframe>`
-    : `<video controls playsinline preload="metadata" src="${esc(episode.video_url)}"></video>`;
 
   app.innerHTML = `
     <section class="watch-page">
       <a class="watch-back" href="/proyecto/${encodeURIComponent(episode.project_id)}">← Volver a ${esc(episode.project?.title || 'proyecto')}</a>
       <div class="watch-title"><h1>${esc(episode.title)}</h1><p>Temporada ${episode.season} · Episodio ${episode.number} · ${esc(episode.provider)}</p></div>
-      <div class="player-shell">${player}</div>
+      <div class="player-shell" id="dubversePlayer"><div class="player-boot"><span></span><p>Preparando el reproductor de Dubverse…</p></div></div>
       <div class="player-note">Dubverse no inserta anuncios. El archivo se reproduce desde el proveedor indicado y conserva los créditos del proyecto.</div>
       <nav class="player-navigation" aria-label="Navegación de episodios">
         ${previous ? `<a href="/ver/${encodeURIComponent(previous.id)}">← Anterior</a>` : '<span aria-disabled="true">← Anterior</span>'}
@@ -1192,12 +1341,66 @@ async function watch(id, recordHistory = true) {
         ${social ? `<button class="social-toggle ${social.viewer.liked ? 'active' : ''}" id="episodeLike" type="button" aria-pressed="${social.viewer.liked}">${uiIcon('heart')}<span>Me gusta</span><strong class="social-count">${social.likes}</strong></button>` : ''}
       </div>
       ${social ? `<section class="comments-section"><div class="social-section-heading comments-heading"><div><span class="section-kicker">Conversación del episodio</span><h2>Comentarios</h2><p>Comparte impresiones con otros fans sin salir del reproductor.</p></div></div>
-        ${state.social.viewer ? `<form id="commentForm" class="social-form comment-form"><img class="composer-avatar" src="${avatarImage(state.social.viewer)}" alt=""><div class="comment-composer"><label class="form-wide field-label"><span class="sr-only">Comentario</span><textarea name="body" maxlength="1500" placeholder="Escribe un comentario sobre este episodio…" required></textarea></label><div class="comment-toolbar"><label class="file-picker" for="commentImage">${uiIcon('image')}<span>Añadir imagen</span><input id="commentImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span class="file-name" id="commentFileName">JPEG, PNG o WebP</span><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button></div><div class="comment-image-preview hidden" id="commentImagePreview"><img alt="Vista previa de la imagen"><button id="removeCommentImage" type="button" aria-label="Quitar imagen">×</button></div><p class="form-message" role="status"></p></div></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('send')}</span><div><strong>Únete a la conversación</strong><p>Inicia sesión para comentar este episodio.</p></div><button class="btn btn-secondary" id="commentLogin" type="button">Iniciar sesión</button></div>`}
+        ${state.social.viewer ? `<form id="commentForm" class="social-form comment-form"><img class="composer-avatar" src="${avatarImage(state.social.viewer)}" alt=""><div class="comment-composer">${commentIdentityPicker()}<label class="form-wide field-label"><span class="sr-only">Comentario</span><textarea name="body" maxlength="1500" placeholder="Escribe un comentario sobre este episodio…" required></textarea></label><div class="comment-toolbar"><label class="file-picker" for="commentImage">${uiIcon('image')}<span>Añadir imagen</span><input id="commentImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span class="file-name" id="commentFileName">JPEG, PNG o WebP</span><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button></div><div class="comment-image-preview hidden" id="commentImagePreview"><img alt="Vista previa de la imagen"><button id="removeCommentImage" type="button" aria-label="Quitar imagen">×</button></div><p class="form-message" role="status"></p></div></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('send')}</span><div><strong>Únete a la conversación</strong><p>Inicia sesión para comentar este episodio.</p></div><button class="btn btn-secondary" id="commentLogin" type="button">Iniciar sesión</button></div>`}
         <div class="social-list" id="commentList">${social.comments.items.map(commentMarkup).join('') || '<div class="empty">Aún no hay comentarios.</div>'}</div>
         ${social.comments.hasMore ? '<button class="btn btn-secondary load-more" id="moreComments" type="button">Cargar más comentarios</button>' : ''}
       </section>` : ''}
     </section>
   `;
+  const playback = episode.playback || (episode.provider === 'ARCHIVE'
+    ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
+    : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
+  let lastSavedAt = 0;
+  let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
+  let progressRequest = null;
+  let queuedProgress = null;
+  let progressComplete = false;
+  const sendProgress = async (snapshot, { force = false, keepalive = false } = {}) => {
+    if (!state.social.viewer || progressComplete) return;
+    const position = Number(snapshot?.position || 0);
+    const duration = Number(snapshot?.duration || 0);
+    if (!duration || position < 1) return;
+    const now = Date.now();
+    const delta = Math.abs(position - lastSavedPosition);
+    if ((!force && (now - lastSavedAt < 12000 || delta < 4)) || (force && now - lastSavedAt < 1500 && delta < .5)) return;
+    const payload = { positionSeconds: position, durationSeconds: duration };
+    lastSavedAt = now;
+    lastSavedPosition = position;
+    if (keepalive) {
+      fetch(`/api/social/episodes/${encodeURIComponent(episodeId)}/progress`, {
+        method: 'PUT', credentials: 'same-origin', keepalive: true,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload)
+      }).catch(() => {});
+      return;
+    }
+    if (progressRequest) { queuedProgress = { snapshot, force }; return; }
+    progressRequest = socialApi(`/episodes/${encodeURIComponent(episodeId)}/progress`, { method: 'PUT', body: JSON.stringify(payload) })
+      .then(result => { progressComplete = Boolean(result.complete); })
+      .catch(() => {})
+      .finally(() => {
+        progressRequest = null;
+        if (queuedProgress && !progressComplete) {
+          const queued = queuedProgress; queuedProgress = null;
+          sendProgress(queued.snapshot, { force: queued.force });
+        }
+      });
+  };
+  if (window.DubversePlayer) {
+    activePlayer = new window.DubversePlayer($('#dubversePlayer'), {
+      title: `${project.title} — ${episode.title}`,
+      poster: episode.project?.banner || episode.project?.poster || project.banner || project.poster,
+      playback,
+      initialTime: Number(savedProgress?.progress?.positionSeconds || 0),
+      onProgress: snapshot => sendProgress(snapshot),
+      onPause: snapshot => sendProgress(snapshot, { force: true }),
+      onSeek: snapshot => sendProgress(snapshot, { force: true }),
+      onEnded: snapshot => sendProgress(snapshot, { force: true }),
+      onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true })
+    });
+    activeProgressSaver = snapshot => sendProgress(snapshot, { force: true, keepalive: true });
+  } else {
+    $('#dubversePlayer').innerHTML = '<div class="player-unavailable">No se pudo iniciar el reproductor. Recarga la página para reintentarlo.</div>';
+  }
   if (state.social.viewer && recordHistory) socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => {});
   if ($('#episodeLike')) $('#episodeLike').onclick = async () => {
     if (!requireViewer()) return;
@@ -1237,7 +1440,7 @@ async function watch(id, recordHistory = true) {
     submit.disabled = true;
     message.textContent = 'Publicando…';
     try {
-      const created = await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/comments`, 'POST', { body: form.elements.body.value });
+      const created = await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/comments`, 'POST', { body: form.elements.body.value, authorStudioId: form.elements.authorStudioId?.value || null });
       const file = form.elements.image.files[0];
       if (file) {
         message.textContent = 'Validando imagen…';
@@ -1280,7 +1483,7 @@ function studios() {
           <article class="studio-card">
             <div class="studio-card-head">
               <a class="studio-card-logo" href="/estudio/${encodeURIComponent(studio.id)}"><img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}" /></a>
-              <div><h2><a href="/estudio/${encodeURIComponent(studio.id)}">${esc(studio.name)}</a></h2><span class="director">${esc(studio.director || 'Dirección no indicada')}</span></div>
+              <div><h2><a href="/estudio/${encodeURIComponent(studio.id)}">${esc(studio.name)} ${studio.isVerified ? '<i class="verified-mark" title="Estudio verificado">✓</i>' : ''}</a></h2><span class="director">${esc(studio.director || 'Dirección no indicada')}</span></div>
             </div>
             <p>${esc(studio.description || 'Sin descripción disponible.')}</p>
             <div class="studio-projects">${(studio.projects || []).map(project => `<a href="/proyecto/${encodeURIComponent(project.id)}">${esc(project.title)}</a>`).join('') || '<span class="chip">Sin proyectos ligados</span>'}</div>
@@ -1295,14 +1498,18 @@ function studios() {
 async function studioPage(id) {
   const studio = await api(`/api/studios/${encodeURIComponent(id)}`);
   canonicalizeContentPath('estudio', id, studio.id);
+  const social = await optionalSocial(`/studios/${encodeURIComponent(studio.id)}`);
   app.innerHTML = `
     <section class="studio-profile">
+      ${studio.banner ? `<div class="studio-profile-banner" style="background-image:url('${esc(cssUrl(studio.banner))}')"></div>` : ''}
       <div class="studio-profile-head">
         <img src="${esc(imageOrFallback(studio.logo))}" alt="Logo de ${esc(studio.name)}">
         <div>
           <span class="eyebrow">Estudio de fandoblaje</span>
-          <h1>${esc(studio.name)}</h1>
+          <h1>${esc(studio.name)} ${studio.isVerified ? '<i class="verified-mark" title="Estudio verificado">✓</i>' : ''}</h1>
+          ${studio.isVerified ? '<span class="verified-studio">✓ Estudio verificado</span>' : ''}
           ${studio.director ? `<p class="studio-management"><strong>Dirección / administración del estudio:</strong> ${esc(studio.director)}</p>` : ''}
+          ${social ? `<div class="studio-follow-row"><button class="btn ${social.viewer.following ? 'btn-secondary' : 'btn-primary'}" id="studioFollow" type="button">${social.viewer.following ? 'Siguiendo' : 'Seguir'}</button><span><strong id="studioFollowerCount">${social.followers}</strong> seguidores</span></div>` : ''}
           ${socialLinks(studio.socials)}
         </div>
       </div>
@@ -1316,6 +1523,17 @@ async function studioPage(id) {
       <div class="project-grid" id="studioProjectGrid"></div>
     </section>`;
   renderCards(studio.projects || [], $('#studioProjectGrid'));
+  if ($('#studioFollow')) $('#studioFollow').onclick = async () => {
+    if (!requireViewer()) return;
+    const button = $('#studioFollow'); button.disabled = true;
+    try {
+      const result = await socialWrite(`/studios/${encodeURIComponent(studio.id)}/follow`, social.viewer.following ? 'DELETE' : 'POST');
+      social.viewer.following = result.following; social.followers = result.followers;
+      button.textContent = result.following ? 'Siguiendo' : 'Seguir';
+      button.className = `btn ${result.following ? 'btn-secondary' : 'btn-primary'}`;
+      $('#studioFollowerCount').textContent = result.followers;
+    } catch (error) { alert(error.message); } finally { button.disabled = false; }
+  };
 }
 
 function profileHero(profile, { own = false, visitorView = false, social = null } = {}) {
@@ -1397,7 +1615,7 @@ async function ownProfilePage() {
     event.preventDefault(); const form = event.currentTarget; const message = $('.form-message', form); message.textContent = 'Guardando…';
     try {
       const result = await socialWrite('/me', 'PATCH', { displayName: form.elements.displayName.value, username: form.elements.username.value, bio: form.elements.bio.value });
-      state.social.viewer = result.profile; renderAccount(); message.textContent = 'Perfil actualizado.';
+      state.social.viewer = { ...result.profile, managedStudios: state.social.viewer?.managedStudios || [] }; renderAccount(); message.textContent = 'Perfil actualizado.';
     } catch (error) { message.textContent = error.message; }
   };
   $$('[data-upload-profile]').forEach(button => button.onclick = async () => {
@@ -1492,6 +1710,7 @@ async function router({ preserveScroll = false, recordHistory = true } = {}) {
   try {
     await loadBase();
     const parts = location.pathname.split('/').filter(Boolean).map(part => decodeURIComponent(part));
+    if (parts[0] !== 'ver') destroyActivePlayer();
     const currentPath = location.pathname.replace(/\/$/, '') || '/';
     $$('#mainNav a').forEach(link => {
       const linkPath = new URL(link.href, location.origin).pathname.replace(/\/$/, '') || '/';
@@ -1499,7 +1718,7 @@ async function router({ preserveScroll = false, recordHistory = true } = {}) {
     });
     if (!preserveScroll) window.scrollTo(0, 0);
     if (!parts.length) {
-      home();
+      await home();
       showNewsV12();
       return;
     }
@@ -1666,6 +1885,10 @@ window.addEventListener('popstate', () => {
 
 window.addEventListener('pageshow', () => {
   reconcileRestoredSession();
+});
+
+window.addEventListener('pagehide', () => {
+  if (activePlayer && activeProgressSaver) activeProgressSaver(activePlayer.snapshot());
 });
 
 window.addEventListener('hashchange', () => {
