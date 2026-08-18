@@ -255,6 +255,12 @@ async function apiResponse(path, request, response) {
     return sendJson(response, { studios: [{ id: 'studio', name: 'Estudio Mock', logo: '', banner: studios[0].banner, isVerified: true, role: 'ADMIN' }] });
   }
   if (path === '/api/studio-panel/studio') return sendJson(response, { studio: studios[0], membership: { role: 'ADMIN' }, projects: [project], episodes: [{ ...episode, projectTitle: project.title, status: 'PUBLISHED', published: true }], promos });
+  if (path === '/api/studio-panel/studios/studio/media' && request.method === 'POST') return sendJson(response, { image: { url: '/assets/dubverse-icon.png', width: 512, height: 512 } }, 201);
+  if (path === '/api/studio-panel/studios/studio/media' && request.method === 'DELETE') return sendJson(response, { deleted: 1 });
+  if (/^\/api\/studio-panel\/studios\/studio\/(?:projects|episodes)\/.+/.test(path) && request.method === 'PATCH') return sendJson(response, { ok: true });
+  if (path === '/api/studio-panel/studios/studio' && request.method === 'PATCH') return sendJson(response, { ok: true });
+  if (path === '/api/studio-panel/studios/studio/promos' && request.method === 'POST') return sendJson(response, { promo: promos[0] }, 201);
+  if (/^\/api\/studio-panel\/studios\/studio\/promos\/.+/.test(path) && ['PATCH', 'DELETE'].includes(request.method)) return sendJson(response, request.method === 'DELETE' ? { deleted: true } : { ok: true });
   if (path === '/api/admin/projects') return sendJson(response, projects.map(item => ({ ...item, studios: [], episodeCount: item.episodeCount })));
   if (path === '/api/admin/episodes') return sendJson(response, [{ ...episode, project_title: project.title, status: 'PUBLISHED', published: true, updatedAt: '2026-08-09T00:00:00Z' }]);
   if (path === '/api/admin/studios') return sendJson(response, studios);

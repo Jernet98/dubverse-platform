@@ -5,6 +5,7 @@ import { assertSocialWriteOrigin, jsonBody, socialErrorResponse, socialSession }
 import { managedStudios, requireManagedEpisode, requireManagedProject, studioAdminSession } from '@/lib/studio-access';
 import { notifyStudioFollowers } from '@/lib/studio-notifications';
 import { isUpdate2SchemaMissing, mapPromo, promoValue, safeHttpUrl } from '@/lib/update2';
+import { cleanupBlobUrls, uploadPanelImage } from '@/lib/blob-media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,24 +95,30 @@ export async function PATCH(request, context) {
       const rows = await session.sql`SELECT * FROM studios WHERE id = ${path[1]} AND deleted_at IS NULL`;
       if (!rows.length) throw new AppError(404, 'Estudio no encontrado.');
       const old = rows[0];
+      const logo = imageValue(body.logo, old.logo) || null;
+      const banner = imageValue(body.banner, old.banner) || null;
       await session.sql`UPDATE studios SET
         name = ${text(body.name, old.name, 160)}, director = ${text(body.director, old.director, 240)},
-        description = ${text(body.description, old.description)}, logo = ${imageValue(body.logo, old.logo) || null},
-        banner = ${imageValue(body.banner, old.banner) || null},
+        description = ${text(body.description, old.description)}, logo = ${logo},
+        banner = ${banner},
         socials = ${JSON.stringify(socialsValue(body.socials, old.socials))}::jsonb, updated_at = now()
         WHERE id = ${session.studioId}`;
+      await cleanupBlobUrls(session.sql, [old.logo !== logo ? old.logo : null, old.banner !== banner ? old.banner : null]);
       return json({ ok: true });
     }
     if (path[0] === 'studios' && path[1] && path[2] === 'projects' && path[3] && path.length === 4) {
       const session = await studioAdminSession(request, path[1]);
       const old = await requireManagedProject(session, path[3]);
       const published = body.published === undefined ? old.published : booleanValue(body.published);
+      const poster = imageValue(body.poster, old.poster) || null;
+      const banner = imageValue(body.banner, old.banner) || null;
       await session.sql`UPDATE projects SET title = ${text(body.title, old.title, 240)},
         alternate_title = ${text(body.alternateTitle, old.alternate_title, 240)}, synopsis = ${text(body.synopsis, old.synopsis)},
         project_director = ${text(body.projectDirector, old.project_director, 240)}, dubbing_info = ${text(body.dubbingInfo, old.dubbing_info)},
         credits = ${text(body.credits, old.credits)}, status = ${enumValue(body.status, PROJECT_STATUSES, old.status)},
-        poster = ${imageValue(body.poster, old.poster) || null}, banner = ${imageValue(body.banner, old.banner) || null},
+        poster = ${poster}, banner = ${banner},
         published = ${published}, updated_at = now() WHERE id = ${old.id}`;
+      await cleanupBlobUrls(session.sql, [old.poster !== poster ? old.poster : null, old.banner !== banner ? old.banner : null]);
       if (!old.published && published) await notifyStudioFollowers(session.sql, { type: 'STUDIO_NEW_PROJECT', projectId: old.id, actorProfileId: session.row.id });
       return json({ ok: true });
     }
@@ -135,6 +142,7 @@ export async function PATCH(request, context) {
         url = ${value.url}, provider_identifier = ${value.providerIdentifier}, provider_file = ${value.providerFile},
         thumbnail_url = ${value.thumbnailUrl}, position = ${value.position}, is_active = ${Boolean(value.isActive)}, updated_at = now()
         WHERE id = ${path[3]}::uuid`;
+      await cleanupBlobUrls(session.sql, [rows[0].thumbnail_url !== value.thumbnailUrl ? rows[0].thumbnail_url : null]);
       return json({ ok: true });
     }
     throw new AppError(404, 'Ruta del Panel de estudio no encontrada.');
@@ -145,6 +153,15 @@ export async function POST(request, context) {
   try {
     assertSocialWriteOrigin(request);
     const path = await pathOf(context);
+    if (path[0] === 'studios' && path[1] && path[2] === 'media' && path.length === 3) {
+      const session = await studioAdminSession(request, path[1]);
+      const form = await request.formData();
+      const kind = String(form.get('kind') || '').toLowerCase();
+      const projectId = text(form.get('projectId'), '', 160);
+      if (['project-poster', 'project-banner', 'promo-thumbnail'].includes(kind)) await requireManagedProject(session, projectId);
+      const image = await uploadPanelImage(form.get('file'), { studioId: session.studioId, kind });
+      return json({ image }, 201);
+    }
     if (!(path[0] === 'studios' && path[1] && path[2] === 'promos' && path.length === 3)) throw new AppError(404, 'Ruta del Panel de estudio no encontrada.');
     const session = await studioAdminSession(request, path[1]);
     const body = await jsonBody(request);
@@ -163,11 +180,19 @@ export async function DELETE(request, context) {
   try {
     assertSocialWriteOrigin(request);
     const path = await pathOf(context);
+    if (path[0] === 'studios' && path[1] && path[2] === 'media' && path.length === 3) {
+      const session = await studioAdminSession(request, path[1]);
+      const body = await jsonBody(request);
+      const urls = Array.isArray(body.urls) ? body.urls.map(String).slice(0, 10) : [];
+      return json({ deleted: await cleanupBlobUrls(session.sql, urls) });
+    }
     if (!(path[0] === 'studios' && path[1] && path[2] === 'promos' && path[3] && path.length === 4)) throw new AppError(404, 'Ruta del Panel de estudio no encontrada.');
     const session = await studioAdminSession(request, path[1]);
     const rows = await session.sql`DELETE FROM project_promo_media pm USING project_studios ps
-      WHERE pm.id = ${path[3]}::uuid AND ps.project_id = pm.project_id AND ps.studio_id = ${session.studioId} RETURNING pm.id`;
+      WHERE pm.id = ${path[3]}::uuid AND ps.project_id = pm.project_id AND ps.studio_id = ${session.studioId}
+      RETURNING pm.id, pm.thumbnail_url`;
     if (!rows.length) throw new AppError(403, 'El material no pertenece al estudio administrado.');
+    await cleanupBlobUrls(session.sql, [rows[0].thumbnail_url]);
     return json({ deleted: true });
   } catch (error) { return failure(error); }
 }

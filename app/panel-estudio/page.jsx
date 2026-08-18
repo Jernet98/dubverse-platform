@@ -16,7 +16,7 @@ export default function StudioPanelPage() {
         <section id="studioPanelContent" className="studio-panel-content"><div className="studio-panel-loading"><span></span><p>Verificando permisos…</p></div></section>
       </main>
     </div>
-    <dialog id="studioPanelDialog"><form id="studioPanelForm"><header><div><span id="studioPanelKicker">Editar</span><h2 id="studioPanelTitle">Registro</h2></div><button id="studioPanelClose" type="button" aria-label="Cerrar">×</button></header><div id="studioPanelFields"></div><p id="studioPanelMessage" role="status"></p><footer><button id="studioPanelCancel" type="button">Cancelar</button><button type="submit">Guardar cambios</button></footer></form></dialog>
+    <dialog id="studioPanelDialog"><form id="studioPanelForm"><header><div><span id="studioPanelKicker">Editar</span><h2 id="studioPanelTitle">Registro</h2></div><button id="studioPanelClose" type="button" aria-label="Cerrar">×</button></header><div id="studioPanelFields"></div><p id="studioPanelMessage" role="status" aria-live="polite"></p><footer><button id="studioPanelCancel" type="button">Cancelar</button><button type="submit"><span>Guardar cambios</span></button></footer></form></dialog>
     <Script src="/studio-panel.js" strategy="afterInteractive" />
   </>;
 }

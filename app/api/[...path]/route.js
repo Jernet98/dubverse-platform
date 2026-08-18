@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { del, put } from '@vercel/blob';
+import { put } from '@vercel/blob';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
@@ -10,6 +10,7 @@ import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
 import { episodePlayback, isUpdate2SchemaMissing, mapPromo } from '@/lib/update2';
 import { notifyStudioFollowers } from '@/lib/studio-notifications';
+import { cleanupBlobUrls } from '@/lib/blob-media';
 import {
   bannerValue,
   DEFAULT_HOME_SECTIONS,
@@ -312,56 +313,6 @@ async function recordLoginFailure(sql, keyHash) {
       updated_at = now()
   `;
   return { failures, lockedUntil };
-}
-
-function isManagedBlobUrl(value) {
-  if (!value || !process.env.BLOB_READ_WRITE_TOKEN) return false;
-  try {
-    const host = new URL(String(value)).hostname.toLowerCase();
-    return host === 'blob.vercel-storage.com' || host.endsWith('.blob.vercel-storage.com');
-  } catch {
-    return false;
-  }
-}
-
-async function blobReferenceCount(sql, url) {
-  let rows;
-  try {
-    rows = await sql`
-      SELECT
-        (SELECT COUNT(*) FROM projects WHERE poster = ${url} OR banner = ${url}) +
-        (SELECT COUNT(*) FROM studios WHERE logo = ${url}) +
-        (SELECT COUNT(*) FROM editorial_banners WHERE image_url = ${url}) AS references
-    `;
-  } catch (error) {
-    if (!isHomeSchemaMissing(error)) throw error;
-    rows = await sql`
-      SELECT
-        (SELECT COUNT(*) FROM projects WHERE poster = ${url} OR banner = ${url}) +
-        (SELECT COUNT(*) FROM studios WHERE logo = ${url}) AS references
-    `;
-  }
-  return Number(rows[0]?.references || 0);
-}
-
-async function deleteBlobIfUnreferenced(sql, url) {
-  if (!isManagedBlobUrl(url)) return false;
-  if (await blobReferenceCount(sql, url)) return false;
-  try {
-    await del(url);
-    return true;
-  } catch (error) {
-    console.warn('[Dubverse Blob] No se pudo eliminar', url, error?.message || error);
-    return false;
-  }
-}
-
-async function cleanupBlobUrls(sql, values) {
-  let deleted = 0;
-  for (const value of [...new Set((values || []).filter(Boolean))]) {
-    if (await deleteBlobIfUnreferenced(sql, value)) deleted += 1;
-  }
-  return deleted;
 }
 
 async function publicProjects(sql) {
