@@ -90,11 +90,12 @@ test('Próximamente se admite sin episodios y conserva material promocional inde
 test('membresías y panel aplican autorización central contra IDOR', async () => {
   const migration = await source('database/migrations/2026-08-17-update-2.sql');
   const access = await source('lib/studio-access.js');
-  const panel = await source('app/api/studio-panel/[...path]/route.js');
+  const panel = await source('app/api/studio-panel/[[...path]]/route.js');
   const admin = await source('app/api/admin/studio-access/[...path]/route.js');
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS studio_memberships/);
   assert.match(migration, /UNIQUE\(user_profile_id, studio_id\)/);
+  assert.match(panel, /Array\.isArray\(params\.path\) \? params\.path : \[\]/);
   assert.match(access, /studioAdminSession[\s\S]*sm\.user_profile_id = \$\{session\.row\.id\}[\s\S]*sm\.studio_id = \$\{studioId\}/);
   assert.match(access, /requireManagedProject[\s\S]*ps\.studio_id = \$\{session\.studioId\}/);
   assert.match(access, /requireManagedEpisode[\s\S]*ps\.studio_id = \$\{session\.studioId\}/);
@@ -167,7 +168,7 @@ test('la migración y rollback son explícitos y nunca se ejecutan desde request
   const rollback = await source('database/migrations/2026-08-17-update-2.rollback.sql');
   const routes = (await Promise.all([
     source('app/api/[...path]/route.js'), source('app/api/social/[...path]/route.js'),
-    source('app/api/studio-panel/[...path]/route.js')
+    source('app/api/studio-panel/[[...path]]/route.js')
   ])).join('\n');
   assert.match(migration, /^--[\s\S]*BEGIN;[\s\S]*COMMIT;\s*$/);
   assert.match(rollback, /ROLLBACK DESTRUCTIVO/);
