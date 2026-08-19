@@ -17,7 +17,7 @@ test('perfil del estudio usa archivos, previews y redes individuales sin exponer
   assert.match(page, /aria-live="polite"/);
 });
 
-test('upload del panel reutiliza validación segura y exige membresía antes de procesar archivos', async () => {
+test('upload del panel reutiliza Vercel Blob sin Sharp y exige membresía antes de procesar archivos', async () => {
   const [route, media, access] = await Promise.all([
     source('app/api/studio-panel/[[...path]]/route.js'),
     source('lib/blob-media.js'),
@@ -26,8 +26,9 @@ test('upload del panel reutiliza validación segura y exige membresía antes de 
   assert.equal(panelMediaPolicy('studio-logo').maxBytes, 2 * 1024 * 1024);
   assert.equal(panelMediaPolicy('studio-banner').maxBytes, 5 * 1024 * 1024);
   assert.throws(() => validatePanelMediaFile(new File(['x'], 'bad.svg', { type: 'image/svg+xml' }), 'studio-logo'), /JPEG, PNG o WebP/);
-  assert.match(media, /processImageBuffer\(bytes, policy\.purpose\)/);
-  assert.match(media, /contentType: 'image\/webp'/);
+  assert.doesNotMatch(media, /processImageBuffer|sharp\(/i);
+  assert.match(media, /put\(pathname, file,[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*contentType: file\.type/);
+  assert.match(media, /console\.error\(`\[Studio media upload\] POST \/api\/studio-panel\/studios\/\$\{studio\}\/media \(\$\{pathname\}\):/);
   assert.match(route, /studioAdminSession\(request, path\[1\]\)[\s\S]*request\.formData\(\)/);
   assert.match(route, /\['project-poster', 'project-banner', 'promo-thumbnail'\][\s\S]*requireManagedProject/);
   assert.match(access, /sm\.user_profile_id = \$\{session\.row\.id\}[\s\S]*sm\.studio_id = \$\{studioId\}/);

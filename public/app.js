@@ -1395,7 +1395,14 @@ async function watch(id, recordHistory = true) {
       onPause: snapshot => sendProgress(snapshot, { force: true }),
       onSeek: snapshot => sendProgress(snapshot, { force: true }),
       onEnded: snapshot => sendProgress(snapshot, { force: true }),
-      onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true })
+      onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true }),
+      onReport: () => {
+        const contact = document.querySelector('.site-footer a[href^="mailto:"]')?.getAttribute('href');
+        if (!contact) return alert('No hay un canal de reporte configurado. Inténtalo de nuevo más tarde.');
+        const subject = encodeURIComponent(`Problema de reproducción: ${project.title} — ${episode.title}`);
+        const body = encodeURIComponent(`Episodio: ${episodeId}\nProveedor: ${episode.provider}\nURL: ${location.href}`);
+        location.href = `${contact}?subject=${subject}&body=${body}`;
+      }
     });
     activeProgressSaver = snapshot => sendProgress(snapshot, { force: true, keepalive: true });
   } else {

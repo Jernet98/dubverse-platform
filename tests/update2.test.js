@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
+  archiveLegacyPlayback,
   episodePlayback,
   mapPromo,
   normalizedProgress,
@@ -9,6 +10,7 @@ import {
   promoValue,
   WATCH_COMPLETE_THRESHOLD
 } from '../lib/update2.js';
+import { selectArchivePlayableFile } from '../lib/archive.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -23,6 +25,7 @@ test('player central soporta Archive directo, fallback, video, HLS, estados y re
   assert.equal(archive.source.kind, 'VIDEO');
   assert.equal(archive.source.url, 'https://archive.org/download/dubverse-demo/episodio%2001.mp4');
   assert.match(archive.fallback.url, /^https:\/\/archive\.org\/embed\/dubverse-demo/);
+  assert.deepEqual(archive.fallbacks.map(item => item.mode), ['ARCHIVE_FILE_EMBED', 'ARCHIVE_ITEM_EMBED']);
   assert.equal(direct.source.kind, 'VIDEO');
   assert.equal(hls.source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);
@@ -34,6 +37,19 @@ test('player central soporta Archive directo, fallback, video, HLS, estados y re
   assert.match(player, /useFallback/);
   assert.match(player, /webkitEnterFullscreen/);
   assert.match(player, /initialTime[\s\S]*loadedmetadata/);
+});
+
+test('Archive conserva archivos exactos, rechaza legacy externo y no elige otro capítulo ambiguo', () => {
+  const files = [{ name: 'episodio-01.mp4' }, { name: 'episodio-02.mp4' }];
+  assert.equal(selectArchivePlayableFile(files, 'episodio-02.mp4'), files[1]);
+  assert.equal(selectArchivePlayableFile(files, 'episodio-03.mp4'), null);
+  assert.equal(selectArchivePlayableFile(files), null);
+  assert.equal(selectArchivePlayableFile([files[0]]), files[0]);
+  assert.equal(archiveLegacyPlayback('https://evil.example/embed/dororo/episodio-01.mp4', 'dororo'), null);
+  assert.deepEqual(
+    archiveLegacyPlayback('https://archive.org/embed/dororo/episodio-01.mp4', 'dororo'),
+    { kind: 'IFRAME', url: 'https://archive.org/embed/dororo/episodio-01.mp4', identifier: 'dororo', file: 'episodio-01.mp4' }
+  );
 });
 
 test('WatchProgress es único, se actualiza, recupera y completa integrando episode_watched', async () => {
