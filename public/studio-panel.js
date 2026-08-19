@@ -28,7 +28,14 @@ async function panelApi(path, options = {}) {
     headers: { Accept: 'application/json', ...(!isForm && options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) }
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Error ${response.status}`);
+  if (!response.ok) {
+    const message = typeof body.error === 'string' && body.error.trim()
+      ? body.error
+      : typeof body.error?.message === 'string' && body.error.message.trim()
+        ? body.error.message
+        : 'No pudimos completar esta acción. Inténtalo de nuevo.';
+    throw new Error(message);
+  }
   return body;
 }
 
