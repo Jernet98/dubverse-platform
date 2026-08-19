@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { normalizeArchiveReference, normalizeYouTubeId, promoValue, youtubeThumbnailUrl } from '../lib/update2.js';
-import { panelMediaPolicy, validatePanelMediaFile } from '../lib/blob-media.js';
+import { panelMediaPolicy, uploadPanelImage, validatePanelMediaFile } from '../lib/blob-media.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -23,15 +23,37 @@ test('upload del panel usa Vercel Blob directo y exige membresía antes de proce
     source('lib/blob-media.js'),
     source('lib/studio-access.js')
   ]);
+  const image = (type, size = 256, name = 'imagen') => ({ name, type, size, arrayBuffer: async () => new ArrayBuffer(size) });
   assert.equal(panelMediaPolicy('studio-logo').maxBytes, 2 * 1024 * 1024);
   assert.equal(panelMediaPolicy('studio-banner').maxBytes, 5 * 1024 * 1024);
-  assert.throws(() => validatePanelMediaFile(new File(['x'], 'bad.svg', { type: 'image/svg+xml' }), 'studio-logo'), /JPEG, PNG o WebP/);
+  assert.equal(validatePanelMediaFile(image('image/jpeg', 256, 'logo.jpg'), 'studio-logo').contentType, 'image/jpeg');
+  assert.equal(validatePanelMediaFile(image('image/png', 256, 'logo.png'), 'studio-logo').contentType, 'image/png');
+  assert.equal(validatePanelMediaFile(image('image/webp', 256, 'logo.webp'), 'studio-logo').contentType, 'image/webp');
+  assert.throws(() => validatePanelMediaFile(image('image/svg+xml', 256, 'bad.svg'), 'studio-logo'), /JPEG, PNG o WebP/);
+  assert.throws(() => validatePanelMediaFile({ name: 'bad.jpg', type: 'image/jpeg', size: 10 }, 'studio-logo'), /imagen válida/);
+  assert.throws(() => validatePanelMediaFile(image('image/jpeg', 2 * 1024 * 1024 + 1, 'large.jpg'), 'studio-logo'), /supera el límite/);
+  const previousToken = process.env.BLOB_READ_WRITE_TOKEN;
+  delete process.env.BLOB_READ_WRITE_TOKEN;
+  try {
+    await assert.rejects(uploadPanelImage(image('image/jpeg', 256, 'logo.jpg'), { studioId: 'studio', kind: 'studio-logo' }), error => error.status === 503 && /no está disponible/.test(error.message));
+  } finally {
+    if (previousToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+    else process.env.BLOB_READ_WRITE_TOKEN = previousToken;
+  }
   assert.doesNotMatch(media, /processImageBuffer|sharp\(/i);
-  assert.match(media, /put\(pathname, file,[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*contentType: file\.type/);
-  assert.match(media, /console\.error\(`\[Studio media upload\] POST \/api\/studio-panel\/studios\/\$\{studio\}\/media/);
-  assert.match(route, /studioAdminSession\(request, path\[1\]\)[\s\S]*request\.formData\(\)/);
-  assert.match(route, /\['project-poster', 'project-banner', 'promo-thumbnail'\][\s\S]*requireManagedProject/);
+  assert.doesNotMatch(media, /instanceof File/);
+  assert.match(media, /const token = process\.env\.BLOB_READ_WRITE_TOKEN/);
+  assert.match(media, /put\(pathname, file,[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*token/);
+  assert.doesNotMatch(media, /contentType: file\.type/);
+  assert.match(route, /studioAdminSession\(request, studioId\)[\s\S]*request\.formData\(\)[\s\S]*const file = form\.get\('file'\)[\s\S]*requireManagedProject[\s\S]*validatePanelMediaFile\(file, kind\)[\s\S]*uploadPanelImage\(file/);
   assert.match(access, /sm\.user_profile_id = \$\{session\.row\.id\}[\s\S]*sm\.studio_id = \$\{studioId\}/);
+});
+
+test('endpoint de media registra la etapa completa sin incluir secretos', async () => {
+  const route = await source('app/api/studio-panel/[[...path]]/route.js');
+  assert.match(route, /let stage = 'start'[\s\S]*stage = 'session'[\s\S]*stage = 'formData'[\s\S]*stage = 'validation'[\s\S]*stage = 'upload'[\s\S]*stage = 'done'/);
+  assert.match(route, /console\.error\('\[Studio media endpoint\]'[\s\S]*stage,[\s\S]*studioId,[\s\S]*message: error\?\.message,[\s\S]*stack: error\?\.stack/);
+  assert.doesNotMatch(route, /console\.error[\s\S]{0,300}(cookie|authorization|DATABASE_URL|BLOB_READ_WRITE_TOKEN)/i);
 });
 
 test('panelApi normaliza errores estructurados sin mostrar object Object', async () => {

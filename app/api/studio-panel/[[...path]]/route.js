@@ -5,7 +5,7 @@ import { assertSocialWriteOrigin, jsonBody, socialErrorResponse, socialSession }
 import { managedStudios, requireManagedEpisode, requireManagedProject, studioAdminSession } from '@/lib/studio-access';
 import { notifyStudioFollowers } from '@/lib/studio-notifications';
 import { isUpdate2SchemaMissing, mapPromo, promoValue, safeHttpUrl } from '@/lib/update2';
-import { cleanupBlobUrls, uploadPanelImage } from '@/lib/blob-media';
+import { cleanupBlobUrls, uploadPanelImage, validatePanelMediaFile } from '@/lib/blob-media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -154,13 +154,34 @@ export async function POST(request, context) {
     assertSocialWriteOrigin(request);
     const path = await pathOf(context);
     if (path[0] === 'studios' && path[1] && path[2] === 'media' && path.length === 3) {
-      const session = await studioAdminSession(request, path[1]);
-      const form = await request.formData();
-      const kind = String(form.get('kind') || '').toLowerCase();
-      const projectId = text(form.get('projectId'), '', 160);
-      if (['project-poster', 'project-banner', 'promo-thumbnail'].includes(kind)) await requireManagedProject(session, projectId);
-      const image = await uploadPanelImage(form.get('file'), { studioId: session.studioId, kind });
-      return json({ image }, 201);
+      const studioId = path[1];
+      let stage = 'start';
+      try {
+        stage = 'session';
+        const session = await studioAdminSession(request, studioId);
+        stage = 'formData';
+        const form = await request.formData();
+        const file = form.get('file');
+        stage = 'validation';
+        const kind = String(form.get('kind') || '').toLowerCase();
+        const projectId = text(form.get('projectId'), '', 160);
+        if (['project-poster', 'project-banner', 'promo-thumbnail'].includes(kind)) await requireManagedProject(session, projectId);
+        validatePanelMediaFile(file, kind);
+        stage = 'upload';
+        const image = await uploadPanelImage(file, { studioId: session.studioId, kind });
+        stage = 'done';
+        return json({ image }, 201);
+      } catch (error) {
+        console.error('[Studio media endpoint]', {
+          stage,
+          studioId,
+          message: error?.message,
+          code: error?.code,
+          status: error?.status,
+          stack: error?.stack
+        });
+        throw error;
+      }
     }
     if (!(path[0] === 'studios' && path[1] && path[2] === 'promos' && path.length === 3)) throw new AppError(404, 'Ruta del Panel de estudio no encontrada.');
     const session = await studioAdminSession(request, path[1]);
