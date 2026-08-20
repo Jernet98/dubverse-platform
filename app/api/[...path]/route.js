@@ -410,7 +410,7 @@ async function continueWatching(sql, viewer) {
           ORDER BY ps.studio_id LIMIT 1
         ) owner ON true
         WHERE wp.user_profile_id = ${viewer.row.id}
-          AND e.provider <> 'ARCHIVE'
+          AND (e.provider <> 'ARCHIVE' OR COALESCE(e.archive_playback_mode, 'ARCHIVE_EMBED') = 'ARCHIVE_NATIVE_VERIFIED')
           AND wp.position_seconds > 2 AND wp.duration_seconds > 0
           AND (wp.position_seconds / NULLIF(wp.duration_seconds, 0)) < 0.92
           AND NOT EXISTS (SELECT 1 FROM episode_watched ew WHERE ew.user_profile_id = wp.user_profile_id AND ew.episode_id = wp.episode_id)
@@ -433,7 +433,7 @@ async function continueWatching(sql, viewer) {
           ORDER BY ps.studio_id LIMIT 1
         ) owner ON true
         WHERE h.user_profile_id = ${viewer.row.id}
-          AND e.provider = 'ARCHIVE'
+          AND e.provider = 'ARCHIVE' AND COALESCE(e.archive_playback_mode, 'ARCHIVE_EMBED') <> 'ARCHIVE_NATIVE_VERIFIED'
           AND NOT EXISTS (SELECT 1 FROM episode_watched ew WHERE ew.user_profile_id = h.user_profile_id AND ew.episode_id = h.episode_id)
           AND e.published = true AND e.deleted_at IS NULL
           AND p.published = true AND p.deleted_at IS NULL
@@ -900,7 +900,9 @@ export async function GET(request, context) {
       const status = archive.ready ? 'READY' : 'PROCESSING';
       const selectedFile = archive.resolvedOrig || null;
       const videoUrl = archive.embedUrl || episode.video_url || '';
-      await sql`UPDATE episodes SET status = ${status}, archive_file = ${selectedFile}, video_url = ${videoUrl}, updated_at = now() WHERE id = ${episode.id}`;
+      await sql`UPDATE episodes SET status = ${status}, archive_file = ${selectedFile}, video_url = ${videoUrl},
+        archive_playback_mode = 'ARCHIVE_EMBED', archive_native_status = 'UNVERIFIED', archive_native_url = NULL,
+        archive_native_verified_at = NULL, archive_native_verification = NULL, updated_at = now() WHERE id = ${episode.id}`;
       return json({ episode: episode.id, status, archive });
     }
 
@@ -1275,11 +1277,18 @@ export async function PATCH(request, context) {
       let videoUrl = body.videoUrl !== undefined ? String(body.videoUrl).trim() : old.video_url;
       if (provider === 'ARCHIVE' && archiveIdentifier && !videoUrl) videoUrl = archiveEmbedUrl(archiveIdentifier, archiveFile || '');
       const published = body.published !== undefined ? booleanValue(body.published) : old.published;
+      const archiveReferenceChanged = provider !== old.provider || archiveIdentifier !== old.archive_identifier
+        || archiveFile !== old.archive_file || videoUrl !== old.video_url;
       await sql`UPDATE episodes SET
           project_id = ${projectId}, season = ${season}, number = ${number},
           title = ${body.title !== undefined ? requiredText(body.title, 'El título') : old.title},
           description = ${body.description !== undefined ? String(body.description) : old.description},
           provider = ${provider}, video_url = ${videoUrl}, archive_identifier = ${archiveIdentifier}, archive_file = ${archiveFile},
+          archive_playback_mode = ${archiveReferenceChanged ? 'ARCHIVE_EMBED' : old.archive_playback_mode},
+          archive_native_status = ${archiveReferenceChanged ? 'UNVERIFIED' : old.archive_native_status},
+          archive_native_url = ${archiveReferenceChanged ? null : old.archive_native_url},
+          archive_native_verified_at = ${archiveReferenceChanged ? null : old.archive_native_verified_at},
+          archive_native_verification = ${archiveReferenceChanged ? null : old.archive_native_verification},
           status = ${status}, published = ${published}, updated_at = now()
         WHERE id = ${id}`;
       if (!old.published && published) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_EPISODE', projectId, episodeId: id });

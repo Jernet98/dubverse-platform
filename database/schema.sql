@@ -58,11 +58,18 @@ CREATE TABLE IF NOT EXISTS episodes (
   video_url text NOT NULL DEFAULT '',
   archive_identifier text,
   archive_file text,
+  archive_playback_mode text NOT NULL DEFAULT 'ARCHIVE_EMBED' CHECK (archive_playback_mode IN ('ARCHIVE_EMBED','ARCHIVE_NATIVE_VERIFIED')),
+  archive_native_status text NOT NULL DEFAULT 'UNVERIFIED' CHECK (archive_native_status IN ('UNVERIFIED','NATIVE_OK','EMBED_ONLY','INVALID')),
+  archive_native_url text CHECK (archive_native_url IS NULL OR (archive_identifier IS NOT NULL AND position('https://archive.org/download/' || archive_identifier || '/' IN archive_native_url) = 1 AND archive_native_url ~ '^https://archive[.]org/download/[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[^?#]+$')),
+  archive_native_verified_at timestamptz,
+  archive_native_verification jsonb,
   status text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','UPLOADING','PROCESSING','READY','PUBLISHED','ERROR','RETIRED')),
   published boolean NOT NULL DEFAULT false,
   deleted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK ((archive_playback_mode = 'ARCHIVE_NATIVE_VERIFIED') = (archive_native_status = 'NATIVE_OK')),
+  CHECK (archive_playback_mode <> 'ARCHIVE_NATIVE_VERIFIED' OR (provider = 'ARCHIVE' AND archive_native_url IS NOT NULL AND archive_native_verified_at IS NOT NULL AND archive_native_verification IS NOT NULL)),
   UNIQUE(project_id, season, number)
 );
 

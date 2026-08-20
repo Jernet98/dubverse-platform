@@ -22,8 +22,8 @@ test('Archive monta inmediatamente el iframe oficial fuera del reproductor nativ
 
 test('Seguir viendo combina progreso preciso con actividad Archive sin porcentajes falsos', async () => {
   const [api, app] = await Promise.all([source('app/api/[...path]/route.js'), source('public/app.js')]);
-  assert.match(api, /WITH precise_progress AS[\s\S]*e\.provider <> 'ARCHIVE'/);
-  assert.match(api, /archive_activity AS[\s\S]*FROM episode_history h[\s\S]*e\.provider = 'ARCHIVE'/);
+  assert.match(api, /WITH precise_progress AS[\s\S]*e\.provider <> 'ARCHIVE' OR COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) = 'ARCHIVE_NATIVE_VERIFIED'/);
+  assert.match(api, /archive_activity AS[\s\S]*FROM episode_history h[\s\S]*e\.provider = 'ARCHIVE' AND COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) <> 'ARCHIVE_NATIVE_VERIFIED'/);
   assert.match(api, /row_number\(\) OVER \(PARTITION BY project_id ORDER BY updated_at DESC/);
   assert.match(api, /NOT EXISTS \(SELECT 1 FROM episode_watched/);
   assert.match(api, /activityOnly: Boolean\(row\.activity_only\)/);

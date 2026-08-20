@@ -1453,14 +1453,15 @@ async function watch(id, recordHistory = true) {
   const playback = episode.playback || (episode.provider === 'ARCHIVE'
     ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
-  const isArchivePlayback = playback.provider === 'ARCHIVE';
+  const isArchivePlayback = playback.provider === 'ARCHIVE' && playback.mode !== 'ARCHIVE_NATIVE_VERIFIED';
   let lastSavedAt = 0;
   let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
   let progressRequest = null;
   let queuedProgress = null;
   let progressComplete = false;
+  let progressDisabled = false;
   const sendProgress = async (snapshot, { force = false, keepalive = false } = {}) => {
-    if (!state.social.viewer || progressComplete) return;
+    if (!state.social.viewer || progressComplete || progressDisabled) return;
     const position = Number(snapshot?.position || 0);
     const duration = Number(snapshot?.duration || 0);
     if (!duration || position < 1) return;
@@ -1501,6 +1502,7 @@ async function watch(id, recordHistory = true) {
       onPause: snapshot => sendProgress(snapshot, { force: true }),
       onSeek: snapshot => sendProgress(snapshot, { force: true }),
       onEnded: snapshot => sendProgress(snapshot, { force: true }),
+      onFallback: () => { progressDisabled = true; queuedProgress = null; },
       onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true })
     });
     activeProgressSaver = snapshot => sendProgress(snapshot, { force: true, keepalive: true });
