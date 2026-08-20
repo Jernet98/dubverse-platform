@@ -1422,7 +1422,9 @@ async function watch(id, recordHistory = true) {
   } else {
     $('#dubversePlayer').innerHTML = '<div class="player-unavailable">No se pudo iniciar el reproductor. Recarga la página para reintentarlo.</div>';
   }
-  if (state.social.viewer && recordHistory) await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => null);
+  if (state.social.viewer && recordHistory) {
+    void socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => null);
+  }
   if ($('#episodeLike')) $('#episodeLike').onclick = async () => {
     if (!requireViewer()) return;
     try { await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(episodeId, false); } catch (error) { alert(error.message); }

@@ -35,7 +35,8 @@ test('Seguir viendo combina progreso preciso con actividad Archive sin porcentaj
 
 test('abrir Archive registra historial y marcar visto reutiliza episode_watched', async () => {
   const [app, social] = await Promise.all([source('public/app.js'), source('app/api/social/[...path]/route.js')]);
-  assert.match(app, /state\.social\.viewer && recordHistory\) await socialWrite\(`\/episodes\/\$\{encodeURIComponent\(episodeId\)\}\/view`/);
+  assert.match(app, /state\.social\.viewer && recordHistory\) \{[\s\S]*void socialWrite\(`\/episodes\/\$\{encodeURIComponent\(episodeId\)\}\/view`/);
+  assert.doesNotMatch(app, /await socialWrite\(`\/episodes\/\$\{encodeURIComponent\(episodeId\)\}\/view`/);
   assert.match(app, /id="episodeWatched"[\s\S]*Marcar como visto/);
   assert.match(app, /\/episodes\/\$\{encodeURIComponent\(episodeId\)\}\/watched/);
   assert.match(social, /INSERT INTO episode_watched[\s\S]*DELETE FROM watch_progress/);
