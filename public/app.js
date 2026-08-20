@@ -552,7 +552,18 @@ function progressTime(value) {
 }
 
 function continueWatchingRow(section) {
-  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div><button class="continue-clear" type="button" data-continue-clear aria-label="Limpiar Seguir viendo">Limpiar</button></div><div class="continue-carousel"><button class="continue-arrow previous" type="button" data-continue-previous aria-label="Ver episodios anteriores">‹</button><div class="continue-row" data-continue-row>${section.items.map(item => `<article class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" data-continue-card data-episode-id="${esc(item.episode.id)}"><a class="continue-card-link" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="Continuar ${esc(item.project.title)}, temporada ${item.episode.season}, episodio ${item.episode.number}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt="" loading="lazy"><span class="continue-play" aria-hidden="true">▶</span>${item.activityOnly ? '' : `<i class="continue-progress" style="width:${Math.round(item.progress)}%"></i>`}</div><div class="continue-copy"><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number}${item.episode.title ? ` · ${esc(item.episode.title)}` : ''}</span><small>${item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)}`}</small></div></a><div class="continue-actions"><a class="continue-action-primary" href="/ver/${encodeURIComponent(item.episode.id)}">${item.activityOnly ? 'Reproducir' : 'Continuar'}</a>${item.studio ? `<button type="button" data-continue-follow data-studio-id="${esc(item.studio.id)}" aria-pressed="${item.studio.following}">${item.studio.following ? 'Siguiendo' : 'Seguir estudio'}<small>${esc(item.studio.name)}</small></button>` : ''}<button type="button" data-continue-remove aria-label="Quitar ${esc(item.project.title)} de Seguir viendo">Quitar</button></div></article>`).join('')}</div><button class="continue-arrow next" type="button" data-continue-next aria-label="Ver más episodios">›</button></div></section>`;
+  const cards = section.items.map(item => {
+    const episodeLabel = `T${item.episode.season} · E${item.episode.number}${item.episode.title ? ` · ${esc(item.episode.title)}` : ''}`;
+    const progressLabel = item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)} · ${progressTime(item.durationSeconds)} · ${Math.round(item.progress)}%`;
+    return `<article class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" data-continue-card data-episode-id="${esc(item.episode.id)}">
+      <a class="continue-card-link" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="Continuar ${esc(item.project.title)}, temporada ${item.episode.season}, episodio ${item.episode.number}">
+        <div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt="" loading="lazy"><span class="continue-play" aria-hidden="true">▶</span>${item.activityOnly ? '' : `<i class="continue-progress" style="width:${Math.round(item.progress)}%"></i>`}</div>
+        <div class="continue-copy"><strong>${esc(item.project.title)}</strong><span>${episodeLabel}</span><small>${progressLabel}</small></div>
+      </a>
+      <div class="continue-actions"><a class="continue-action-primary" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="${item.activityOnly ? 'Reproducir' : 'Continuar'} ${esc(item.episode.title || item.project.title)}">▶</a>${item.studio ? `<button type="button" data-continue-follow data-studio-id="${esc(item.studio.id)}" aria-pressed="${item.studio.following}" aria-label="${item.studio.following ? 'Dejar de seguir' : 'Seguir'} estudio ${esc(item.studio.name)}">${item.studio.following ? '✓' : '+'}<small>${esc(item.studio.name)}</small></button>` : ''}<button type="button" data-continue-like aria-pressed="${item.liked}" aria-label="${item.liked ? 'Quitar Me gusta' : 'Me gusta'} en ${esc(item.episode.title || item.project.title)}">${item.liked ? '♥' : '♡'}</button><button type="button" data-continue-remove aria-label="Quitar ${esc(item.project.title)} de Seguir viendo">×</button></div>
+    </article>`;
+  }).join('');
+  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div><button class="continue-clear" type="button" data-continue-clear aria-label="Limpiar Seguir viendo">Limpiar</button></div><div class="continue-carousel"><button class="continue-arrow previous" type="button" data-continue-previous aria-label="Ver episodios anteriores">‹</button><div class="continue-row" data-continue-row>${cards}</div><button class="continue-arrow next" type="button" data-continue-next aria-label="Ver más episodios">›</button></div></section>`;
 }
 
 function mountArchiveEmbed(container, playback, title) {
@@ -657,9 +668,16 @@ function initializeContinueWatching() {
     const following = button.getAttribute('aria-pressed') === 'true';
     const previousText = button.innerHTML;
     button.setAttribute('aria-pressed', String(!following));
-    button.firstChild.textContent = following ? 'Seguir estudio' : 'Siguiendo';
+    button.firstChild.textContent = following ? '+' : '✓';
     try { await socialWrite(`/studios/${encodeURIComponent(button.dataset.studioId)}/follow`, following ? 'DELETE' : 'POST'); }
     catch (error) { button.setAttribute('aria-pressed', String(following)); button.innerHTML = previousText; showToast(error.message); }
+  });
+  $$('[data-continue-like]', root).forEach(button => button.onclick = async () => {
+    const liked = button.getAttribute('aria-pressed') === 'true';
+    const card = button.closest('[data-continue-card]');
+    button.setAttribute('aria-pressed', String(!liked)); button.textContent = liked ? '♡' : '♥';
+    try { await socialWrite(`/episodes/${encodeURIComponent(card.dataset.episodeId)}/like`, liked ? 'DELETE' : 'POST'); }
+    catch (error) { button.setAttribute('aria-pressed', String(liked)); button.textContent = liked ? '♥' : '♡'; showToast(error.message); }
   });
   $$('[data-continue-remove]', root).forEach(button => button.onclick = async () => {
     const card = button.closest('[data-continue-card]');

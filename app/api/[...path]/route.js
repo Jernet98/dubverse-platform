@@ -399,6 +399,7 @@ async function continueWatching(sql, viewer) {
           p.id AS project_id, p.title AS project_title, p.poster, p.banner,
           owner.id AS studio_id, owner.name AS studio_name,
           EXISTS(SELECT 1 FROM studio_follows sf WHERE sf.user_profile_id = ${viewer.row.id} AND sf.studio_id = owner.id) AS studio_following,
+          EXISTS(SELECT 1 FROM episode_likes el WHERE el.user_profile_id = ${viewer.row.id} AND el.episode_id = e.id) AS episode_liked,
           false AS activity_only
         FROM watch_progress wp
         JOIN episodes e ON e.id = wp.episode_id
@@ -421,6 +422,7 @@ async function continueWatching(sql, viewer) {
           p.id AS project_id, p.title AS project_title, p.poster, p.banner,
           owner.id AS studio_id, owner.name AS studio_name,
           EXISTS(SELECT 1 FROM studio_follows sf WHERE sf.user_profile_id = ${viewer.row.id} AND sf.studio_id = owner.id) AS studio_following,
+          EXISTS(SELECT 1 FROM episode_likes el WHERE el.user_profile_id = ${viewer.row.id} AND el.episode_id = e.id) AS episode_liked,
           true AS activity_only
         FROM episode_history h
         JOIN episodes e ON e.id = h.episode_id
@@ -445,6 +447,7 @@ async function continueWatching(sql, viewer) {
       episode: { id: row.episode_id, title: row.episode_title, season: Number(row.season), number: Number(row.number) },
       project: { id: row.project_id, title: row.project_title, poster: row.poster || '', banner: row.banner || '' },
       studio: row.studio_id ? { id: row.studio_id, name: row.studio_name, following: Boolean(row.studio_following) } : null,
+      liked: Boolean(row.episode_liked),
       provider: row.provider,
       activityOnly: Boolean(row.activity_only),
       positionSeconds: row.activity_only ? null : Number(row.position_seconds),

@@ -58,6 +58,9 @@ test('carrusel de Seguir viendo reutiliza follow y permite quitar, marcar visto 
   assert.doesNotMatch(social.slice(social.indexOf('async function clearContinueWatching'), social.indexOf('async function notifications')), /favorites|likes|comments|studio_follows|user_follows/);
   assert.match(api, /LEFT JOIN LATERAL[\s\S]*project_studios[\s\S]*studio_follows/);
   assert.match(api, /studio: row\.studio_id/);
+  assert.match(api, /episode_likes[\s\S]*AS episode_liked/);
+  assert.match(app, /data-continue-like/);
+  assert.match(app, /\/episodes\/\$\{encodeURIComponent\(card\.dataset\.episodeId\)\}\/like/);
 });
 
 test('abrir Archive registra historial y marcar visto reutiliza episode_watched', async () => {
