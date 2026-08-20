@@ -65,8 +65,10 @@ test('carrusel de Seguir viendo reutiliza follow y permite quitar, marcar visto 
 });
 
 test('acciones desktop son horizontales y móvil conserva sus reglas táctiles', async () => {
-  const css = await source('public/styles.css');
-  assert.match(css, /@media\(min-width:721px\)\{\.continue-card>\.continue-actions\{display:flex;flex-direction:row;align-items:center\}\}/);
+  const [css, app] = await Promise.all([source('public/styles.css'), source('public/app.js')]);
+  assert.match(css, /@media\(min-width:721px\)[\s\S]*\.continue-card>div\.continue-actions\{[^}]*display:flex;flex-direction:row;align-items:center/);
+  assert.match(css, /\.continue-card \.continue-remove-secondary\{position:absolute/);
+  assert.match(app, /class="continue-remove-secondary"[^>]*data-continue-remove/);
   assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-actions\{position:static;transform:none;opacity:1/);
   assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-arrow\{display:none!important\}/);
 });
