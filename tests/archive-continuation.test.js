@@ -7,7 +7,7 @@ const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Archive monta inmediatamente el iframe oficial fuera del reproductor nativo', async () => {
   const app = await source('public/app.js');
-  const playback = episodePlayback({ provider: 'ARCHIVE', archive_identifier: 'serie-item', archive_file: 'episodio 8.mp4' });
+  const playback = episodePlayback({ provider: 'ARCHIVE', archive_identifier: 'serie-item', archive_file: 'episodio 8.mp4', video_url: 'https://archive.org/embed/serie-item/episodio%208.mp4' });
   assert.equal(playback.source, null);
   assert.equal(playback.fallback.url, 'https://archive.org/embed/serie-item/episodio%208.mp4');
   assert.equal(playback.identifier, 'serie-item');
@@ -62,6 +62,13 @@ test('carrusel de Seguir viendo reutiliza follow y permite quitar, marcar visto 
   assert.match(api, /episode_likes[\s\S]*AS episode_liked/);
   assert.match(app, /data-continue-like/);
   assert.match(app, /\/episodes\/\$\{encodeURIComponent\(card\.dataset\.episodeId\)\}\/like/);
+});
+
+test('acciones desktop son horizontales y móvil conserva sus reglas táctiles', async () => {
+  const css = await source('public/styles.css');
+  assert.match(css, /@media\(min-width:721px\)\{\.continue-card>\.continue-actions\{display:flex;flex-direction:row;align-items:center\}\}/);
+  assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-actions\{position:static;transform:none;opacity:1/);
+  assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-arrow\{display:none!important\}/);
 });
 
 test('abrir Archive registra historial y marcar visto reutiliza episode_watched', async () => {

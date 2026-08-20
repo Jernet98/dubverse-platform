@@ -4,7 +4,7 @@ import { put } from '@vercel/blob';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
-import { inspectArchive, archiveEmbedUrl, resolveArchiveEpisodePlayback } from '@/lib/archive';
+import { inspectArchive } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
@@ -787,7 +787,7 @@ export async function GET(request, context) {
       const row = rows[0];
       return json(mapEpisode(row, {
         project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' },
-        playback: row.provider === 'ARCHIVE' ? await resolveArchiveEpisodePlayback(row) : episodePlayback(row)
+        playback: episodePlayback(row)
       }));
     }
 
@@ -898,8 +898,8 @@ export async function GET(request, context) {
       if (!episode.archive_identifier) throw new AppError(400, 'El episodio no tiene identificador de Archive.org.');
       const archive = await inspectArchive(episode.archive_identifier, episode.archive_file || '');
       const status = archive.ready ? 'READY' : 'PROCESSING';
-      const selectedFile = episode.archive_file || archive.selected?.name || null;
-      const videoUrl = archiveEmbedUrl(episode.archive_identifier, selectedFile || '');
+      const selectedFile = archive.resolvedOrig || null;
+      const videoUrl = archive.embedUrl || episode.video_url || '';
       await sql`UPDATE episodes SET status = ${status}, archive_file = ${selectedFile}, video_url = ${videoUrl}, updated_at = now() WHERE id = ${episode.id}`;
       return json({ episode: episode.id, status, archive });
     }

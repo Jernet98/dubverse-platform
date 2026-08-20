@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { resolveArchiveEpisodePlayback, resolveArchivePlaylist } from '../lib/archive.js';
-import { archiveEmbedUrlSafe, episodePlayback } from '../lib/update2.js';
+import { archiveEmbedUrlSafe, episodePlayback, persistedArchiveEmbedUrl } from '../lib/update2.js';
 
 const fixtures = JSON.parse(await readFile(new URL('./fixtures/archive-playlists.json', import.meta.url), 'utf8'));
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -62,11 +62,12 @@ test('single usa embed de item, multi usa orig exacto e identifier inexistente n
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('la API resuelve Archive antes de emitir iframe y conserva DIRECT/HLS', async () => {
+test('la API usa la referencia canónica persistida sin metadata remota y conserva DIRECT/HLS', async () => {
   const [api, archive, app, player] = await Promise.all([
     source('app/api/[...path]/route.js'), source('lib/archive.js'), source('public/app.js'), source('public/player.js')
   ]);
-  assert.match(api, /row\.provider === 'ARCHIVE' \? await resolveArchiveEpisodePlayback/);
+  assert.doesNotMatch(api, /resolveArchiveEpisodePlayback/);
+  assert.match(api, /playback: episodePlayback\(row\)/);
   assert.match(archive, /playlist\.entries\.length === 1[\s\S]*archiveEmbedUrl\(identifier\)[\s\S]*archiveEmbedUrl\(identifier, playlist\.selected\.orig\)/);
   assert.match(archive, /status: 'UNRESOLVED'/);
   assert.match(app, /Este episodio no pudo cargarse desde Archive\.org/);
@@ -77,4 +78,11 @@ test('la API resuelve Archive antes de emitir iframe y conserva DIRECT/HLS', asy
   assert.equal(episodePlayback({ provider: 'DIRECT', video_url: 'https://cdn.example/episode.mp4' }).source.kind, 'VIDEO');
   assert.equal(episodePlayback({ provider: 'HLS', video_url: 'https://cdn.example/master.m3u8' }).source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);
+});
+
+test('playback canónico conserva espacios, corrige plus legado y rechaza referencias ajenas', () => {
+  assert.equal(persistedArchiveEmbedUrl({ archive_identifier: 'item', video_url: 'https://archive.org/embed/item/Cap%C3%ADtulo%20uno.mp4' }), 'https://archive.org/embed/item/Cap%C3%ADtulo%20uno.mp4');
+  assert.equal(persistedArchiveEmbedUrl({ archive_identifier: 'item', video_url: 'https://archive.org/embed/item/Capitulo+uno.mp4' }), 'https://archive.org/embed/item/Capitulo%20uno.mp4');
+  assert.equal(persistedArchiveEmbedUrl({ archive_identifier: 'item', video_url: 'https://archive.org/embed/item/Capitulo%2BEspecial.mp4' }), 'https://archive.org/embed/item/Capitulo%2BEspecial.mp4');
+  assert.equal(persistedArchiveEmbedUrl({ archive_identifier: 'item', video_url: 'https://archive.org/embed/other/video.mp4' }), '');
 });

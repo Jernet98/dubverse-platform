@@ -15,7 +15,8 @@ const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos', async () => {
   const player = await source('public/player.js');
   const archive = episodePlayback({
-    provider: 'ARCHIVE', archive_identifier: 'dubverse-demo', archive_file: 'episodio 01.mp4'
+    provider: 'ARCHIVE', archive_identifier: 'dubverse-demo', archive_file: 'episodio 01.mp4',
+    video_url: 'https://archive.org/embed/dubverse-demo/episodio%2001.mp4'
   });
   const direct = episodePlayback({ provider: 'DIRECT', video_url: 'https://cdn.example/video.mp4' });
   const hls = episodePlayback({ provider: 'HLS', video_url: 'https://cdn.example/master.m3u8' });
