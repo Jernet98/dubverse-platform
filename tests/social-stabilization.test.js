@@ -28,7 +28,7 @@ test('comentarios y reseñas se editan inline sin prompts nativos', async () => 
   assert.match(comments, /maxlength="1500"/);
 });
 
-test('la lista de episodios usa visto manual y el reproductor sólo registra historial', async () => {
+test('lista y página de episodio comparten visto manual sin marcarlo al reproducir', async () => {
   const source = await readFile(appUrl, 'utf8');
   const project = functionSource(source, 'projectPage', 'commentMarkup');
   const player = functionSource(source, 'watch', 'studios');
@@ -37,7 +37,9 @@ test('la lista de episodios usa visto manual y el reproductor sólo registra his
   assert.match(project, /\/watched/);
   assert.doesNotMatch(project, /seenEpisodeIds|episode_history/);
   assert.match(player, /\/view/);
-  assert.doesNotMatch(player, /\/watched/);
+  assert.match(player, /id="episodeWatched"/);
+  assert.match(player, /episodeWatched'\)\.onclick[\s\S]*\/watched/);
+  assert.doesNotMatch(player, /recordHistory[^\n]+\/watched/);
 });
 
 test('avatar e imágenes adjuntas tienen límites y capas explícitas', async () => {

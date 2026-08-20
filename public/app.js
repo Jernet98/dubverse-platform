@@ -549,7 +549,21 @@ function progressTime(value) {
 }
 
 function continueWatchingRow(section) {
-  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div></div><div class="continue-row">${section.items.map(item => `<a class="continue-card" href="/ver/${encodeURIComponent(item.episode.id)}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt=""><span>▶</span><i style="width:${Math.round(item.progress)}%"></i></div><div><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number} — ${esc(item.episode.title)}</span><small>${progressTime(item.positionSeconds)} de ${progressTime(item.durationSeconds)} · ${Math.round(item.progress)}%</small></div></a>`).join('')}</div></section>`;
+  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div></div><div class="continue-row">${section.items.map(item => `<a class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" href="/ver/${encodeURIComponent(item.episode.id)}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt=""><span>▶</span>${item.activityOnly ? '' : `<i style="width:${Math.round(item.progress)}%"></i>`}</div><div><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number} — ${esc(item.episode.title)}</span><small>${item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)} · ${Math.round(item.progress)}%`}</small></div></a>`).join('')}</div></section>`;
+}
+
+function mountArchiveEmbed(container, playback, title) {
+  const embed = playback?.fallback?.url || '';
+  if (!embed) {
+    container.innerHTML = '<div class="player-unavailable">Este episodio no tiene un embed de Archive.org disponible.</div>';
+    return;
+  }
+  const detailsUrl = playback.identifier ? `https://archive.org/details/${encodeURIComponent(playback.identifier)}` : '';
+  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="fullscreen; autoplay" allowfullscreen loading="eager"></iframe>${detailsUrl ? `<a class="archive-player-link" href="${esc(detailsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Archive.org ↗</a>` : ''}</div>`;
+  const frame = $('iframe', container);
+  const loader = $('.archive-player-loader', container);
+  frame.addEventListener('load', () => loader.classList.add('hidden'), { once: true });
+  frame.src = embed;
 }
 
 function initializeEditorialCarousel() {
@@ -1327,7 +1341,7 @@ async function watch(id, recordHistory = true) {
     <section class="watch-page">
       <a class="watch-back" href="/proyecto/${encodeURIComponent(episode.project_id)}">← Volver a ${esc(episode.project?.title || 'proyecto')}</a>
       <div class="watch-title"><h1>${esc(episode.title)}</h1><p>Temporada ${episode.season} · Episodio ${episode.number} · ${esc(episode.provider)}</p></div>
-      <div class="player-shell" id="dubversePlayer"><div class="player-boot"><span></span><p>Preparando el reproductor de Dubverse…</p></div></div>
+      <div class="player-shell ${episode.provider === 'ARCHIVE' ? 'player-shell-archive' : ''}" id="dubversePlayer"><div class="player-boot"><span></span><p>${episode.provider === 'ARCHIVE' ? 'Cargando Archive.org…' : 'Preparando el reproductor de Dubverse…'}</p></div></div>
       <div class="player-note">Dubverse no inserta anuncios. El archivo se reproduce desde el proveedor indicado y conserva los créditos del proyecto.</div>
       <nav class="player-navigation" aria-label="Navegación de episodios">
         ${previous ? `<a href="/ver/${encodeURIComponent(previous.id)}">← Anterior</a>` : '<span aria-disabled="true">← Anterior</span>'}
@@ -1342,6 +1356,7 @@ async function watch(id, recordHistory = true) {
       ${dubbingPanel(project)}
       <div class="actions watch-actions"><a class="btn btn-secondary" href="/proyecto/${encodeURIComponent(episode.project_id)}">Ver ficha del proyecto</a>
         ${social ? `<button class="social-toggle ${social.viewer.liked ? 'active' : ''}" id="episodeLike" type="button" aria-pressed="${social.viewer.liked}">${uiIcon('heart')}<span>Me gusta</span><strong class="social-count">${social.likes}</strong></button>` : ''}
+        ${state.social.viewer && social ? `<button class="social-toggle ${social.viewer.watched ? 'active' : ''}" id="episodeWatched" type="button" aria-pressed="${social.viewer.watched}">${uiIcon('check')}<span>${social.viewer.watched ? 'Visto' : 'Marcar como visto'}</span></button>` : ''}
       </div>
       ${social ? `<section class="comments-section"><div class="social-section-heading comments-heading"><div><span class="section-kicker">Conversación del episodio</span><h2>Comentarios</h2><p>Comparte impresiones con otros fans sin salir del reproductor.</p></div></div>
         ${state.social.viewer ? `<form id="commentForm" class="social-form comment-form"><img class="composer-avatar" src="${avatarImage(state.social.viewer)}" alt=""><div class="comment-composer">${commentIdentityPicker()}<label class="form-wide field-label"><span class="sr-only">Comentario</span><textarea name="body" maxlength="1500" placeholder="Escribe un comentario sobre este episodio…" required></textarea></label><div class="comment-toolbar"><label class="file-picker" for="commentImage">${uiIcon('image')}<span>Añadir imagen</span><input id="commentImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><span class="file-name" id="commentFileName">JPEG, PNG o WebP</span><button class="btn btn-primary" type="submit">${uiIcon('send')}<span>Publicar</span></button></div><div class="comment-image-preview hidden" id="commentImagePreview"><img alt="Vista previa de la imagen"><button id="removeCommentImage" type="button" aria-label="Quitar imagen">×</button></div><p class="form-message" role="status"></p></div></form>` : `<div class="social-login-card"><span class="social-login-icon">${uiIcon('send')}</span><div><strong>Únete a la conversación</strong><p>Inicia sesión para comentar este episodio.</p></div><button class="btn btn-secondary" id="commentLogin" type="button">Iniciar sesión</button></div>`}
@@ -1353,6 +1368,7 @@ async function watch(id, recordHistory = true) {
   const playback = episode.playback || (episode.provider === 'ARCHIVE'
     ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
+  const isArchivePlayback = playback.provider === 'ARCHIVE';
   let lastSavedAt = 0;
   let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
   let progressRequest = null;
@@ -1388,7 +1404,9 @@ async function watch(id, recordHistory = true) {
         }
       });
   };
-  if (window.DubversePlayer) {
+  if (isArchivePlayback) {
+    mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`);
+  } else if (window.DubversePlayer) {
     activePlayer = new window.DubversePlayer($('#dubversePlayer'), {
       title: `${project.title} — ${episode.title}`,
       poster: episode.project?.banner || episode.project?.poster || project.banner || project.poster,
@@ -1404,10 +1422,22 @@ async function watch(id, recordHistory = true) {
   } else {
     $('#dubversePlayer').innerHTML = '<div class="player-unavailable">No se pudo iniciar el reproductor. Recarga la página para reintentarlo.</div>';
   }
-  if (state.social.viewer && recordHistory) socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => {});
+  if (state.social.viewer && recordHistory) await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/view`, 'POST').catch(() => null);
   if ($('#episodeLike')) $('#episodeLike').onclick = async () => {
     if (!requireViewer()) return;
     try { await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/like`, social.viewer.liked ? 'DELETE' : 'POST'); await watch(episodeId, false); } catch (error) { alert(error.message); }
+  };
+  if ($('#episodeWatched')) $('#episodeWatched').onclick = async event => {
+    const button = event.currentTarget;
+    const wasWatched = button.getAttribute('aria-pressed') === 'true';
+    button.disabled = true;
+    try {
+      await socialWrite(`/episodes/${encodeURIComponent(episodeId)}/watched`, wasWatched ? 'DELETE' : 'POST');
+      button.setAttribute('aria-pressed', String(!wasWatched));
+      button.classList.toggle('active', !wasWatched);
+      $('span', button).textContent = wasWatched ? 'Marcar como visto' : 'Visto';
+    } catch (error) { alert(error.message); }
+    finally { button.disabled = false; }
   };
   if ($('#commentLogin')) $('#commentLogin').onclick = openLogin;
   if ($('#commentImage')) {

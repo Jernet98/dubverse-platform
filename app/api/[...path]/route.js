@@ -393,24 +393,48 @@ async function continueWatching(sql, viewer) {
   if (!viewer) return [];
   try {
     const rows = await sql`
-      SELECT wp.position_seconds, wp.duration_seconds, wp.updated_at,
-        e.id AS episode_id, e.title AS episode_title, e.season, e.number,
-        p.id AS project_id, p.title AS project_title, p.poster, p.banner
-      FROM watch_progress wp
-      JOIN episodes e ON e.id = wp.episode_id
-      JOIN projects p ON p.id = e.project_id
-      WHERE wp.user_profile_id = ${viewer.row.id}
-        AND wp.position_seconds > 2 AND wp.duration_seconds > 0
-        AND (wp.position_seconds / NULLIF(wp.duration_seconds, 0)) < 0.92
-        AND e.published = true AND e.deleted_at IS NULL
-        AND p.published = true AND p.deleted_at IS NULL
-      ORDER BY wp.updated_at DESC LIMIT 12
+      WITH precise_progress AS (
+        SELECT wp.position_seconds, wp.duration_seconds, wp.updated_at,
+          e.id AS episode_id, e.title AS episode_title, e.season, e.number, e.provider,
+          p.id AS project_id, p.title AS project_title, p.poster, p.banner,
+          false AS activity_only
+        FROM watch_progress wp
+        JOIN episodes e ON e.id = wp.episode_id
+        JOIN projects p ON p.id = e.project_id
+        WHERE wp.user_profile_id = ${viewer.row.id}
+          AND e.provider <> 'ARCHIVE'
+          AND wp.position_seconds > 2 AND wp.duration_seconds > 0
+          AND (wp.position_seconds / NULLIF(wp.duration_seconds, 0)) < 0.92
+          AND NOT EXISTS (SELECT 1 FROM episode_watched ew WHERE ew.user_profile_id = wp.user_profile_id AND ew.episode_id = wp.episode_id)
+          AND e.published = true AND e.deleted_at IS NULL
+          AND p.published = true AND p.deleted_at IS NULL
+      ), archive_activity AS (
+        SELECT 0::numeric AS position_seconds, 0::numeric AS duration_seconds, h.last_viewed_at AS updated_at,
+          e.id AS episode_id, e.title AS episode_title, e.season, e.number, e.provider,
+          p.id AS project_id, p.title AS project_title, p.poster, p.banner,
+          true AS activity_only
+        FROM episode_history h
+        JOIN episodes e ON e.id = h.episode_id
+        JOIN projects p ON p.id = e.project_id
+        WHERE h.user_profile_id = ${viewer.row.id}
+          AND e.provider = 'ARCHIVE'
+          AND NOT EXISTS (SELECT 1 FROM episode_watched ew WHERE ew.user_profile_id = h.user_profile_id AND ew.episode_id = h.episode_id)
+          AND e.published = true AND e.deleted_at IS NULL
+          AND p.published = true AND p.deleted_at IS NULL
+      ), ranked AS (
+        SELECT candidates.*, row_number() OVER (PARTITION BY project_id ORDER BY updated_at DESC, episode_id) AS project_rank
+        FROM (SELECT * FROM precise_progress UNION ALL SELECT * FROM archive_activity) candidates
+      )
+      SELECT * FROM ranked WHERE project_rank = 1 ORDER BY updated_at DESC LIMIT 12
     `;
     return rows.map(row => ({
       episode: { id: row.episode_id, title: row.episode_title, season: Number(row.season), number: Number(row.number) },
       project: { id: row.project_id, title: row.project_title, poster: row.poster || '', banner: row.banner || '' },
-      positionSeconds: Number(row.position_seconds), durationSeconds: Number(row.duration_seconds),
-      progress: Math.min(100, Math.max(0, Number(row.position_seconds) / Number(row.duration_seconds) * 100)),
+      provider: row.provider,
+      activityOnly: Boolean(row.activity_only),
+      positionSeconds: row.activity_only ? null : Number(row.position_seconds),
+      durationSeconds: row.activity_only ? null : Number(row.duration_seconds),
+      progress: row.activity_only ? null : Math.min(100, Math.max(0, Number(row.position_seconds) / Number(row.duration_seconds) * 100)),
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
     }));
   } catch (error) {
@@ -504,7 +528,7 @@ async function publicHome(request, sql) {
   }
   if (progressItems.length) composed.push({
     sectionType: 'CONTINUE_WATCHING', sectionKey: 'continue-watching', position: 5,
-    title: 'Seguir viendo', subtitle: 'Continúa desde donde lo dejaste, en cualquier dispositivo.', items: progressItems
+    title: 'Seguir viendo', subtitle: 'Retoma tus episodios recientes en cualquier dispositivo.', items: progressItems
   });
   banners.filter(banner => !composed.some(item => item.banner?.id === banner.id))
     .forEach(banner => composed.push({ sectionType: 'BANNER', sectionKey: `banner-${banner.id}`, position: banner.position, banner }));

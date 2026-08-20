@@ -23,6 +23,8 @@ test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos
   assert.equal(archive.source, null);
   assert.match(archive.fallback.url, /^https:\/\/archive\.org\/embed\/dubverse-demo/);
   assert.equal(archive.fallback.mode, 'ARCHIVE_EMBED');
+  assert.equal(archive.identifier, 'dubverse-demo');
+  assert.equal(archive.file, 'episodio 01.mp4');
   assert.equal(direct.source.kind, 'VIDEO');
   assert.equal(hls.source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);

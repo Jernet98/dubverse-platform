@@ -481,10 +481,11 @@ async function writeWatched(request, episodeId, present) {
   const episode = await requireEpisode(session.sql, episodeId);
   await enforceSocialRateLimit(session.sql, session.row.id, 'episode-watched', 80, 60);
   if (present) {
-    await session.sql`
-      INSERT INTO episode_watched (user_profile_id, episode_id)
-      VALUES (${session.row.id}, ${episode.id}) ON CONFLICT DO NOTHING
-    `;
+    await session.sql.transaction([
+      session.sql`INSERT INTO episode_watched (user_profile_id, episode_id)
+        VALUES (${session.row.id}, ${episode.id}) ON CONFLICT DO NOTHING`,
+      session.sql`DELETE FROM watch_progress WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}`
+    ]);
   } else {
     await session.sql`
       DELETE FROM episode_watched WHERE user_profile_id = ${session.row.id} AND episode_id = ${episode.id}
