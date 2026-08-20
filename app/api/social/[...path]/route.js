@@ -706,6 +706,31 @@ async function deleteProgress(request, episodeId) {
   return json({ progress: null });
 }
 
+async function removeContinueWatching(request, episodeId) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  const episode = await requireEpisode(session.sql, episodeId);
+  await session.sql.transaction([
+    session.sql`DELETE FROM watch_progress wp USING episodes e
+      WHERE wp.episode_id = e.id AND wp.user_profile_id = ${session.row.id} AND e.project_id = ${episode.project_id}`,
+    session.sql`DELETE FROM episode_history h USING episodes e
+      WHERE h.episode_id = e.id AND h.user_profile_id = ${session.row.id}
+        AND e.project_id = ${episode.project_id} AND e.provider = 'ARCHIVE'`
+  ]);
+  return json({ removed: true });
+}
+
+async function clearContinueWatching(request) {
+  assertSocialWriteOrigin(request);
+  const session = await socialSession(request, { required: true, active: true });
+  await session.sql.transaction([
+    session.sql`DELETE FROM watch_progress WHERE user_profile_id = ${session.row.id}`,
+    session.sql`DELETE FROM episode_history h USING episodes e
+      WHERE h.episode_id = e.id AND h.user_profile_id = ${session.row.id} AND e.provider = 'ARCHIVE'`
+  ]);
+  return json({ cleared: true });
+}
+
 async function notifications(session, page) {
   const offset = (page - 1) * NOTIFICATION_PAGE_SIZE;
   const [rows, counts] = await session.sql.transaction([
@@ -1101,6 +1126,8 @@ export async function DELETE(request, context) {
     if (path[0] === 'users' && path[1] && path[2] === 'follow' && path.length === 3) return await writeFollow(request, path[1], false);
     if (path[0] === 'studios' && path[1] && path[2] === 'follow' && path.length === 3) return await writeStudioFollow(request, path[1], false);
     if (path[0] === 'episodes' && path[1] && path[2] === 'progress' && path.length === 3) return await deleteProgress(request, path[1]);
+    if (path[0] === 'continue-watching' && path[1] && path.length === 2) return await removeContinueWatching(request, path[1]);
+    if (path[0] === 'continue-watching' && path.length === 1) return await clearContinueWatching(request);
     if (path[0] === 'comments' && path[1] && path[2] === 'image' && path.length === 3) return await deleteCommentImage(request, path[1]);
     if (path[0] === 'comments' && path[1] && path.length === 2) return await deleteComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await deleteReview(request, path[1]);

@@ -30,7 +30,34 @@ test('Seguir viendo combina progreso preciso con actividad Archive sin porcentaj
   assert.match(api, /durationSeconds: row\.activity_only \? null/);
   assert.match(api, /progress: row\.activity_only \? null/);
   assert.match(app, /item\.activityOnly \? 'Continuar episodio' : `Continuar desde/);
-  assert.match(app, /item\.activityOnly \? '' : `<i style=/);
+  assert.match(app, /item\.activityOnly \? '' : `<i class="continue-progress"/);
+  assert.doesNotMatch(app, /activityOnly[^\n]+Continuar desde 0:00/);
+});
+
+test('Archive conserva embed oficial sin enlace de salida visible ni sandbox no comprobado', async () => {
+  const app = await source('public/app.js');
+  const mount = app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel'));
+  assert.match(mount, /frame\.src = embed/);
+  assert.doesNotMatch(mount, /Abrir en Archive\.org|archive\.org\/details|sandbox|\/download\//);
+});
+
+test('carrusel de Seguir viendo reutiliza follow y permite quitar, marcar visto y limpiar', async () => {
+  const [app, api, social] = await Promise.all([
+    source('public/app.js'), source('app/api/[...path]/route.js'), source('app/api/social/[...path]/route.js')
+  ]);
+  assert.match(app, /data-continue-previous/);
+  assert.match(app, /data-continue-next/);
+  assert.match(app, /scrollBy\(\{ left:[\s\S]*behavior: 'smooth'/);
+  assert.match(app, /\/studios\/\$\{encodeURIComponent\(button\.dataset\.studioId\)\}\/follow/);
+  assert.match(app, /Ya terminé este episodio/);
+  assert.match(app, /No quiero continuar viéndolo/);
+  assert.match(app, /\/continue-watching\/\$\{encodeURIComponent\(card\.dataset\.episodeId\)\}/);
+  assert.match(app, /socialWrite\('\/continue-watching', 'DELETE'\)/);
+  assert.match(social, /removeContinueWatching[\s\S]*DELETE FROM watch_progress[\s\S]*DELETE FROM episode_history/);
+  assert.match(social, /clearContinueWatching[\s\S]*DELETE FROM watch_progress[\s\S]*DELETE FROM episode_history/);
+  assert.doesNotMatch(social.slice(social.indexOf('async function clearContinueWatching'), social.indexOf('async function notifications')), /favorites|likes|comments|studio_follows|user_follows/);
+  assert.match(api, /LEFT JOIN LATERAL[\s\S]*project_studios[\s\S]*studio_follows/);
+  assert.match(api, /studio: row\.studio_id/);
 });
 
 test('abrir Archive registra historial y marcar visto reutiliza episode_watched', async () => {

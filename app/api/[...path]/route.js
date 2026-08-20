@@ -397,10 +397,17 @@ async function continueWatching(sql, viewer) {
         SELECT wp.position_seconds, wp.duration_seconds, wp.updated_at,
           e.id AS episode_id, e.title AS episode_title, e.season, e.number, e.provider,
           p.id AS project_id, p.title AS project_title, p.poster, p.banner,
+          owner.id AS studio_id, owner.name AS studio_name,
+          EXISTS(SELECT 1 FROM studio_follows sf WHERE sf.user_profile_id = ${viewer.row.id} AND sf.studio_id = owner.id) AS studio_following,
           false AS activity_only
         FROM watch_progress wp
         JOIN episodes e ON e.id = wp.episode_id
         JOIN projects p ON p.id = e.project_id
+        LEFT JOIN LATERAL (
+          SELECT s.id, s.name FROM project_studios ps JOIN studios s ON s.id = ps.studio_id
+          WHERE ps.project_id = p.id AND s.published = true AND s.deleted_at IS NULL
+          ORDER BY ps.studio_id LIMIT 1
+        ) owner ON true
         WHERE wp.user_profile_id = ${viewer.row.id}
           AND e.provider <> 'ARCHIVE'
           AND wp.position_seconds > 2 AND wp.duration_seconds > 0
@@ -412,10 +419,17 @@ async function continueWatching(sql, viewer) {
         SELECT 0::numeric AS position_seconds, 0::numeric AS duration_seconds, h.last_viewed_at AS updated_at,
           e.id AS episode_id, e.title AS episode_title, e.season, e.number, e.provider,
           p.id AS project_id, p.title AS project_title, p.poster, p.banner,
+          owner.id AS studio_id, owner.name AS studio_name,
+          EXISTS(SELECT 1 FROM studio_follows sf WHERE sf.user_profile_id = ${viewer.row.id} AND sf.studio_id = owner.id) AS studio_following,
           true AS activity_only
         FROM episode_history h
         JOIN episodes e ON e.id = h.episode_id
         JOIN projects p ON p.id = e.project_id
+        LEFT JOIN LATERAL (
+          SELECT s.id, s.name FROM project_studios ps JOIN studios s ON s.id = ps.studio_id
+          WHERE ps.project_id = p.id AND s.published = true AND s.deleted_at IS NULL
+          ORDER BY ps.studio_id LIMIT 1
+        ) owner ON true
         WHERE h.user_profile_id = ${viewer.row.id}
           AND e.provider = 'ARCHIVE'
           AND NOT EXISTS (SELECT 1 FROM episode_watched ew WHERE ew.user_profile_id = h.user_profile_id AND ew.episode_id = h.episode_id)
@@ -430,6 +444,7 @@ async function continueWatching(sql, viewer) {
     return rows.map(row => ({
       episode: { id: row.episode_id, title: row.episode_title, season: Number(row.season), number: Number(row.number) },
       project: { id: row.project_id, title: row.project_title, poster: row.poster || '', banner: row.banner || '' },
+      studio: row.studio_id ? { id: row.studio_id, name: row.studio_name, following: Boolean(row.studio_following) } : null,
       provider: row.provider,
       activityOnly: Boolean(row.activity_only),
       positionSeconds: row.activity_only ? null : Number(row.position_seconds),

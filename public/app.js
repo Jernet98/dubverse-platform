@@ -8,6 +8,7 @@ let activePlayer = null;
 let activeProgressSaver = null;
 const activePromoPlayers = new Set();
 let activeCarouselCleanup = null;
+let activeContinueWatchingCleanup = null;
 
 function destroyActivePlayer() {
   activePlayer?.destroy();
@@ -17,6 +18,8 @@ function destroyActivePlayer() {
   activePromoPlayers.clear();
   activeCarouselCleanup?.();
   activeCarouselCleanup = null;
+  activeContinueWatchingCleanup?.();
+  activeContinueWatchingCleanup = null;
 }
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -549,7 +552,7 @@ function progressTime(value) {
 }
 
 function continueWatchingRow(section) {
-  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div></div><div class="continue-row">${section.items.map(item => `<a class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" href="/ver/${encodeURIComponent(item.episode.id)}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt=""><span>▶</span>${item.activityOnly ? '' : `<i style="width:${Math.round(item.progress)}%"></i>`}</div><div><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number} — ${esc(item.episode.title)}</span><small>${item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)} · ${Math.round(item.progress)}%`}</small></div></a>`).join('')}</div></section>`;
+  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div><button class="continue-clear" type="button" data-continue-clear aria-label="Limpiar Seguir viendo">Limpiar</button></div><div class="continue-carousel"><button class="continue-arrow previous" type="button" data-continue-previous aria-label="Ver episodios anteriores">‹</button><div class="continue-row" data-continue-row>${section.items.map(item => `<article class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" data-continue-card data-episode-id="${esc(item.episode.id)}"><a class="continue-card-link" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="Continuar ${esc(item.project.title)}, temporada ${item.episode.season}, episodio ${item.episode.number}"><div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt="" loading="lazy"><span class="continue-play" aria-hidden="true">▶</span>${item.activityOnly ? '' : `<i class="continue-progress" style="width:${Math.round(item.progress)}%"></i>`}</div><div class="continue-copy"><strong>${esc(item.project.title)}</strong><span>T${item.episode.season} · E${item.episode.number}${item.episode.title ? ` · ${esc(item.episode.title)}` : ''}</span><small>${item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)}`}</small></div></a><div class="continue-actions"><a class="continue-action-primary" href="/ver/${encodeURIComponent(item.episode.id)}">${item.activityOnly ? 'Reproducir' : 'Continuar'}</a>${item.studio ? `<button type="button" data-continue-follow data-studio-id="${esc(item.studio.id)}" aria-pressed="${item.studio.following}">${item.studio.following ? 'Siguiendo' : 'Seguir estudio'}<small>${esc(item.studio.name)}</small></button>` : ''}<button type="button" data-continue-remove aria-label="Quitar ${esc(item.project.title)} de Seguir viendo">Quitar</button></div></article>`).join('')}</div><button class="continue-arrow next" type="button" data-continue-next aria-label="Ver más episodios">›</button></div></section>`;
 }
 
 function mountArchiveEmbed(container, playback, title) {
@@ -558,8 +561,7 @@ function mountArchiveEmbed(container, playback, title) {
     container.innerHTML = '<div class="player-unavailable">Este episodio no tiene un embed de Archive.org disponible.</div>';
     return;
   }
-  const detailsUrl = playback.identifier ? `https://archive.org/details/${encodeURIComponent(playback.identifier)}` : '';
-  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="fullscreen; autoplay" allowfullscreen loading="eager"></iframe>${detailsUrl ? `<a class="archive-player-link" href="${esc(detailsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Archive.org ↗</a>` : ''}</div>`;
+  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="fullscreen; autoplay" allowfullscreen loading="eager"></iframe></div>`;
   const frame = $('iframe', container);
   const loader = $('.archive-player-loader', container);
   frame.addEventListener('load', () => loader.classList.add('hidden'), { once: true });
@@ -617,6 +619,69 @@ function initializeEditorialCarousel() {
   start();
 }
 
+function continueChoice(title, message, actions) {
+  return new Promise(resolve => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'continue-dialog';
+    dialog.innerHTML = `<form method="dialog"><button class="continue-dialog-close" value="cancel" aria-label="Cerrar">×</button><h2>${esc(title)}</h2><p>${esc(message)}</p><div>${actions.map((action, index) => `<button class="btn ${index ? 'btn-secondary' : 'btn-primary'}" value="${esc(action.value)}">${esc(action.label)}</button>`).join('')}<button class="btn btn-secondary" value="cancel">Cancelar</button></div></form>`;
+    document.body.appendChild(dialog);
+    dialog.addEventListener('close', () => { const result = dialog.returnValue; dialog.remove(); resolve(result); }, { once: true });
+    dialog.showModal();
+    $('.continue-dialog-close', dialog).focus();
+  });
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'continue-toast'; toast.setAttribute('role', 'status'); toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function initializeContinueWatching() {
+  const root = $('.continue-watching');
+  if (!root) return;
+  const row = $('[data-continue-row]', root);
+  const previous = $('[data-continue-previous]', root);
+  const next = $('[data-continue-next]', root);
+  const updateArrows = () => {
+    const overflow = row.scrollWidth > row.clientWidth + 2;
+    previous.hidden = !overflow || row.scrollLeft <= 2;
+    next.hidden = !overflow || row.scrollLeft + row.clientWidth >= row.scrollWidth - 2;
+  };
+  const scroll = direction => row.scrollBy({ left: direction * Math.max(row.clientWidth * .8, 280), behavior: 'smooth' });
+  previous.onclick = () => scroll(-1); next.onclick = () => scroll(1);
+  row.addEventListener('scroll', updateArrows, { passive: true });
+  const resize = new ResizeObserver(updateArrows); resize.observe(row); updateArrows();
+  $$('[data-continue-follow]', root).forEach(button => button.onclick = async () => {
+    const following = button.getAttribute('aria-pressed') === 'true';
+    const previousText = button.innerHTML;
+    button.setAttribute('aria-pressed', String(!following));
+    button.firstChild.textContent = following ? 'Seguir estudio' : 'Siguiendo';
+    try { await socialWrite(`/studios/${encodeURIComponent(button.dataset.studioId)}/follow`, following ? 'DELETE' : 'POST'); }
+    catch (error) { button.setAttribute('aria-pressed', String(following)); button.innerHTML = previousText; showToast(error.message); }
+  });
+  $$('[data-continue-remove]', root).forEach(button => button.onclick = async () => {
+    const card = button.closest('[data-continue-card]');
+    const action = await continueChoice('Quitar de Seguir viendo', 'Elige qué quieres hacer. Tus likes, favoritos y follows no cambiarán.', [
+      { value: 'watched', label: 'Ya terminé este episodio' }, { value: 'remove', label: 'No quiero continuar viéndolo' }
+    ]);
+    if (!['watched', 'remove'].includes(action)) return;
+    card.classList.add('is-removing');
+    try {
+      await socialWrite(action === 'watched' ? `/episodes/${encodeURIComponent(card.dataset.episodeId)}/watched` : `/continue-watching/${encodeURIComponent(card.dataset.episodeId)}`, action === 'watched' ? 'POST' : 'DELETE');
+      card.remove(); updateArrows(); if (!row.children.length) root.remove();
+    }
+    catch (error) { card.classList.remove('is-removing'); showToast(error.message); }
+  });
+  $('[data-continue-clear]', root).onclick = async () => {
+    if (await continueChoice('Limpiar Seguir viendo', 'Se eliminarán únicamente tu historial de episodios y el progreso usado por esta sección.', [{ value: 'clear', label: 'Limpiar sección' }]) !== 'clear') return;
+    try { await socialWrite('/continue-watching', 'DELETE'); root.remove(); }
+    catch (error) { showToast(error.message); }
+  };
+  activeContinueWatchingCleanup = () => resize.disconnect();
+}
+
 async function home() {
   const latest = await api('/api/home').catch(() => null);
   if (latest?.catalog) {
@@ -640,6 +705,7 @@ async function home() {
     section.items.forEach(project => target.append(projectCard(project)));
   });
   initializeEditorialCarousel();
+  initializeContinueWatching();
 }
 
 function catalog() {
