@@ -148,7 +148,7 @@ async function syncSocialSession({ force = false } = {}) {
   const previousKey = sessionViewerKey(state.social.viewer);
   sessionSyncPromise = (async () => {
     try {
-      const session = await socialApi('/session');
+      const session = await socialApi('/session', { cache: 'no-store' });
       const viewer = session?.user || null;
       const changed = wasLoaded && sessionViewerKey(viewer) !== previousKey;
       state.social.viewer = viewer;
@@ -158,7 +158,9 @@ async function syncSocialSession({ force = false } = {}) {
       if (viewer) await refreshUnreadCount();
       return { changed, synchronized: true };
     } catch {
-      if (!wasLoaded) state.social.sessionLoaded = true;
+      // A transport/server failure is not an authenticated "no session" result.
+      // Keep this re-loadable so the next route/pageshow can reconcile identity.
+      state.social.sessionLoaded = wasLoaded;
       return { changed: false, synchronized: false };
     }
   })();
@@ -797,6 +799,7 @@ function bindPromoMedia(promos = []) {
       target.classList.remove('hidden');
       const playback = promo.playback || {};
       if (playback.kind === 'YOUTUBE') target.innerHTML = `<iframe src="${esc(playback.url)}" title="${esc(promo.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+      else if (playback.kind === 'IFRAME') target.innerHTML = `<iframe src="${esc(playback.url)}" title="${esc(promo.title)}" loading="eager" allow="fullscreen; autoplay" allowfullscreen></iframe>`;
       else if (playback.kind === 'LINK') window.open(playback.url, '_blank', 'noopener,noreferrer');
       else if (window.DubversePlayer) {
         const player = new window.DubversePlayer(target, {

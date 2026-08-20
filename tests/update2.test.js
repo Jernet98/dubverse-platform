@@ -12,7 +12,7 @@ import {
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('player central soporta Archive directo, fallback, video, HLS, estados y retry', async () => {
+test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos', async () => {
   const player = await source('public/player.js');
   const archive = episodePlayback({
     provider: 'ARCHIVE', archive_identifier: 'dubverse-demo', archive_file: 'episodio 01.mp4'
@@ -20,9 +20,9 @@ test('player central soporta Archive directo, fallback, video, HLS, estados y re
   const direct = episodePlayback({ provider: 'DIRECT', video_url: 'https://cdn.example/video.mp4' });
   const hls = episodePlayback({ provider: 'HLS', video_url: 'https://cdn.example/master.m3u8' });
 
-  assert.equal(archive.source.kind, 'VIDEO');
-  assert.equal(archive.source.url, 'https://archive.org/download/dubverse-demo/episodio%2001.mp4');
+  assert.equal(archive.source, null);
   assert.match(archive.fallback.url, /^https:\/\/archive\.org\/embed\/dubverse-demo/);
+  assert.equal(archive.fallback.mode, 'ARCHIVE_EMBED');
   assert.equal(direct.source.kind, 'VIDEO');
   assert.equal(hls.source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);
@@ -33,7 +33,17 @@ test('player central soporta Archive directo, fallback, video, HLS, estados y re
   assert.match(player, /data-player-retry/);
   assert.match(player, /useFallback/);
   assert.match(player, /webkitEnterFullscreen/);
+  assert.match(player, /document\.exitFullscreen/);
+  assert.match(player, /onKeydown[\s\S]*arrowleft[\s\S]*arrowright/);
   assert.match(player, /initialTime[\s\S]*loadedmetadata/);
+});
+
+test('Archive promocional también evita tratar un MP4 no verificado como video directo', () => {
+  const promo = mapPromo({
+    id: 'promo', project_id: 'project', provider: 'ARCHIVE', provider_identifier: 'item',
+    provider_file: 'video.mp4', type: 'TRAILER', title: 'Trailer', is_active: true
+  });
+  assert.deepEqual(promo.playback, { kind: 'IFRAME', url: 'https://archive.org/embed/item/video.mp4' });
 });
 
 test('WatchProgress es único, se actualiza, recupera y completa integrando episode_watched', async () => {

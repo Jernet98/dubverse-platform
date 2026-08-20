@@ -20,12 +20,13 @@
       this.destroyed = false;
       this.lastPosition = 0;
       this.boundVisibility = () => this.renderState(document.hidden ? 'paused' : this.video?.paused ? 'paused' : 'playing');
+      this.boundKeydown = event => this.onKeydown(event);
       this.render();
     }
 
     render() {
       this.container.innerHTML = `
-        <div class="dv-player" data-player-state="loading">
+        <div class="dv-player" data-player-state="loading" tabindex="0" aria-label="Reproductor de video">
           <div class="dv-player-stage"></div>
           <div class="dv-player-status" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><strong>Cargando video…</strong><small>Preparando la fuente del episodio.</small></div>
           <div class="dv-player-error hidden" role="alert"><strong>No pudimos reproducir este video.</strong><span data-player-error-message>Comprueba tu conexión e inténtalo otra vez.</span><div><button type="button" data-player-retry>Reintentar</button><button class="hidden" type="button" data-player-fallback>Usar reproductor compatible</button></div></div>
@@ -50,6 +51,7 @@
       this.container.querySelector('[data-player-retry]').onclick = () => this.retry();
       this.container.querySelector('[data-player-fallback]').onclick = () => this.useFallback();
       document.addEventListener('visibilitychange', this.boundVisibility);
+      this.root.addEventListener('keydown', this.boundKeydown);
       this.loadPrimary();
     }
 
@@ -137,9 +139,23 @@
       mute.onclick = () => { video.muted = !video.muted; mute.textContent = video.muted ? '🔇' : '🔊'; };
       speed.onchange = () => { video.playbackRate = Number(speed.value) || 1; };
       fullscreen.onclick = () => {
-        if (this.root.requestFullscreen) this.root.requestFullscreen().catch(() => {});
+        if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if (this.root.requestFullscreen) this.root.requestFullscreen().catch(() => {});
         else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
       };
+    }
+
+    onKeydown(event) {
+      if (!this.video || event.target?.closest?.('input,select,textarea,button,[contenteditable="true"]')) return;
+      const key = String(event.key || '').toLowerCase();
+      if (![' ', 'enter', 'm', 'f', 'arrowleft', 'arrowright'].includes(key)) return;
+      event.preventDefault();
+      if (key === ' ' || key === 'enter') this.container.querySelector('[data-player-play]').click();
+      if (key === 'm') this.container.querySelector('[data-player-mute]').click();
+      if (key === 'f') this.container.querySelector('[data-player-fullscreen]').click();
+      if (key === 'arrowleft' || key === 'arrowright') {
+        this.video.currentTime = clamp(this.video.currentTime + (key === 'arrowleft' ? -5 : 5), 0, this.video.duration || Number.MAX_SAFE_INTEGER);
+      }
     }
 
     renderState(state, message = '') {
@@ -198,6 +214,7 @@
       const snapshot = this.snapshot();
       this.destroyed = true;
       document.removeEventListener('visibilitychange', this.boundVisibility);
+      this.root.removeEventListener('keydown', this.boundKeydown);
       this.video?.pause();
       this.video?.removeAttribute('src');
       this.video?.load();

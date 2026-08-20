@@ -15,11 +15,13 @@ function section(source, startText, endText) {
 test('la sesión se reconcilia y deduplica con el endpoint social existente', async () => {
   const source = await readFile(appUrl, 'utf8');
   const sync = section(source, 'let sessionSyncPromise', 'async function loadSocial');
-  assert.match(sync, /socialApi\('\/session'\)/);
+  assert.match(sync, /socialApi\('\/session', \{ cache: 'no-store' \}\)/);
   assert.match(sync, /if \(sessionSyncPromise\) return sessionSyncPromise/);
   assert.match(sync, /renderAccount\(\)/);
   assert.match(sync, /sessionViewerKey\(viewer\) !== previousKey/);
   assert.doesNotMatch(sync, /sign-out|location\.reload|setInterval|setTimeout/);
+  assert.match(sync, /state\.social\.sessionLoaded = wasLoaded/);
+  assert.doesNotMatch(sync, /catch \{[\s\S]*if \(!wasLoaded\) state\.social\.sessionLoaded = true/);
 });
 
 test('popstate y pageshow actualizan sesión y reconstruyen controles sólo si cambia', async () => {

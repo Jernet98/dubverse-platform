@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { normalizeArchiveReference, normalizeYouTubeId, promoValue, youtubeThumbnailUrl } from '../lib/update2.js';
-import { panelMediaPolicy, uploadPanelImage, validatePanelMediaFile } from '../lib/blob-media.js';
+import { panelMediaPolicy, uploadPanelImage, validatePanelImageSignature, validatePanelMediaFile } from '../lib/blob-media.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -32,6 +32,10 @@ test('upload del panel usa Vercel Blob directo y exige membresía antes de proce
   assert.throws(() => validatePanelMediaFile(image('image/svg+xml', 256, 'bad.svg'), 'studio-logo'), /JPEG, PNG o WebP/);
   assert.throws(() => validatePanelMediaFile({ name: 'bad.jpg', type: 'image/jpeg', size: 10 }, 'studio-logo'), /imagen válida/);
   assert.throws(() => validatePanelMediaFile(image('image/jpeg', 2 * 1024 * 1024 + 1, 'large.jpg'), 'studio-logo'), /supera el límite/);
+  assert.equal(validatePanelImageSignature(Uint8Array.from([0xff, 0xd8, 0xff, 0x00]), 'image/jpeg'), true);
+  assert.equal(validatePanelImageSignature(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 'image/png'), true);
+  assert.equal(validatePanelImageSignature(Uint8Array.from([82, 73, 70, 70, 0, 0, 0, 0, 87, 69, 66, 80]), 'image/webp'), true);
+  assert.throws(() => validatePanelImageSignature(Uint8Array.from([0, 1, 2]), 'image/jpeg'), /no coincide/);
   const previousToken = process.env.BLOB_READ_WRITE_TOKEN;
   delete process.env.BLOB_READ_WRITE_TOKEN;
   try {
@@ -43,8 +47,9 @@ test('upload del panel usa Vercel Blob directo y exige membresía antes de proce
   assert.doesNotMatch(media, /processImageBuffer|sharp\(/i);
   assert.doesNotMatch(media, /instanceof File/);
   assert.match(media, /const token = process\.env\.BLOB_READ_WRITE_TOKEN/);
-  assert.match(media, /put\(pathname, file,[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*token/);
-  assert.doesNotMatch(media, /contentType: file\.type/);
+  assert.match(media, /put\(pathname, Buffer\.from\(bytes\),[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*contentType,[\s\S]*token/);
+  assert.match(media, /validatePanelImageSignature\(bytes, contentType\)/);
+  assert.match(media, /del\(url, \{ token: process\.env\.BLOB_READ_WRITE_TOKEN \}\)/);
   assert.match(route, /studioAdminSession\(request, studioId\)[\s\S]*request\.formData\(\)[\s\S]*const file = form\.get\('file'\)[\s\S]*requireManagedProject[\s\S]*validatePanelMediaFile\(file, kind\)[\s\S]*uploadPanelImage\(file/);
   assert.match(access, /sm\.user_profile_id = \$\{session\.row\.id\}[\s\S]*sm\.studio_id = \$\{studioId\}/);
 });

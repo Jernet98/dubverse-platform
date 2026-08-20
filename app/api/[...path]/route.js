@@ -854,7 +854,7 @@ export async function GET(request, context) {
       if (!episodes.length) throw new AppError(404, 'Episodio no encontrado.');
       const episode = episodes[0];
       if (!episode.archive_identifier) throw new AppError(400, 'El episodio no tiene identificador de Archive.org.');
-      const archive = await inspectArchive(episode.archive_identifier);
+      const archive = await inspectArchive(episode.archive_identifier, episode.archive_file || '');
       const status = archive.ready ? 'READY' : 'PROCESSING';
       const selectedFile = episode.archive_file || archive.selected?.name || null;
       const videoUrl = archiveEmbedUrl(episode.archive_identifier, selectedFile || '');
