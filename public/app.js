@@ -566,13 +566,14 @@ function continueWatchingRow(section) {
   return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div><button class="continue-clear" type="button" data-continue-clear aria-label="Limpiar Seguir viendo">Limpiar</button></div><div class="continue-carousel"><button class="continue-arrow previous" type="button" data-continue-previous aria-label="Ver episodios anteriores">‹</button><div class="continue-row" data-continue-row>${cards}</div><button class="continue-arrow next" type="button" data-continue-next aria-label="Ver más episodios">›</button></div></section>`;
 }
 
-function mountArchiveEmbed(container, playback, title) {
+function mountArchiveEmbed(container, playback, title, retry) {
   const embed = playback?.fallback?.url || '';
   if (!embed) {
-    container.innerHTML = '<div class="player-unavailable">Este episodio no tiene un embed de Archive.org disponible.</div>';
+    container.innerHTML = '<div class="player-unavailable"><p>Este episodio no pudo cargarse desde Archive.org.</p><button class="btn btn-secondary" type="button" data-archive-retry>Reintentar</button></div>';
+    $('[data-archive-retry]', container).onclick = () => retry?.();
     return;
   }
-  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="fullscreen; autoplay" allowfullscreen loading="eager"></iframe></div>`;
+  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="autoplay; fullscreen" loading="eager"></iframe></div>`;
   const frame = $('iframe', container);
   const loader = $('.archive-player-loader', container);
   frame.addEventListener('load', () => loader.classList.add('hidden'), { once: true });
@@ -1489,7 +1490,7 @@ async function watch(id, recordHistory = true) {
       });
   };
   if (isArchivePlayback) {
-    mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`);
+    mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`, () => watch(episodeId, false));
   } else if (window.DubversePlayer) {
     activePlayer = new window.DubversePlayer($('#dubversePlayer'), {
       title: `${project.title} — ${episode.title}`,

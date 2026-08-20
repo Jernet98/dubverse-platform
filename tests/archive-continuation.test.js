@@ -16,7 +16,8 @@ test('Archive monta inmediatamente el iframe oficial fuera del reproductor nativ
   assert.match(app, /frame\.addEventListener\('load'[^;]+loader\.classList\.add\('hidden'\)/);
   assert.match(app, /frame\.addEventListener\('load'[\s\S]*frame\.src = embed/);
   const mount = app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel'));
-  assert.doesNotMatch(mount, /new window\.DubversePlayer|<video|retry|setTimeout|setInterval/);
+  assert.doesNotMatch(mount, /new window\.DubversePlayer|<video|setTimeout|setInterval/);
+  assert.match(mount, /data-archive-retry/);
 });
 
 test('Seguir viendo combina progreso preciso con actividad Archive sin porcentajes falsos', async () => {

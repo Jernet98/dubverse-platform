@@ -4,7 +4,7 @@ import { put } from '@vercel/blob';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
-import { inspectArchive, archiveEmbedUrl } from '@/lib/archive';
+import { inspectArchive, archiveEmbedUrl, resolveArchiveEpisodePlayback } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
@@ -787,7 +787,7 @@ export async function GET(request, context) {
       const row = rows[0];
       return json(mapEpisode(row, {
         project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' },
-        playback: episodePlayback(row)
+        playback: row.provider === 'ARCHIVE' ? await resolveArchiveEpisodePlayback(row) : episodePlayback(row)
       }));
     }
 

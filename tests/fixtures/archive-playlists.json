@@ -1,0 +1,31 @@
+{
+  "single": [
+    { "name": "Episodio único.mp4", "source": "original", "format": "MPEG4", "size": "180000000" },
+    { "name": "Episodio único.ia.mp4", "source": "derivative", "format": "h.264 IA", "original": "Episodio único.mp4", "size": "120000000" }
+  ],
+  "dororo": [
+    { "name": "Dororo Capitulo 1.mp4", "source": "original", "format": "MPEG4", "size": "163244740" },
+    { "name": "Dororo Capitulo 1.ia.mp4", "source": "derivative", "format": "h.264 IA", "original": "Dororo Capitulo 1.mp4", "size": "163244740" },
+    { "name": "Dororo Capitulo 2.mp4", "source": "original", "format": "MPEG4", "size": "167373149" },
+    { "name": "Dororo Capitulo 2.ia.mp4", "source": "derivative", "format": "h.264 IA", "original": "Dororo Capitulo 2.mp4", "size": "167373149" }
+  ],
+  "uruwashi": [
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4", "source": "original", "format": "MPEG4", "size": "401866594" },
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.ia.mp4", "source": "derivative", "format": "h.264 IA", "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4", "size": "401866594" },
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e002.mp4", "source": "original", "format": "MPEG4", "size": "216647907" },
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e002.ia.mp4", "source": "derivative", "format": "h.264 IA", "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e002.mp4", "size": "216647907" },
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e003.mp4", "source": "original", "format": "MPEG4" },
+    { "name": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e004.mp4", "source": "original", "format": "MPEG4" }
+  ],
+  "literalPlus": [
+    { "name": "Capitulo+Especial.mp4", "source": "original", "format": "MPEG4" },
+    { "name": "Capitulo Normal.mp4", "source": "original", "format": "MPEG4" }
+  ],
+  "unicode": [
+    { "name": "Capítulo ñ.mp4", "source": "original", "format": "MPEG4" }
+  ],
+  "noVideo": [
+    { "name": "cover.jpg", "source": "original", "format": "JPEG" },
+    { "name": "item_meta.xml", "source": "original", "format": "Metadata" }
+  ]
+}
