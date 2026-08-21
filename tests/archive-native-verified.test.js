@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { episodePlayback, persistedArchiveNativeUrl } from '../lib/update2.js';
+import { episodePlayback } from '../lib/update2.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -12,12 +12,11 @@ const nativeEpisode = {
   archive_native_url: 'https://archive.org/download/item/Episode%201.ia.mp4'
 };
 
-test('ARCHIVE_NATIVE_VERIFIED usa video nativo y conserva un único iframe fallback', () => {
+test('columnas ARCHIVE_NATIVE_VERIFIED no participan en playback público', () => {
   const playback = episodePlayback(nativeEpisode);
-  assert.equal(playback.mode, 'ARCHIVE_NATIVE_VERIFIED');
-  assert.deepEqual(playback.source, { kind: 'VIDEO', url: 'https://archive.org/download/item/Episode%201.ia.mp4' });
+  assert.equal(playback.mode, 'ARCHIVE_EMBED');
+  assert.equal(playback.source, null);
   assert.equal(playback.fallback.url, 'https://archive.org/embed/item/Episode%201.mp4');
-  assert.equal(persistedArchiveNativeUrl(nativeEpisode), playback.source.url);
 });
 
 test('fuente nativa no verificada o ajena degrada a ARCHIVE_EMBED', () => {
@@ -37,20 +36,11 @@ test('fuente nativa no verificada o ajena degrada a ARCHIVE_EMBED', () => {
   assert.equal(nullColumns.fallback.url, 'https://archive.org/embed/item/Episode%201.mp4');
 });
 
-test('player restaura currentTime, guarda progreso y hace fallback automático una sola vez', async () => {
+test('runtime no contiene timeout ni fallback automático de Archive nativo', async () => {
   const [player, app] = await Promise.all([source('public/player.js'), source('public/app.js')]);
-  assert.match(player, /mode === 'ARCHIVE_NATIVE_VERIFIED'[\s\S]*readyState < 3[\s\S]*useFallback\(\)/);
-  assert.match(player, /if \(this\.config\.mode === 'ARCHIVE_NATIVE_VERIFIED'[\s\S]*!this\.fallbackUsed\)[\s\S]*return this\.useFallback\(\)/);
-  assert.match(player, /useFallback\(\) \{\s*if \(this\.fallbackUsed\) return;/);
-  assert.match(player, /this\.options\.onFallback\?\.\(\)[\s\S]*this\.video\?\.pause/);
-  assert.match(player, /initialTime[\s\S]*loadedmetadata/);
-  assert.match(app, /playback\.mode !== 'ARCHIVE_NATIVE_VERIFIED'/);
-  assert.match(app, /initialTime: Number\(savedProgress/);
-  assert.match(app, /onProgress: snapshot => sendProgress/);
-  assert.match(app, /progressDisabled = true; queuedProgress = null/);
-  assert.match(app, /progressComplete \|\| progressDisabled/);
-  const fallbackMethod = player.slice(player.indexOf('    useFallback() {'), player.indexOf('    snapshot()'));
-  assert.doesNotMatch(fallbackMethod, /retry\(|setInterval|loadPrimary\(/);
+  assert.doesNotMatch(player, /ARCHIVE_NATIVE_VERIFIED|startupTimer|8_000|onFallback/);
+  assert.doesNotMatch(app, /ARCHIVE_NATIVE_VERIFIED|archive_native_url|\/download\//);
+  assert.match(app, /const isArchivePlayback = playback\.provider === 'ARCHIVE'/);
 });
 
 test('migración es aditiva, reversible y el auditor escribe sólo con --execute', async () => {
@@ -78,8 +68,8 @@ test('ninguna ruta cliente acepta archive_native_url ni activa el modo verificad
   assert.match(api, /archiveReferenceChanged \? 'UNVERIFIED'/);
 });
 
-test('Home usa progreso preciso sólo para Archive nativo y actividad para embed', async () => {
+test('Home no depende de columnas Archive nativas', async () => {
   const api = await source('app/api/[...path]/route.js');
-  assert.match(api, /e\.provider <> 'ARCHIVE' OR COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) = 'ARCHIVE_NATIVE_VERIFIED'/);
-  assert.match(api, /e\.provider = 'ARCHIVE' AND COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) <> 'ARCHIVE_NATIVE_VERIFIED'/);
+  const home = api.slice(api.indexOf('async function publicHome'), api.indexOf('async function adminHome'));
+  assert.doesNotMatch(home, /archive_native|archive_playback_mode|watch_progress|episode_history/);
 });

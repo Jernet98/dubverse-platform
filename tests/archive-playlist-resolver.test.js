@@ -71,8 +71,8 @@ test('la API usa la referencia canónica persistida sin metadata remota y conser
   assert.match(archive, /playlist\.entries\.length === 1[\s\S]*archiveEmbedUrl\(identifier\)[\s\S]*archiveEmbedUrl\(identifier, playlist\.selected\.orig\)/);
   assert.match(archive, /status: 'UNRESOLVED'/);
   assert.match(app, /Este episodio no pudo cargarse desde Archive\.org/);
-  assert.match(app, /data-archive-retry/);
-  assert.doesNotMatch(app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel')), /allowfullscreen/);
+  assert.doesNotMatch(app, /data-archive-retry/);
+  assert.match(app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel')), /allowfullscreen/);
   assert.match(app, /allow="autoplay; fullscreen"/);
   assert.doesNotMatch(archive, /retry|setInterval/);
   assert.equal(episodePlayback({ provider: 'DIRECT', video_url: 'https://cdn.example/episode.mp4' }).source.kind, 'VIDEO');

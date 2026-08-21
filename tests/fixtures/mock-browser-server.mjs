@@ -122,7 +122,7 @@ async function apiResponse(path, request, response) {
   const authenticated = Boolean(profile);
   const watched = authenticated ? viewerSet(watchedByViewer, viewerId) : new Set();
   if (path === '/api/home') {
-    const sections = authenticated ? [{ sectionType: 'CONTINUE_WATCHING', sectionKey: 'continue-watching', position: 5, title: 'Seguir viendo', subtitle: 'Continúa desde donde lo dejaste, en cualquier dispositivo.', items: [{ episode: { id: episode.id, title: episode.title, season: episode.season, number: episode.number }, project: projects[0], positionSeconds: 637, durationSeconds: 1440, progress: 44.24 }] }, ...homeSections] : homeSections;
+    const sections = homeSections;
     return sendJson(response, { site: siteSettings, sections, catalog: { projects, studios }, cmsAvailable: true, viewer: { authenticated } });
   }
   if (path === '/api/projects') return sendJson(response, projects);

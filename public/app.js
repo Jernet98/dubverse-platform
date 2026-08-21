@@ -8,7 +8,6 @@ let activePlayer = null;
 let activeProgressSaver = null;
 const activePromoPlayers = new Set();
 let activeCarouselCleanup = null;
-let activeContinueWatchingCleanup = null;
 
 function destroyActivePlayer() {
   activePlayer?.destroy();
@@ -18,8 +17,6 @@ function destroyActivePlayer() {
   activePromoPlayers.clear();
   activeCarouselCleanup?.();
   activeCarouselCleanup = null;
-  activeContinueWatchingCleanup?.();
-  activeContinueWatchingCleanup = null;
 }
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -546,38 +543,13 @@ function editorialCarousel(banners) {
   return `<section class="section editorial-carousel-wrap" data-editorial-carousel aria-roledescription="carrusel" aria-label="Novedades de Dubverse"><div class="editorial-carousel-viewport"><div class="editorial-carousel-track">${banners.map(editorialBannerSlide).join('')}</div><button class="carousel-arrow previous" type="button" data-carousel-previous aria-label="Banner anterior">‹</button><button class="carousel-arrow next" type="button" data-carousel-next aria-label="Banner siguiente">›</button></div><div class="carousel-dots" role="tablist" aria-label="Elegir banner">${banners.map((banner, index) => `<button type="button" role="tab" data-carousel-dot="${index}" aria-label="Mostrar banner ${index + 1}: ${esc(banner.title)}" aria-selected="${index === 0}"></button>`).join('')}</div></section>`;
 }
 
-function progressTime(value) {
-  const seconds = Math.max(0, Math.floor(Number(value) || 0));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-function continueWatchingRow(section) {
-  const cards = section.items.map(item => {
-    const episodeLabel = `T${item.episode.season} · E${item.episode.number}${item.episode.title ? ` · ${esc(item.episode.title)}` : ''}`;
-    const progressLabel = item.activityOnly ? 'Continuar episodio' : `Continuar desde ${progressTime(item.positionSeconds)} · ${progressTime(item.durationSeconds)} · ${Math.round(item.progress)}%`;
-    return `<article class="continue-card ${item.activityOnly ? 'continue-card-activity' : ''}" data-continue-card data-episode-id="${esc(item.episode.id)}">
-      <a class="continue-card-link" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="Continuar ${esc(item.project.title)}, temporada ${item.episode.season}, episodio ${item.episode.number}">
-        <div class="continue-image"><img src="${esc(imageOrFallback(item.project.banner || item.project.poster))}" alt="" loading="lazy"><span class="continue-play" aria-hidden="true">▶</span>${item.activityOnly ? '' : `<i class="continue-progress" style="width:${Math.round(item.progress)}%"></i>`}</div>
-        <div class="continue-copy"><strong>${esc(item.project.title)}</strong><span>${episodeLabel}</span><small>${progressLabel}</small></div>
-      </a>
-      <div class="continue-actions"><a class="continue-action-primary" href="/ver/${encodeURIComponent(item.episode.id)}" aria-label="${item.activityOnly ? 'Reproducir' : 'Continuar'} ${esc(item.episode.title || item.project.title)}">▶</a>${item.studio ? `<button type="button" data-continue-follow data-studio-id="${esc(item.studio.id)}" aria-pressed="${item.studio.following}" aria-label="${item.studio.following ? 'Dejar de seguir' : 'Seguir'} estudio ${esc(item.studio.name)}">${item.studio.following ? '✓' : '+'}<small>${esc(item.studio.name)}</small></button>` : ''}<button type="button" data-continue-like aria-pressed="${item.liked}" aria-label="${item.liked ? 'Quitar Me gusta' : 'Me gusta'} en ${esc(item.episode.title || item.project.title)}">${item.liked ? '♥' : '♡'}</button><button class="continue-remove-secondary" type="button" data-continue-remove aria-label="Quitar ${esc(item.project.title)} de Seguir viendo">×</button></div>
-    </article>`;
-  }).join('');
-  return `<section class="section continue-watching" data-home-section="${esc(section.sectionKey)}"><div class="section-heading"><div><h2>${esc(section.title)}</h2><p>${esc(section.subtitle)}</p></div><button class="continue-clear" type="button" data-continue-clear aria-label="Limpiar Seguir viendo">Limpiar</button></div><div class="continue-carousel"><button class="continue-arrow previous" type="button" data-continue-previous aria-label="Ver episodios anteriores">‹</button><div class="continue-row" data-continue-row>${cards}</div><button class="continue-arrow next" type="button" data-continue-next aria-label="Ver más episodios">›</button></div></section>`;
-}
-
-function mountArchiveEmbed(container, playback, title, retry) {
+function mountArchiveEmbed(container, playback, title) {
   const embed = playback?.fallback?.url || '';
   if (!embed) {
-    container.innerHTML = '<div class="player-unavailable"><p>Este episodio no pudo cargarse desde Archive.org.</p><button class="btn btn-secondary" type="button" data-archive-retry>Reintentar</button></div>';
-    $('[data-archive-retry]', container).onclick = () => retry?.();
+    container.innerHTML = '<div class="player-unavailable"><p>Este episodio no pudo cargarse desde Archive.org.</p></div>';
     return;
   }
-  container.innerHTML = `<div class="archive-player"><div class="archive-player-loader" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><small>Cargando Archive.org…</small></div><iframe title="${esc(title)}" allow="autoplay; fullscreen" loading="eager"></iframe></div>`;
-  const frame = $('iframe', container);
-  const loader = $('.archive-player-loader', container);
-  frame.addEventListener('load', () => loader.classList.add('hidden'), { once: true });
-  frame.src = embed;
+  container.innerHTML = `<div class="archive-player"><iframe src="${esc(embed)}" title="${esc(title)}" allow="autoplay; fullscreen" allowfullscreen loading="eager"></iframe></div>`;
 }
 
 function initializeEditorialCarousel() {
@@ -631,76 +603,6 @@ function initializeEditorialCarousel() {
   start();
 }
 
-function continueChoice(title, message, actions) {
-  return new Promise(resolve => {
-    const dialog = document.createElement('dialog');
-    dialog.className = 'continue-dialog';
-    dialog.innerHTML = `<form method="dialog"><button class="continue-dialog-close" value="cancel" aria-label="Cerrar">×</button><h2>${esc(title)}</h2><p>${esc(message)}</p><div>${actions.map((action, index) => `<button class="btn ${index ? 'btn-secondary' : 'btn-primary'}" value="${esc(action.value)}">${esc(action.label)}</button>`).join('')}<button class="btn btn-secondary" value="cancel">Cancelar</button></div></form>`;
-    document.body.appendChild(dialog);
-    dialog.addEventListener('close', () => { const result = dialog.returnValue; dialog.remove(); resolve(result); }, { once: true });
-    dialog.showModal();
-    $('.continue-dialog-close', dialog).focus();
-  });
-}
-
-function showToast(message) {
-  const toast = document.createElement('div');
-  toast.className = 'continue-toast'; toast.setAttribute('role', 'status'); toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
-}
-
-function initializeContinueWatching() {
-  const root = $('.continue-watching');
-  if (!root) return;
-  const row = $('[data-continue-row]', root);
-  const previous = $('[data-continue-previous]', root);
-  const next = $('[data-continue-next]', root);
-  const updateArrows = () => {
-    const overflow = row.scrollWidth > row.clientWidth + 2;
-    previous.hidden = !overflow || row.scrollLeft <= 2;
-    next.hidden = !overflow || row.scrollLeft + row.clientWidth >= row.scrollWidth - 2;
-  };
-  const scroll = direction => row.scrollBy({ left: direction * Math.max(row.clientWidth * .8, 280), behavior: 'smooth' });
-  previous.onclick = () => scroll(-1); next.onclick = () => scroll(1);
-  row.addEventListener('scroll', updateArrows, { passive: true });
-  const resize = new ResizeObserver(updateArrows); resize.observe(row); updateArrows();
-  $$('[data-continue-follow]', root).forEach(button => button.onclick = async () => {
-    const following = button.getAttribute('aria-pressed') === 'true';
-    const previousText = button.innerHTML;
-    button.setAttribute('aria-pressed', String(!following));
-    button.firstChild.textContent = following ? '+' : '✓';
-    try { await socialWrite(`/studios/${encodeURIComponent(button.dataset.studioId)}/follow`, following ? 'DELETE' : 'POST'); }
-    catch (error) { button.setAttribute('aria-pressed', String(following)); button.innerHTML = previousText; showToast(error.message); }
-  });
-  $$('[data-continue-like]', root).forEach(button => button.onclick = async () => {
-    const liked = button.getAttribute('aria-pressed') === 'true';
-    const card = button.closest('[data-continue-card]');
-    button.setAttribute('aria-pressed', String(!liked)); button.textContent = liked ? '♡' : '♥';
-    try { await socialWrite(`/episodes/${encodeURIComponent(card.dataset.episodeId)}/like`, liked ? 'DELETE' : 'POST'); }
-    catch (error) { button.setAttribute('aria-pressed', String(liked)); button.textContent = liked ? '♥' : '♡'; showToast(error.message); }
-  });
-  $$('[data-continue-remove]', root).forEach(button => button.onclick = async () => {
-    const card = button.closest('[data-continue-card]');
-    const action = await continueChoice('Quitar de Seguir viendo', 'Elige qué quieres hacer. Tus likes, favoritos y follows no cambiarán.', [
-      { value: 'watched', label: 'Ya terminé este episodio' }, { value: 'remove', label: 'No quiero continuar viéndolo' }
-    ]);
-    if (!['watched', 'remove'].includes(action)) return;
-    card.classList.add('is-removing');
-    try {
-      await socialWrite(action === 'watched' ? `/episodes/${encodeURIComponent(card.dataset.episodeId)}/watched` : `/continue-watching/${encodeURIComponent(card.dataset.episodeId)}`, action === 'watched' ? 'POST' : 'DELETE');
-      card.remove(); updateArrows(); if (!row.children.length) root.remove();
-    }
-    catch (error) { card.classList.remove('is-removing'); showToast(error.message); }
-  });
-  $('[data-continue-clear]', root).onclick = async () => {
-    if (await continueChoice('Limpiar Seguir viendo', 'Se eliminarán únicamente tu historial de episodios y el progreso usado por esta sección.', [{ value: 'clear', label: 'Limpiar sección' }]) !== 'clear') return;
-    try { await socialWrite('/continue-watching', 'DELETE'); root.remove(); }
-    catch (error) { showToast(error.message); }
-  };
-  activeContinueWatchingCleanup = () => resize.disconnect();
-}
-
 async function home() {
   const latest = await api('/api/home').catch(() => null);
   if (latest?.catalog) {
@@ -715,8 +617,8 @@ async function home() {
   const hero = nextHeroFromBag(sections.find(section => section.sectionType === 'HERO')?.items || []);
   const banners = sections.filter(section => section.sectionType === 'BANNER').map(section => section.banner);
   const carousel = banners.length ? { sectionType: 'BANNER_CAROUSEL', sectionKey: 'editorial-carousel', position: Math.min(...sections.filter(section => section.sectionType === 'BANNER').map(section => section.position)), items: banners } : null;
-  const contentSections = [...sections.filter(section => !['HERO', 'BANNER'].includes(section.sectionType)), ...(carousel ? [carousel] : [])].sort((left, right) => Number(left.position || 0) - Number(right.position || 0));
-  const content = contentSections.map(section => section.sectionType === 'BANNER_CAROUSEL' ? editorialCarousel(section.items) : section.sectionType === 'CONTINUE_WATCHING' ? continueWatchingRow(section) : section.sectionType === 'FEATURED_STUDIOS' ? studioRow(section) : projectRow(section)).join('');
+  const contentSections = [...sections.filter(section => !['HERO', 'BANNER', 'CONTINUE_WATCHING'].includes(section.sectionType)), ...(carousel ? [carousel] : [])].sort((left, right) => Number(left.position || 0) - Number(right.position || 0));
+  const content = contentSections.map(section => section.sectionType === 'BANNER_CAROUSEL' ? editorialCarousel(section.items) : section.sectionType === 'FEATURED_STUDIOS' ? studioRow(section) : projectRow(section)).join('');
   const heroMarkup = hero ? `<section class="hero" data-home-section="hero"><div class="hero-bg" style="background-image:url('${esc(cssUrl(imageOrFallback(hero.banner || hero.poster)))}')"></div><div class="hero-content"><span class="eyebrow">● Proyecto destacado</span><h1>${esc(hero.title)}</h1><p>${esc(hero.synopsis)}</p><div class="hero-actions"><a class="btn btn-primary" href="/proyecto/${encodeURIComponent(hero.id)}">▶ Ver proyecto</a><a class="btn btn-secondary" href="/catalogo">Explorar catálogo</a></div></div></section>` : '';
   app.innerHTML = heroMarkup + content || '<div class="empty empty-page"><h2>Portada en preparación</h2><p>Explora el catálogo mientras preparamos novedades.</p></div>';
   sections.filter(section => !['HERO', 'BANNER', 'FEATURED_STUDIOS', 'CONTINUE_WATCHING'].includes(section.sectionType)).forEach(section => {
@@ -724,7 +626,6 @@ async function home() {
     section.items.forEach(project => target.append(projectCard(project)));
   });
   initializeEditorialCarousel();
-  initializeContinueWatching();
 }
 
 function catalog() {
@@ -1453,15 +1354,14 @@ async function watch(id, recordHistory = true) {
   const playback = episode.playback || (episode.provider === 'ARCHIVE'
     ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
-  const isArchivePlayback = playback.provider === 'ARCHIVE' && playback.mode !== 'ARCHIVE_NATIVE_VERIFIED';
+  const isArchivePlayback = playback.provider === 'ARCHIVE';
   let lastSavedAt = 0;
   let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
   let progressRequest = null;
   let queuedProgress = null;
   let progressComplete = false;
-  let progressDisabled = false;
   const sendProgress = async (snapshot, { force = false, keepalive = false } = {}) => {
-    if (!state.social.viewer || progressComplete || progressDisabled) return;
+    if (!state.social.viewer || progressComplete) return;
     const position = Number(snapshot?.position || 0);
     const duration = Number(snapshot?.duration || 0);
     if (!duration || position < 1) return;
@@ -1491,7 +1391,7 @@ async function watch(id, recordHistory = true) {
       });
   };
   if (isArchivePlayback) {
-    mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`, () => watch(episodeId, false));
+    mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`);
   } else if (window.DubversePlayer) {
     activePlayer = new window.DubversePlayer($('#dubversePlayer'), {
       title: `${project.title} — ${episode.title}`,
@@ -1502,7 +1402,6 @@ async function watch(id, recordHistory = true) {
       onPause: snapshot => sendProgress(snapshot, { force: true }),
       onSeek: snapshot => sendProgress(snapshot, { force: true }),
       onEnded: snapshot => sendProgress(snapshot, { force: true }),
-      onFallback: () => { progressDisabled = true; queuedProgress = null; },
       onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true })
     });
     activeProgressSaver = snapshot => sendProgress(snapshot, { force: true, keepalive: true });

@@ -19,7 +19,6 @@
       this.fallbackUsed = false;
       this.destroyed = false;
       this.lastPosition = 0;
-      this.startupTimer = null;
       this.boundVisibility = () => this.renderState(document.hidden ? 'paused' : this.video?.paused ? 'paused' : 'playing');
       this.boundKeydown = event => this.onKeydown(event);
       this.render();
@@ -83,11 +82,6 @@
       this.video = video;
       this.controls.classList.remove('hidden');
       this.bindVideo();
-      if (this.config.mode === 'ARCHIVE_NATIVE_VERIFIED' && this.config.fallback?.url) {
-        this.startupTimer = setTimeout(() => {
-          if (!this.destroyed && !this.fallbackUsed && this.video?.readyState < 3) this.useFallback();
-        }, 8_000);
-      }
       video.load();
     }
 
@@ -129,7 +123,7 @@
       video.addEventListener('durationchange', updateTimeline);
       video.addEventListener('progress', updateTimeline);
       video.addEventListener('timeupdate', updateTimeline);
-      video.addEventListener('canplay', () => { clearTimeout(this.startupTimer); this.startupTimer = null; this.renderState(video.paused ? 'ready' : 'playing'); });
+      video.addEventListener('canplay', () => this.renderState(video.paused ? 'ready' : 'playing'));
       video.addEventListener('playing', () => { play.textContent = '❚❚'; play.setAttribute('aria-label', 'Pausar'); this.renderState('playing'); });
       video.addEventListener('pause', () => { play.textContent = '▶'; play.setAttribute('aria-label', 'Reproducir'); this.renderState('paused'); this.options.onPause?.({ position: video.currentTime, duration: video.duration }); });
       video.addEventListener('waiting', () => recoverableState('La conexión está alcanzando al video…'));
@@ -175,10 +169,6 @@
 
     showError(message) {
       if (this.destroyed) return;
-      if (this.config.mode === 'ARCHIVE_NATIVE_VERIFIED' && this.config.fallback?.url && !this.fallbackUsed) {
-        this.options.onError?.(message);
-        return this.useFallback();
-      }
       this.root.dataset.playerState = 'error';
       this.status.classList.add('hidden');
       this.error.classList.remove('hidden');
@@ -206,9 +196,6 @@
       const fallback = this.config.fallback;
       if (!fallback?.url) return this.showError('No existe un reproductor alternativo para este episodio.');
       this.fallbackUsed = true;
-      clearTimeout(this.startupTimer);
-      this.startupTimer = null;
-      this.options.onFallback?.();
       this.video?.pause();
       this.video = null;
       this.controls.classList.add('hidden');
@@ -227,7 +214,6 @@
       if (this.destroyed) return;
       const snapshot = this.snapshot();
       this.destroyed = true;
-      clearTimeout(this.startupTimer);
       document.removeEventListener('visibilitychange', this.boundVisibility);
       this.root.removeEventListener('keydown', this.boundKeydown);
       this.video?.pause();

@@ -65,7 +65,7 @@ test('WatchProgress es único, se actualiza, recupera y completa integrando epis
   assert.match(app, /12000/);
   assert.match(app, /keepalive: true/);
   assert.match(app, /initialTime: Number\(savedProgress/);
-  assert.match(app, /CONTINUE_WATCHING|continueWatchingRow/);
+  assert.doesNotMatch(app, /continueWatchingRow|Seguir viendo|Continuar desde/);
 });
 
 test('material promocional normaliza YouTube y mantiene adapters seguros', () => {

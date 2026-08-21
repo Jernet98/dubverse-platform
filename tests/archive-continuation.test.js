@@ -13,64 +13,23 @@ test('Archive monta inmediatamente el iframe oficial fuera del reproductor nativ
   assert.equal(playback.identifier, 'serie-item');
   assert.match(app, /if \(isArchivePlayback\) \{\s*mountArchiveEmbed/);
   assert.match(app, /else if \(window\.DubversePlayer\)/);
-  assert.match(app, /frame\.addEventListener\('load'[^;]+loader\.classList\.add\('hidden'\)/);
-  assert.match(app, /frame\.addEventListener\('load'[\s\S]*frame\.src = embed/);
   const mount = app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel'));
-  assert.doesNotMatch(mount, /new window\.DubversePlayer|<video|setTimeout|setInterval/);
-  assert.match(mount, /data-archive-retry/);
+  assert.match(mount, /<iframe src="\$\{esc\(embed\)\}"/);
+  assert.doesNotMatch(mount, /new window\.DubversePlayer|<video|setTimeout|setInterval|addEventListener|retry|loader/);
 });
 
-test('Seguir viendo combina progreso preciso con actividad Archive sin porcentajes falsos', async () => {
+test('Home no consulta ni renderiza Seguir viendo', async () => {
   const [api, app] = await Promise.all([source('app/api/[...path]/route.js'), source('public/app.js')]);
-  assert.match(api, /WITH precise_progress AS[\s\S]*e\.provider <> 'ARCHIVE' OR COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) = 'ARCHIVE_NATIVE_VERIFIED'/);
-  assert.match(api, /archive_activity AS[\s\S]*FROM episode_history h[\s\S]*e\.provider = 'ARCHIVE' AND COALESCE\(e\.archive_playback_mode, 'ARCHIVE_EMBED'\) <> 'ARCHIVE_NATIVE_VERIFIED'/);
-  assert.match(api, /row_number\(\) OVER \(PARTITION BY project_id ORDER BY updated_at DESC/);
-  assert.match(api, /NOT EXISTS \(SELECT 1 FROM episode_watched/);
-  assert.match(api, /activityOnly: Boolean\(row\.activity_only\)/);
-  assert.match(api, /positionSeconds: row\.activity_only \? null/);
-  assert.match(api, /durationSeconds: row\.activity_only \? null/);
-  assert.match(api, /progress: row\.activity_only \? null/);
-  assert.match(app, /item\.activityOnly \? 'Continuar episodio' : `Continuar desde/);
-  assert.match(app, /item\.activityOnly \? '' : `<i class="continue-progress"/);
-  assert.doesNotMatch(app, /activityOnly[^\n]+Continuar desde 0:00/);
+  assert.doesNotMatch(api, /function continueWatching|sectionType: 'CONTINUE_WATCHING'|title: 'Seguir viendo'/);
+  assert.doesNotMatch(app, /function continueWatchingRow|function initializeContinueWatching|Seguir viendo|Continuar desde|data-continue-/);
+  assert.match(app, /'CONTINUE_WATCHING'\]\.includes\(section\.sectionType\)/);
 });
 
 test('Archive conserva embed oficial sin enlace de salida visible ni sandbox no comprobado', async () => {
   const app = await source('public/app.js');
   const mount = app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel'));
-  assert.match(mount, /frame\.src = embed/);
-  assert.doesNotMatch(mount, /Abrir en Archive\.org|archive\.org\/details|sandbox|\/download\//);
-});
-
-test('carrusel de Seguir viendo reutiliza follow y permite quitar, marcar visto y limpiar', async () => {
-  const [app, api, social] = await Promise.all([
-    source('public/app.js'), source('app/api/[...path]/route.js'), source('app/api/social/[...path]/route.js')
-  ]);
-  assert.match(app, /data-continue-previous/);
-  assert.match(app, /data-continue-next/);
-  assert.match(app, /scrollBy\(\{ left:[\s\S]*behavior: 'smooth'/);
-  assert.match(app, /\/studios\/\$\{encodeURIComponent\(button\.dataset\.studioId\)\}\/follow/);
-  assert.match(app, /Ya terminé este episodio/);
-  assert.match(app, /No quiero continuar viéndolo/);
-  assert.match(app, /\/continue-watching\/\$\{encodeURIComponent\(card\.dataset\.episodeId\)\}/);
-  assert.match(app, /socialWrite\('\/continue-watching', 'DELETE'\)/);
-  assert.match(social, /removeContinueWatching[\s\S]*DELETE FROM watch_progress[\s\S]*DELETE FROM episode_history/);
-  assert.match(social, /clearContinueWatching[\s\S]*DELETE FROM watch_progress[\s\S]*DELETE FROM episode_history/);
-  assert.doesNotMatch(social.slice(social.indexOf('async function clearContinueWatching'), social.indexOf('async function notifications')), /favorites|likes|comments|studio_follows|user_follows/);
-  assert.match(api, /LEFT JOIN LATERAL[\s\S]*project_studios[\s\S]*studio_follows/);
-  assert.match(api, /studio: row\.studio_id/);
-  assert.match(api, /episode_likes[\s\S]*AS episode_liked/);
-  assert.match(app, /data-continue-like/);
-  assert.match(app, /\/episodes\/\$\{encodeURIComponent\(card\.dataset\.episodeId\)\}\/like/);
-});
-
-test('acciones desktop son horizontales y móvil conserva sus reglas táctiles', async () => {
-  const [css, app] = await Promise.all([source('public/styles.css'), source('public/app.js')]);
-  assert.match(css, /@media\(min-width:721px\)[\s\S]*\.continue-card>div\.continue-actions\{[^}]*display:flex;flex-direction:row;align-items:center/);
-  assert.match(css, /\.continue-card \.continue-remove-secondary\{position:absolute/);
-  assert.match(app, /class="continue-remove-secondary"[^>]*data-continue-remove/);
-  assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-actions\{position:static;transform:none;opacity:1/);
-  assert.match(css, /@media\(max-width:720px\)[\s\S]*\.continue-arrow\{display:none!important\}/);
+  assert.match(mount, /iframe src="\$\{esc\(embed\)\}"/);
+  assert.doesNotMatch(mount, /Abrir en Archive\.org|archive\.org\/details|sandbox|\/download\/|retry|loader/);
 });
 
 test('abrir Archive registra historial y marcar visto reutiliza episode_watched', async () => {
