@@ -4,7 +4,7 @@ import { put } from '@vercel/blob';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
-import { inspectArchive } from '@/lib/archive';
+import { archiveEmbedUrl, inspectArchive } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
