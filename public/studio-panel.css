@@ -18,7 +18,7 @@ html,body{overflow-x:hidden}
 .studio-panel-shell{overflow:clip}
 .studio-panel-view,.studio-panel-view>*{min-width:0;max-width:100%}
 .studio-panel-view img,.studio-panel-view video,.studio-panel-view iframe,.studio-panel-view table{max-width:100%}
-.promo-provider-detection[data-provider="YOUTUBE"],.promo-provider-detection[data-provider="TIKTOK"],.promo-provider-detection[data-provider="VIMEO"],.promo-provider-detection[data-provider="ARCHIVE"],.promo-provider-detection[data-provider="DIRECT"],.promo-provider-detection[data-provider="HLS"]{color:#72e6ae}
+.promo-provider-detection[data-provider="YOUTUBE"],.promo-provider-detection[data-provider="TIKTOK"],.promo-provider-detection[data-provider="TIKTOK_SHORT"],.promo-provider-detection[data-provider="VIMEO"],.promo-provider-detection[data-provider="ARCHIVE"],.promo-provider-detection[data-provider="DIRECT"],.promo-provider-detection[data-provider="HLS"]{color:#72e6ae}
 .promo-provider-detection.error{color:#ff8d95}
 
 @media(max-width:850px){

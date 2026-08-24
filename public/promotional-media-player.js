@@ -5,6 +5,7 @@
     try { url = new URL(String(value || '').trim()); } catch { return { provider: 'INVALID', label: value ? 'URL inválida' : 'Pega una URL para detectar el proveedor' }; }
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return { provider: 'INVALID', label: 'URL inválida' };
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (url.protocol === 'https:' && !url.port && ['vt.tiktok.com', 'vm.tiktok.com'].includes(url.hostname.toLowerCase())) return { provider: 'TIKTOK_SHORT', label: 'TikTok detectado · se verificará al guardar' };
     const parts = url.pathname.split('/').filter(Boolean);
     const youtubeId = host === 'youtu.be' ? parts[0] : (host === 'youtube.com' || host.endsWith('.youtube.com')) ? (url.pathname === '/watch' ? url.searchParams.get('v') : /^(?:embed|shorts)$/.test(parts[0]) ? parts[1] : '') : '';
     if (/^[A-Za-z0-9_-]{6,20}$/.test(youtubeId || '')) return { provider: 'YOUTUBE', label: 'YouTube detectado' };

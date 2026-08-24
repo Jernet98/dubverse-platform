@@ -8,7 +8,7 @@ import { archiveEmbedUrl, inspectArchive } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
-import { episodePlayback, isUpdate2SchemaMissing, mapPromo } from '@/lib/update2';
+import { episodePlayback, isUpdate2SchemaMissing, mapPromo, mapPromoResolved } from '@/lib/update2';
 import { notifyStudioFollowers } from '@/lib/studio-notifications';
 import { cleanupBlobUrls } from '@/lib/blob-media';
 import {
@@ -662,7 +662,7 @@ export async function GET(request, context) {
       return json({ ...mapProject(projectRows[0], {
         episodes: episodes.map(row => mapEpisode(row)),
         studios: studios.map(row => ({ ...mapStudio(row), role: row.role, notes: row.notes }))
-      }), promos: promos.map(mapPromo) });
+      }), promos: await Promise.all(promos.map(row => mapPromoResolved(row))) });
     }
 
     if (path[0] === 'studios' && path.length === 1) return json(await publicStudios(sql));

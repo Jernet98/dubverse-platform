@@ -4,7 +4,7 @@ import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { assertSocialWriteOrigin, jsonBody, socialErrorResponse, socialSession } from '@/lib/social';
 import { managedStudios, requireManagedEpisode, requireManagedProject, studioAdminSession } from '@/lib/studio-access';
 import { notifyStudioFollowers } from '@/lib/studio-notifications';
-import { isUpdate2SchemaMissing, mapPromo, promoValue, safeHttpUrl } from '@/lib/update2';
+import { isUpdate2SchemaMissing, mapPromo, mapPromoResolved, resolvedPromoValue, safeHttpUrl } from '@/lib/update2';
 import { cleanupBlobUrls, uploadPanelImage, validatePanelMediaFile } from '@/lib/blob-media';
 
 export const runtime = 'nodejs';
@@ -69,7 +69,7 @@ async function panelData(session) {
     membership: session.membership,
     projects: projects.map(mapProject),
     episodes: episodes.map(mapEpisode),
-    promos: promos.map(mapPromo)
+    promos: await Promise.all(promos.map(row => mapPromoResolved(row)))
   };
 }
 
@@ -137,7 +137,7 @@ export async function PATCH(request, context) {
       const rows = await session.sql`SELECT pm.* FROM project_promo_media pm JOIN project_studios ps ON ps.project_id = pm.project_id
         WHERE pm.id = ${path[3]}::uuid AND ps.studio_id = ${session.studioId}`;
       if (!rows.length) throw new AppError(403, 'El material no pertenece al estudio administrado.');
-      const value = promoValue(body, rows[0]);
+      const value = await resolvedPromoValue(body, rows[0]);
       await session.sql`UPDATE project_promo_media SET type = ${value.type}, provider = ${value.provider}, title = ${value.title},
         url = ${value.url}, provider_identifier = ${value.providerIdentifier}, provider_file = ${value.providerFile},
         thumbnail_url = ${value.thumbnailUrl}, position = ${value.position}, is_active = ${Boolean(value.isActive)}, updated_at = now()
@@ -188,7 +188,7 @@ export async function POST(request, context) {
     const body = await jsonBody(request);
     const projectId = text(body.projectId, '', 160);
     await requireManagedProject(session, projectId);
-    const value = promoValue(body);
+    const value = await resolvedPromoValue(body);
     const rows = await session.sql`INSERT INTO project_promo_media (
       id, project_id, type, provider, title, url, provider_identifier, provider_file, thumbnail_url, position, is_active
     ) VALUES (${crypto.randomUUID()}::uuid, ${projectId}, ${value.type}, ${value.provider}, ${value.title}, ${value.url},
