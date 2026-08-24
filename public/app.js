@@ -797,18 +797,11 @@ function bindPromoMedia(promos = []) {
         target.classList.add('hidden'); target.innerHTML = ''; return;
       }
       target.classList.remove('hidden');
-      const playback = promo.playback || {};
-      if (playback.kind === 'YOUTUBE') target.innerHTML = `<iframe src="${esc(playback.url)}" title="${esc(promo.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-      else if (playback.kind === 'IFRAME') target.innerHTML = `<iframe src="${esc(playback.url)}" title="${esc(promo.title)}" loading="eager" allow="fullscreen; autoplay" allowfullscreen></iframe>`;
-      else if (playback.kind === 'LINK') window.open(playback.url, '_blank', 'noopener,noreferrer');
-      else if (window.DubversePlayer) {
-        const player = new window.DubversePlayer(target, {
-          title: promo.title, poster: promo.thumbnailUrl,
-          playback: { source: playback.url ? { kind: playback.kind === 'HLS' ? 'HLS' : 'VIDEO', url: playback.url } : null, fallback: playback.fallbackUrl ? { kind: 'IFRAME', url: playback.fallbackUrl } : null }
-        });
-        target._dubversePlayer = player;
-        activePromoPlayers.add(player);
-      }
+      const player = window.PromotionalMediaPlayer
+        ? new window.PromotionalMediaPlayer(target, { title: promo.title, poster: promo.thumbnailUrl, playback: promo.playback })
+        : null;
+      if (player) { target._dubversePlayer = player; activePromoPlayers.add(player); }
+      else target.innerHTML = '<div class="promo-unavailable" role="status"><strong>No se pudo iniciar el reproductor promocional.</strong></div>';
       target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
     };
   });

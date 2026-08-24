@@ -100,12 +100,12 @@ test('promos normalizan YouTube, Archive y limpian campos incompatibles al cambi
   assert.equal(manual.thumbnailUrl, 'https://cdn.example/custom.webp');
 });
 
-test('formulario promocional es condicional y nunca solicita el ID técnico de YouTube', async () => {
+test('formulario promocional usa una URL universal y nunca solicita provider ni IDs técnicos', async () => {
   const panel = await source('public/studio-panel.js');
-  assert.match(panel, /provider === 'YOUTUBE'[\s\S]*Enlace de YouTube/);
-  assert.match(panel, /provider === 'ARCHIVE'[\s\S]*Enlace o identifier de Archive\.org/);
-  assert.match(panel, /provider === 'DIRECT'[\s\S]*URL directa del video/);
-  assert.match(panel, /provider === 'OTHER'[\s\S]*Enlace externo/);
+  assert.match(panel, /URL del material promocional/);
+  assert.match(panel, /PromotionalMediaPlayer\?\.detect/);
+  assert.match(panel, /body\.url = body\.promoUrl/);
+  assert.doesNotMatch(panel, /panelField\('provider'/);
   assert.match(panel, /Miniatura oficial de YouTube detectada/);
   assert.doesNotMatch(panel, /panelField\('providerIdentifier'/);
 });
@@ -114,7 +114,7 @@ test('modal y formularios responden como full-screen sheet móvil sin perder el 
   const css = await source('public/studio-panel.css');
   assert.match(css, /@media\(max-width:560px\)/);
   assert.match(css, /#studioPanelDialog\{inset:0;width:100%;max-width:none;height:100dvh/);
-  assert.match(css, /\.panel-section-grid,\.provider-section #promoProviderFields\{grid-template-columns:1fr/);
+  assert.match(css, /\.panel-section-grid\{grid-template-columns:minmax\(0,1fr\)/);
   assert.match(css, /min-height:44px/);
   assert.match(css, /#studioPanelForm>footer[\s\S]*flex:none/);
   assert.match(css, /overflow-y:auto/);

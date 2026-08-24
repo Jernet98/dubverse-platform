@@ -46,7 +46,7 @@ test('Archive promocional también evita tratar un MP4 no verificado como video 
     id: 'promo', project_id: 'project', provider: 'ARCHIVE', provider_identifier: 'item',
     provider_file: 'video.mp4', type: 'TRAILER', title: 'Trailer', is_active: true
   });
-  assert.deepEqual(promo.playback, { kind: 'IFRAME', url: 'https://archive.org/embed/item/video.mp4' });
+  assert.deepEqual(promo.playback, { kind: 'ARCHIVE', provider: 'ARCHIVE', url: 'https://archive.org/embed/item/video.mp4', attribution: 'Archive.org' });
 });
 
 test('WatchProgress es único, se actualiza, recupera y completa integrando episode_watched', async () => {

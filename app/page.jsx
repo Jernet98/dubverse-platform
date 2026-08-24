@@ -127,6 +127,7 @@ export default function HomePage() {
       </dialog>
 
       <Script src="/player.js" strategy="afterInteractive" />
+      <Script src="/promotional-media-player.js" strategy="afterInteractive" />
       <Script src="/app.js" strategy="afterInteractive" />
     </>
   );

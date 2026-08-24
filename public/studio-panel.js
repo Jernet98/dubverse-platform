@@ -72,7 +72,7 @@ function promosView(data) {
 function renderPanelContent() {
   const data = panelState.data;
   if (!data) return;
-  $p('#studioPanelContent').innerHTML = ({ studio: studioView, projects: projectsView, episodes: episodesView, promos: promosView })[panelState.tab](data);
+  $p('#studioPanelContent').innerHTML = `<div class="studio-panel-view">${({ studio: studioView, projects: projectsView, episodes: episodesView, promos: promosView })[panelState.tab](data)}</div>`;
   $p('[data-edit-studio]')?.addEventListener('click', () => openStudioEditor(data.studio));
   $$p('[data-edit-project]').forEach(button => button.onclick = () => openProjectEditor(data.projects.find(item => item.id === button.dataset.editProject)));
   $$p('[data-edit-episode]').forEach(button => button.onclick = () => openEpisodeEditor(data.episodes.find(item => item.id === button.dataset.editEpisode)));
@@ -118,7 +118,7 @@ function editorMedia(configs) {
 }
 
 function showPanelEditor({ kind, id = '', title, fields, media = [], originalSocials = {}, promo = null }) {
-  panelEditor = { kind, id, media: editorMedia(media), originalSocials, promo, initialProvider: promo?.provider || 'YOUTUBE' };
+  panelEditor = { kind, id, media: editorMedia(media), originalSocials, promo };
   $p('#studioPanelTitle').textContent = title;
   $p('#studioPanelKicker').textContent = panelState.data.studio.name;
   panelFields.innerHTML = fields;
@@ -129,7 +129,7 @@ function showPanelEditor({ kind, id = '', title, fields, media = [], originalSoc
   submit.disabled = false;
   submit.querySelector('span').textContent = 'Guardar cambios';
   bindMediaFields();
-  if (kind === 'promo') bindPromoProvider();
+  if (kind === 'promo') bindPromoUrlDetection();
   panelDialog.showModal();
   panelDialog.scrollTop = 0;
 }
@@ -172,7 +172,7 @@ function bindMediaFields() {
       media.url = '';
       media.automatic = false;
       input.value = '';
-      if (key === 'thumbnailUrl' && $p('[name="provider"]', panelFields)?.value === 'YOUTUBE') {
+      if (key === 'thumbnailUrl' && $p('[data-promo-detection]', panelFields)?.dataset.provider === 'YOUTUBE') {
         media.automatic = true;
         syncYouTubeThumbnail();
         return;
@@ -221,6 +221,7 @@ function panelYouTubeId(value) {
 
 function archiveLink(promo) {
   if (promo?.url) return promo.url;
+  if (promo?.providerIdentifier && promo?.providerFile) return `https://archive.org/embed/${encodeURIComponent(promo.providerIdentifier)}/${String(promo.providerFile).split('/').map(encodeURIComponent).join('/')}`;
   return promo?.providerIdentifier ? `https://archive.org/details/${promo.providerIdentifier}` : '';
 }
 
@@ -229,40 +230,17 @@ function openPromoEditor(promo = null) {
   const initialId = panelYouTubeId(promo?.url || promo?.providerIdentifier || '');
   const automaticThumbnail = promo?.provider === 'YOUTUBE' && promo?.thumbnailUrl === (initialId ? `https://i.ytimg.com/vi/${initialId}/hqdefault.jpg` : '');
   const media = [{ key: 'thumbnailUrl', kind: 'promo-thumbnail', label: 'Miniatura', url: promo?.thumbnailUrl || '', help: 'YouTube se completa automáticamente; también puedes elegir otra imagen.', aspect: 'video', projectId: promo?.projectId || '', automatic: automaticThumbnail }];
-  const common = panelField('projectId', 'Proyecto', promo?.projectId || projects[0]?.value || '', 'select', projects, promo ? 'disabled' : '') + panelField('type', 'Tipo', promo?.type || 'TRAILER', 'select', [{ value: 'TRAILER', label: 'Tráiler' }, { value: 'TEASER', label: 'Teaser' }, { value: 'PV', label: 'PV' }, { value: 'SPECIAL', label: 'Especial' }]) + panelField('provider', 'Proveedor', promo?.provider || 'YOUTUBE', 'select', [{ value: 'YOUTUBE', label: 'YouTube' }, { value: 'ARCHIVE', label: 'Archive.org' }, { value: 'DIRECT', label: 'URL directa' }, { value: 'OTHER', label: 'Enlace externo' }]) + panelField('title', 'Título', promo?.title || '') + panelField('position', 'Posición', promo?.position ?? 0, 'number', [], 'min="0" max="10000"') + panelField('isActive', 'Material activo', promo?.isActive ?? true, 'checkbox');
-  const providerFields = '<div id="promoProviderFields" class="wide"></div>';
+  const initialUrl = promo?.provider === 'ARCHIVE' ? archiveLink(promo) : promo?.url || '';
+  const common = panelField('projectId', 'Proyecto', promo?.projectId || projects[0]?.value || '', 'select', projects, promo ? 'disabled' : '') + panelField('type', 'Tipo', promo?.type || 'TRAILER', 'select', [{ value: 'TRAILER', label: 'Tráiler' }, { value: 'TEASER', label: 'Teaser' }, { value: 'PV', label: 'PV' }, { value: 'SPECIAL', label: 'Especial' }]) + panelField('title', 'Título', promo?.title || '') + panelField('position', 'Posición', promo?.position ?? 0, 'number', [], 'min="0" max="10000"') + panelField('isActive', 'Material activo', promo?.isActive ?? true, 'checkbox');
+  const source = `<label class="panel-field wide"><span>URL del material promocional</span><input name="promoUrl" type="url" value="${panelEsc(initialUrl)}" placeholder="https://..." inputmode="url" required><small class="promo-provider-detection" data-promo-detection>Pega una URL para detectar el proveedor.</small></label>`;
   const thumbnail = mediaField('thumbnailUrl', 'Miniatura', promo?.thumbnailUrl || '', media[0]);
-  showPanelEditor({ kind: 'promo', id: promo?.id || '', title: promo ? 'Editar material promocional' : 'Nuevo material promocional', media, promo, fields: panelSection('Información', 'El formulario se adapta al proveedor seleccionado.', common) + panelSection('Fuente del video', '', providerFields, 'provider-section') + panelSection('Presentación', 'La miniatura aparecerá en la ficha del proyecto.', thumbnail) });
-}
-
-function renderPromoProviderFields({ reset = false } = {}) {
-  const provider = $p('[name="provider"]', panelFields).value;
-  const promo = reset ? null : panelEditor.promo;
-  const slot = $p('#promoProviderFields', panelFields);
-  if (provider === 'YOUTUBE') slot.innerHTML = panelField('videoUrl', 'Enlace de YouTube', promo?.provider === 'YOUTUBE' ? promo.url : '', 'url', [], 'placeholder="https://youtube.com/watch?v=..." inputmode="url"');
-  if (provider === 'ARCHIVE') slot.innerHTML = panelField('archiveReference', 'Enlace o identifier de Archive.org', promo?.provider === 'ARCHIVE' ? archiveLink(promo) : '', 'text', [], 'placeholder="https://archive.org/details/..."') + `<label class="panel-field" data-archive-file><span>Archivo dentro del item</span><input name="providerFile" value="${panelEsc(promo?.provider === 'ARCHIVE' ? promo.providerFile : '')}" placeholder="video.mp4"><small>Déjalo vacío si el enlace ya incluye el archivo.</small></label>`;
-  if (provider === 'DIRECT') slot.innerHTML = panelField('videoUrl', 'URL directa del video', promo?.provider === 'DIRECT' ? promo.url : '', 'url', [], 'placeholder="https://.../video.mp4" inputmode="url"');
-  if (provider === 'OTHER') slot.innerHTML = panelField('videoUrl', 'Enlace externo', promo?.provider === 'OTHER' ? promo.url : '', 'url', [], 'placeholder="https://..." inputmode="url"');
-  if (provider === 'YOUTUBE') $p('[name="videoUrl"]', slot).addEventListener('input', syncYouTubeThumbnail);
-  if (provider === 'ARCHIVE') {
-    const input = $p('[name="archiveReference"]', slot);
-    const sync = () => {
-      let containsFile = false;
-      try { const parts = new URL(input.value).pathname.split('/').filter(Boolean); containsFile = ['download', 'embed'].includes(parts[0]) && parts.length > 2; } catch {}
-      $p('[data-archive-file]', slot).classList.toggle('hidden', containsFile);
-    };
-    input.addEventListener('input', sync); sync();
-  }
-  if (provider !== 'YOUTUBE') {
-    const thumb = panelEditor.media.thumbnailUrl;
-    if (thumb.automatic) { thumb.url = ''; thumb.automatic = false; updateMediaPreview('thumbnailUrl'); }
-  } else syncYouTubeThumbnail();
+  showPanelEditor({ kind: 'promo', id: promo?.id || '', title: promo ? 'Editar material promocional' : 'Nuevo material promocional', media, promo, fields: panelSection('Información', 'Datos públicos del material.', common) + panelSection('Fuente del video', 'Dubverse detectará automáticamente el proveedor.', source, 'provider-section') + panelSection('Presentación', 'La miniatura aparecerá en la ficha del proyecto.', thumbnail) });
 }
 
 function syncYouTubeThumbnail() {
   const media = panelEditor.media.thumbnailUrl;
   if (media.file || (media.url && !media.automatic)) return;
-  const id = panelYouTubeId($p('[name="videoUrl"]', panelFields)?.value || '');
+  const id = panelYouTubeId($p('[name="promoUrl"]', panelFields)?.value || '');
   media.url = id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
   media.automatic = true;
   const status = $p('[data-panel-media="thumbnailUrl"] [data-media-status]', panelFields);
@@ -270,10 +248,20 @@ function syncYouTubeThumbnail() {
   updateMediaPreview('thumbnailUrl');
 }
 
-function bindPromoProvider() {
-  const select = $p('[name="provider"]', panelFields);
-  renderPromoProviderFields();
-  select.onchange = () => { panelEditor.promo = null; renderPromoProviderFields({ reset: true }); };
+function bindPromoUrlDetection() {
+  const input = $p('[name="promoUrl"]', panelFields);
+  const status = $p('[data-promo-detection]', panelFields);
+  const sync = () => {
+    const result = window.PromotionalMediaPlayer?.detect(input.value) || { provider: 'INVALID', label: 'No se pudo detectar el proveedor' };
+    status.textContent = result.label;
+    status.dataset.provider = result.provider;
+    status.classList.toggle('error', result.provider === 'INVALID');
+    const thumb = panelEditor.media.thumbnailUrl;
+    if (result.provider === 'YOUTUBE') syncYouTubeThumbnail();
+    else if (thumb.automatic) { thumb.url = ''; thumb.automatic = false; updateMediaPreview('thumbnailUrl'); }
+  };
+  input.addEventListener('input', sync);
+  sync();
 }
 
 function buildSocials(form) {
@@ -368,12 +356,9 @@ $p('#studioPanelForm').onsubmit = async event => {
       path += `/promos${panelEditor.id ? `/${encodeURIComponent(panelEditor.id)}` : ''}`;
       method = panelEditor.id ? 'PATCH' : 'POST';
       body.projectId = form.elements.projectId?.value || panelEditor.promo?.projectId || '';
-      body.providerIdentifier = body.provider === 'ARCHIVE' ? body.archiveReference : '';
-      body.providerFile = body.provider === 'ARCHIVE' ? body.providerFile || '' : '';
-      body.url = ['YOUTUBE', 'DIRECT', 'OTHER'].includes(body.provider) ? body.videoUrl || '' : /^https?:/i.test(body.archiveReference || '') ? body.archiveReference : '';
+      body.url = body.promoUrl || '';
       body.thumbnailUrl = panelEditor.media.thumbnailUrl.url;
-      delete body.videoUrl;
-      delete body.archiveReference;
+      delete body.promoUrl;
     }
     message.textContent = 'Guardando cambios…';
     await panelApi(path, { method, body: JSON.stringify(body) });
