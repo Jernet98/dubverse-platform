@@ -638,21 +638,21 @@ export async function GET(request, context) {
       const query = String(request.nextUrl.searchParams.get('q') || '').trim().slice(0, 120);
       if (query.length < 2) return json({ projects: [], studios: [] });
       const [projects, studios] = await sql.transaction([
-        sql`SELECT p.*, COUNT(e.id) FILTER (WHERE e.published=true AND e.deleted_at IS NULL) AS episode_count,
-          greatest(similarity(lower(p.title),lower(${query})), similarity(lower(p.original_title),lower(${query})),
-            similarity(lower(p.alternate_title),lower(${query})), similarity(lower(p.alternate_titles::text),lower(${query})),
-            similarity(lower(p.search_aliases::text),lower(${query}))) AS score
-          FROM projects p LEFT JOIN episodes e ON e.project_id=p.id
-          WHERE p.published=true AND p.deleted_at IS NULL AND (
-            lower(p.title)=lower(${query}) OR lower(p.original_title)=lower(${query})
-            OR lower(p.alternate_title)=lower(${query})
-            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.alternate_titles) value WHERE lower(value)=lower(${query}))
-            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.search_aliases) value WHERE lower(value)=lower(${query}))
-            OR lower(p.title || ' ' || p.original_title || ' ' || p.alternate_title || ' ' || p.alternate_titles::text || ' ' || p.search_aliases::text) % lower(${query}))
-          GROUP BY p.id ORDER BY CASE WHEN lower(p.title)=lower(${query}) THEN 0 WHEN lower(p.original_title)=lower(${query}) THEN 1
-            WHEN lower(p.alternate_title)=lower(${query}) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.alternate_titles) value WHERE lower(value)=lower(${query})) THEN 2
-            WHEN EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.search_aliases) value WHERE lower(value)=lower(${query})) THEN 3 ELSE 4 END,
-            score DESC, p.title LIMIT 12`,
+        sql`WITH normalized AS (
+          SELECT p.*,
+            btrim(regexp_replace(translate(lower(p.title), 'áéíóúüñ''’', 'aeiouun  '), '\\s+', ' ', 'g')) AS title_search,
+            btrim(regexp_replace(translate(lower(p.alternate_title), 'áéíóúüñ''’', 'aeiouun  '), '\\s+', ' ', 'g')) AS alternate_search,
+            btrim(regexp_replace(translate(lower(${query}), 'áéíóúüñ''’', 'aeiouun  '), '\\s+', ' ', 'g')) AS query_search
+          FROM projects p WHERE p.published=true AND p.deleted_at IS NULL
+        ) SELECT p.*, (SELECT COUNT(*)::int FROM episodes e WHERE e.project_id=p.id AND e.published=true AND e.deleted_at IS NULL) AS episode_count,
+          greatest(similarity(p.title_search,p.query_search),similarity(p.alternate_search,p.query_search)) AS score
+        FROM normalized p
+        WHERE p.title_search=p.query_search OR p.alternate_search=p.query_search
+          OR position(p.query_search IN p.title_search)>0 OR position(p.query_search IN p.alternate_search)>0
+          OR p.title_search % p.query_search OR p.alternate_search % p.query_search
+        ORDER BY CASE WHEN p.title_search=p.query_search OR p.alternate_search=p.query_search THEN 0
+          WHEN position(p.query_search IN p.title_search)>0 OR position(p.query_search IN p.alternate_search)>0 THEN 1 ELSE 2 END,
+          score DESC,p.title LIMIT 12`,
         sql`SELECT * FROM studios WHERE published=true AND deleted_at IS NULL AND (lower(name) LIKE lower(${'%' + query + '%'}) OR lower(name) % lower(${query})) ORDER BY CASE WHEN lower(name)=lower(${query}) THEN 0 ELSE 1 END, similarity(lower(name),lower(${query})) DESC LIMIT 6`
       ], { readOnly: true });
       return json({ projects: projects.map(mapProject), studios: studios.map(mapStudio) });

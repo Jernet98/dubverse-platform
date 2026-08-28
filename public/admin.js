@@ -1106,9 +1106,6 @@ function openProject(project = null) {
     field('title', 'Título', project?.title || '') +
     field('type', 'Tipo', project?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
     field('alternateTitle', 'Título alternativo', project?.alternateTitle || project?.alternate_title || '') +
-    field('originalTitle', 'Título original (sólo Admin)', project?.originalTitle || '') +
-    field('alternateTitles', 'Títulos alternativos (uno por línea)', (project?.alternateTitles || []).join('\n'), 'textarea', true) +
-    field('searchAliases', 'Alias de búsqueda (uno por línea)', (project?.searchAliases || []).join('\n'), 'textarea', true) +
     field('ageRating', 'Clasificación de edad', project?.ageRating || 'GENERAL', 'select', false, ['GENERAL', 'AGE_13', 'AGE_16', 'AGE_18']) +
     field('contentWarnings', 'Advertencias', (project?.contentWarnings || []).join(', '), 'text', true) +
     field('status', 'Estado', project?.status || 'ONGOING', 'select', false, PROJECT_STATUS_OPTIONS) +

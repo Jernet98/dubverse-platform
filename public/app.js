@@ -719,7 +719,7 @@ function catalog() {
     const type = $('#typeFilter').value;
     const status = $('#statusFilter').value;
     const chosen = $$('input[name="genre"]:checked').map(input => normalizeText(input.value));
-    if (query) list = list.filter(project => normalizeText(`${project.title} ${project.originalTitle || ''} ${project.alternateTitle || ''} ${(project.alternateTitles || []).join(' ')} ${(project.searchAliases || []).join(' ')} ${project.synopsis}`).includes(query));
+    if (query) list = list.filter(project => normalizeText(`${project.title} ${project.alternateTitle || ''} ${project.synopsis}`).includes(query));
     if (type) list = list.filter(project => project.type === type);
     if (status) list = list.filter(project => project.status === status);
     if (chosen.length) {
@@ -871,7 +871,6 @@ async function projectPage(id) {
             <span class="chip">${project.episodeCount} ${project.episodeCount === 1 ? 'episodio' : 'episodios'}</span>
           </div>
           <h1>${esc(project.title)}</h1>
-          ${project.originalTitle ? `<p class="project-original-title">${esc(project.originalTitle)}</p>` : ''}
           <div class="tag-row">${project.genres.map(genre => `<a class="chip genre-link" href="/catalogo?genre=${encodeURIComponent(genre)}">${esc(genre)}</a>`).join('')}</div>
           ${project.contentWarnings?.length ? `<div class="content-warning-list" aria-label="Advertencias de contenido">${project.contentWarnings.map(item => `<span>${esc(item.replaceAll('_', ' '))}</span>`).join('')}</div>` : ''}
         </div>

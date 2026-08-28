@@ -27,9 +27,19 @@ test('migración es aditiva, activa pg_trgm y conserva alternative_title', async
   assert.match(migration, /ADD COLUMN IF NOT EXISTS original_title/);
   assert.match(migration, /UPDATE projects[\s\S]*alternate_title/);
   assert.match(migration, /NOT EXISTS \([\s\S]*jsonb_array_elements_text\(alternate_titles\)/);
+  assert.match(migration, /projects_search_trgm_idx/);
   assert.match(migration, /studios_name_trgm_idx/);
   assert.match(migration, /user_profiles\.id debe ser uuid/);
   assert.doesNotMatch(migration, /DROP COLUMN|DELETE FROM projects/);
+});
+
+test('migración simple crea índices actuales antes de retirar el índice amplio', async () => {
+  const migration = await source('database/migrations/2026-08-28-simplify-title-search.sql');
+  assert.match(migration, /^--[\s\S]*BEGIN;[\s\S]*COMMIT;/);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS projects_title_search_trgm_idx/);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS projects_alternate_title_search_trgm_idx/);
+  assert.ok(migration.indexOf('projects_title_search_trgm_idx') < migration.indexOf('DROP INDEX IF EXISTS projects_search_trgm_idx'));
+  assert.doesNotMatch(migration, /UPDATE|INSERT|DELETE FROM|DROP COLUMN|ALTER TABLE/);
 });
 
 test('backend impone permisos, búsqueda fuzzy y distribución sin N+1', async () => {
@@ -38,7 +48,8 @@ test('backend impone permisos, búsqueda fuzzy y distribución sin N+1', async (
   const notifications = await source('lib/content-notifications.js');
   const announcements = await source('app/api/admin/announcements/route.js');
   assert.match(api, /similarity\(/);
-  assert.match(api, /search_aliases/);
+  assert.match(api, /title_search[\s\S]*alternate_search/);
+  assert.doesNotMatch(api.match(/if \(path\[0\] === 'search'[\s\S]*?return json\(\{ projects:/)?.[0] || '', /original_title|alternate_titles|search_aliases/);
   assert.doesNotMatch(panel, /alternate_title =/);
   assert.match(announcements, /requireAdmin\(request\)/);
   assert.match(notifications, /SELECT DISTINCT|UNION/);
