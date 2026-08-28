@@ -9,7 +9,8 @@ import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
 import { episodePlayback, isUpdate2SchemaMissing, mapPromo, mapPromoResolved } from '@/lib/update2';
-import { notifyStudioFollowers } from '@/lib/studio-notifications';
+import { notifyGlobalProject, notifyGlobalStudio, notifyRelatedEpisode } from '@/lib/content-notifications';
+import { projectMetadataValue } from '@/lib/content-discovery';
 import { cleanupBlobUrls } from '@/lib/blob-media';
 import {
   bannerValue,
@@ -633,6 +634,30 @@ export async function GET(request, context) {
 
     if (path[0] === 'projects' && path.length === 1) return json(await publicProjects(sql));
 
+    if (path[0] === 'search' && path.length === 1) {
+      const query = String(request.nextUrl.searchParams.get('q') || '').trim().slice(0, 120);
+      if (query.length < 2) return json({ projects: [], studios: [] });
+      const [projects, studios] = await sql.transaction([
+        sql`SELECT p.*, COUNT(e.id) FILTER (WHERE e.published=true AND e.deleted_at IS NULL) AS episode_count,
+          greatest(similarity(lower(p.title),lower(${query})), similarity(lower(p.original_title),lower(${query})),
+            similarity(lower(p.alternate_title),lower(${query})), similarity(lower(p.alternate_titles::text),lower(${query})),
+            similarity(lower(p.search_aliases::text),lower(${query}))) AS score
+          FROM projects p LEFT JOIN episodes e ON e.project_id=p.id
+          WHERE p.published=true AND p.deleted_at IS NULL AND (
+            lower(p.title)=lower(${query}) OR lower(p.original_title)=lower(${query})
+            OR lower(p.alternate_title)=lower(${query})
+            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.alternate_titles) value WHERE lower(value)=lower(${query}))
+            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.search_aliases) value WHERE lower(value)=lower(${query}))
+            OR lower(p.title || ' ' || p.original_title || ' ' || p.alternate_title || ' ' || p.alternate_titles::text || ' ' || p.search_aliases::text) % lower(${query}))
+          GROUP BY p.id ORDER BY CASE WHEN lower(p.title)=lower(${query}) THEN 0 WHEN lower(p.original_title)=lower(${query}) THEN 1
+            WHEN lower(p.alternate_title)=lower(${query}) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.alternate_titles) value WHERE lower(value)=lower(${query})) THEN 2
+            WHEN EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.search_aliases) value WHERE lower(value)=lower(${query})) THEN 3 ELSE 4 END,
+            score DESC, p.title LIMIT 12`,
+        sql`SELECT * FROM studios WHERE published=true AND deleted_at IS NULL AND (lower(name) LIKE lower(${'%' + query + '%'}) OR lower(name) % lower(${query})) ORDER BY CASE WHEN lower(name)=lower(${query}) THEN 0 ELSE 1 END, similarity(lower(name),lower(${query})) DESC LIMIT 6`
+      ], { readOnly: true });
+      return json({ projects: projects.map(mapProject), studios: studios.map(mapStudio) });
+    }
+
     if (path[0] === 'projects' && path[1]) {
       const projectRows = await sql`
         SELECT p.*, COUNT(e.id) FILTER (WHERE e.published = true AND e.deleted_at IS NULL) AS episode_count
@@ -693,7 +718,8 @@ export async function GET(request, context) {
 
     if (path[0] === 'episodes' && path[1]) {
       const rows = await sql`
-        SELECT e.*, p.title AS project_title, p.poster AS project_poster, p.banner AS project_banner
+        SELECT e.*, p.title AS project_title, p.poster AS project_poster, p.banner AS project_banner,
+          p.age_rating AS project_age_rating, p.content_warnings AS project_content_warnings
         FROM episodes e JOIN projects p ON p.id = e.project_id
         WHERE e.id = ${path[1]}
           AND e.published = true
@@ -708,7 +734,7 @@ export async function GET(request, context) {
       }
       const row = rows[0];
       return json(mapEpisode(row, {
-        project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '' },
+        project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '', ageRating: row.project_age_rating || 'GENERAL', contentWarnings: row.project_content_warnings || [] },
         playback: episodePlayback(row)
       }));
     }
@@ -991,15 +1017,17 @@ export async function POST(request, context) {
       const type = enumValue(body.type, PROJECT_TYPES, 'SERIES');
       const status = enumValue(body.status, PROJECT_STATUSES, 'ONGOING');
       const studioIds = studioIdsValue(body.studioIds) || [];
+      const metadata = projectMetadataValue(body);
       const queries = [sql`INSERT INTO projects (
           id, type, title, alternate_title, synopsis, project_director, dubbing_info, credits,
-          status, genres, poster, banner,
+          original_title, alternate_titles, search_aliases, age_rating, content_warnings, status, genres, poster, banner,
           published, featured, deleted_at, updated_at
         ) VALUES (
           ${id}, ${type}, ${title}, ${String(body.alternateTitle || '')}, ${String(body.synopsis || '')},
           ${optionalText(body.projectDirector, 'La dirección del proyecto', 240)},
           ${optionalText(body.dubbingInfo, 'La información del fandoblaje')},
-          ${optionalText(body.credits, 'Los créditos')},
+          ${optionalText(body.credits, 'Los créditos')}, ${metadata.originalTitle}, ${JSON.stringify(metadata.alternateTitles)}::jsonb,
+          ${JSON.stringify(metadata.searchAliases)}::jsonb, ${metadata.ageRating}, ${JSON.stringify(metadata.contentWarnings)}::jsonb,
           ${status}, ${JSON.stringify(genresValue(body.genres))}::jsonb, ${String(body.poster || '') || null},
           ${String(body.banner || '') || null}, ${booleanValue(body.published)}, ${booleanValue(body.featured)}, NULL, now()
         )`];
@@ -1009,7 +1037,7 @@ export async function POST(request, context) {
           WHERE EXISTS (SELECT 1 FROM studios WHERE id = ${studioId} AND deleted_at IS NULL)`);
       }
       await sql.transaction(queries);
-      if (booleanValue(body.published)) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_PROJECT', projectId: id });
+      if (booleanValue(body.published)) await notifyGlobalProject(sql, id);
       return json({ ok: true, id }, 201);
     }
 
@@ -1018,11 +1046,13 @@ export async function POST(request, context) {
       const name = requiredText(body.name, 'El nombre');
       const id = slugify(body.id || name);
       const verified = booleanValue(body.isVerified);
+      const published = body.published === undefined ? true : booleanValue(body.published);
       await sql`INSERT INTO studios (id, name, director, description, logo, banner, socials, is_verified, verified_at, verified_by, published, deleted_at, updated_at)
         VALUES (${id}, ${name}, ${String(body.director || '')}, ${String(body.description || '')},
           ${String(body.logo || '') || null}, ${String(body.banner || '') || null}, ${JSON.stringify(socialsValue(body.socials))}::jsonb,
           ${verified}, ${verified ? new Date() : null}, ${verified ? 'global-admin' : null},
-          ${body.published === undefined ? true : booleanValue(body.published)}, NULL, now())`;
+          ${published}, NULL, now())`;
+      if (published) await notifyGlobalStudio(sql, id);
       return json({ ok: true, id }, 201);
     }
 
@@ -1048,7 +1078,7 @@ export async function POST(request, context) {
           ${id}, ${projectId}, ${season}, ${number}, ${requiredText(body.title || `Episodio ${number}`, 'El título')},
           ${String(body.description || '')}, ${provider}, ${videoUrl}, ${archiveIdentifier}, ${archiveFile},
           ${status}, ${booleanValue(body.published)}, NULL, now())`;
-      if (booleanValue(body.published)) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_EPISODE', projectId, episodeId: id });
+      if (booleanValue(body.published)) await notifyRelatedEpisode(sql, projectId, id);
       return json({ ok: true, id }, 201);
     }
 
@@ -1138,9 +1168,13 @@ export async function PATCH(request, context) {
       const poster = body.poster !== undefined ? (String(body.poster).trim() || null) : old.poster;
       const banner = body.banner !== undefined ? (String(body.banner).trim() || null) : old.banner;
       const published = body.published !== undefined ? booleanValue(body.published) : old.published;
+      const metadata = projectMetadataValue(body, old);
       await sql`UPDATE projects SET
           title = ${title},
           alternate_title = ${body.alternateTitle !== undefined ? String(body.alternateTitle) : old.alternate_title},
+          original_title = ${metadata.originalTitle}, alternate_titles = ${JSON.stringify(metadata.alternateTitles)}::jsonb,
+          search_aliases = ${JSON.stringify(metadata.searchAliases)}::jsonb, age_rating = ${metadata.ageRating},
+          content_warnings = ${JSON.stringify(metadata.contentWarnings)}::jsonb,
           synopsis = ${body.synopsis !== undefined ? String(body.synopsis) : old.synopsis},
           project_director = ${body.projectDirector !== undefined ? optionalText(body.projectDirector, 'La dirección del proyecto', 240) : old.project_director},
           dubbing_info = ${body.dubbingInfo !== undefined ? optionalText(body.dubbingInfo, 'La información del fandoblaje') : old.dubbing_info},
@@ -1154,7 +1188,7 @@ export async function PATCH(request, context) {
         WHERE id = ${id}`;
       await replaceProjectStudios(sql, id, studioIdsValue(body.studioIds));
       await cleanupBlobUrls(sql, [old.poster !== poster ? old.poster : null, old.banner !== banner ? old.banner : null]);
-      if (!old.published && published) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_PROJECT', projectId: id });
+      if (!old.published && published) await notifyGlobalProject(sql, id);
       return json({ ok: true });
     }
 
@@ -1165,6 +1199,7 @@ export async function PATCH(request, context) {
       const logo = body.logo !== undefined ? (String(body.logo).trim() || null) : old.logo;
       const banner = body.banner !== undefined ? (String(body.banner).trim() || null) : old.banner;
       const verified = body.isVerified !== undefined ? booleanValue(body.isVerified) : old.is_verified;
+      const published = body.published !== undefined ? booleanValue(body.published) : old.published;
       await sql`UPDATE studios SET
           name = ${body.name !== undefined ? requiredText(body.name, 'El nombre') : old.name},
           director = ${body.director !== undefined ? String(body.director) : old.director},
@@ -1175,10 +1210,11 @@ export async function PATCH(request, context) {
           is_verified = ${verified},
           verified_at = ${verified ? (old.verified_at || new Date()) : null},
           verified_by = ${verified ? 'global-admin' : null},
-          published = ${body.published !== undefined ? booleanValue(body.published) : old.published},
+          published = ${published},
           updated_at = now()
         WHERE id = ${id}`;
       await cleanupBlobUrls(sql, [old.logo !== logo ? old.logo : null, old.banner !== banner ? old.banner : null]);
+      if (!old.published && published) await notifyGlobalStudio(sql, id);
       return json({ ok: true });
     }
 
@@ -1213,7 +1249,7 @@ export async function PATCH(request, context) {
           archive_native_verification = ${archiveReferenceChanged ? null : old.archive_native_verification},
           status = ${status}, published = ${published}, updated_at = now()
         WHERE id = ${id}`;
-      if (!old.published && published) await notifyStudioFollowers(sql, { type: 'STUDIO_NEW_EPISODE', projectId, episodeId: id });
+      if (!old.published && published) await notifyRelatedEpisode(sql, projectId, id);
       return json({ ok: true });
     }
 

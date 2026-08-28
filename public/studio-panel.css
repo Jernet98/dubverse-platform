@@ -20,6 +20,8 @@ html,body{overflow-x:hidden}
 .studio-panel-view img,.studio-panel-view video,.studio-panel-view iframe,.studio-panel-view table{max-width:100%}
 .promo-provider-detection[data-provider="YOUTUBE"],.promo-provider-detection[data-provider="TIKTOK"],.promo-provider-detection[data-provider="TIKTOK_SHORT"],.promo-provider-detection[data-provider="VIMEO"],.promo-provider-detection[data-provider="ARCHIVE"],.promo-provider-detection[data-provider="DIRECT"],.promo-provider-detection[data-provider="HLS"]{color:#72e6ae}
 .promo-provider-detection.error{color:#ff8d95}
+.studio-managed-metadata{grid-column:1/-1;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.04)}
+.studio-managed-metadata p{margin:.35rem 0 0;color:#aeb3c2;font-size:.9rem}
 
 @media(max-width:850px){
   .studio-panel-sidebar{width:100%;max-width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;padding:14px 16px}

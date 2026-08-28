@@ -3,7 +3,7 @@ import { AppError, booleanValue } from '@/lib/db';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
 import { assertSocialWriteOrigin, jsonBody, socialErrorResponse, socialSession } from '@/lib/social';
 import { managedStudios, requireManagedEpisode, requireManagedProject, studioAdminSession } from '@/lib/studio-access';
-import { notifyStudioFollowers } from '@/lib/studio-notifications';
+import { notifyRelatedEpisode } from '@/lib/content-notifications';
 import { isUpdate2SchemaMissing, mapPromo, mapPromoResolved, resolvedPromoValue, safeHttpUrl } from '@/lib/update2';
 import { cleanupBlobUrls, uploadPanelImage, validatePanelMediaFile } from '@/lib/blob-media';
 
@@ -112,14 +112,12 @@ export async function PATCH(request, context) {
       const published = body.published === undefined ? old.published : booleanValue(body.published);
       const poster = imageValue(body.poster, old.poster) || null;
       const banner = imageValue(body.banner, old.banner) || null;
-      await session.sql`UPDATE projects SET title = ${text(body.title, old.title, 240)},
-        alternate_title = ${text(body.alternateTitle, old.alternate_title, 240)}, synopsis = ${text(body.synopsis, old.synopsis)},
+      await session.sql`UPDATE projects SET title = ${text(body.title, old.title, 240)}, synopsis = ${text(body.synopsis, old.synopsis)},
         project_director = ${text(body.projectDirector, old.project_director, 240)}, dubbing_info = ${text(body.dubbingInfo, old.dubbing_info)},
         credits = ${text(body.credits, old.credits)}, status = ${enumValue(body.status, PROJECT_STATUSES, old.status)},
         poster = ${poster}, banner = ${banner},
         published = ${published}, updated_at = now() WHERE id = ${old.id}`;
       await cleanupBlobUrls(session.sql, [old.poster !== poster ? old.poster : null, old.banner !== banner ? old.banner : null]);
-      if (!old.published && published) await notifyStudioFollowers(session.sql, { type: 'STUDIO_NEW_PROJECT', projectId: old.id, actorProfileId: session.row.id });
       return json({ ok: true });
     }
     if (path[0] === 'studios' && path[1] && path[2] === 'episodes' && path[3] && path.length === 4) {
@@ -129,7 +127,7 @@ export async function PATCH(request, context) {
       await session.sql`UPDATE episodes SET title = ${text(body.title, old.title, 240)},
         description = ${text(body.description, old.description)}, status = ${enumValue(body.status, EPISODE_STATUSES, old.status)},
         published = ${published}, updated_at = now() WHERE id = ${old.id}`;
-      if (!old.published && published) await notifyStudioFollowers(session.sql, { type: 'STUDIO_NEW_EPISODE', projectId: old.project_id, episodeId: old.id, actorProfileId: session.row.id });
+      if (!old.published && published) await notifyRelatedEpisode(session.sql, old.project_id, old.id);
       return json({ ok: true });
     }
     if (path[0] === 'studios' && path[1] && path[2] === 'promos' && path[3] && path.length === 4) {

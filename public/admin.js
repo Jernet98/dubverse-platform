@@ -28,6 +28,7 @@ const titles = {
   ids: 'IDs y aliases',
   upload: 'Subir a Archive',
   moderation: 'Moderación',
+  announcements: 'Anuncios',
   trash: 'Papelera'
 };
 
@@ -165,7 +166,7 @@ async function navigate(tab) {
   $('#content').innerHTML = '<div class="loading">Cargando…</div>';
   try {
     await refresh(tab === 'trash', tab === 'moderation', tab === 'home', tab === 'ids');
-    ({ dashboard, home, projects, episodes, studios, ids, upload, moderation, trash }[tab] || dashboard)();
+    await ({ dashboard, home, projects, episodes, studios, ids, upload, moderation, announcements, trash }[tab] || dashboard)();
   } catch (error) {
     if (/Sesión|administrativa requerida/i.test(error.message)) return location.reload();
     $('#content').innerHTML = `
@@ -393,6 +394,28 @@ function bindHomeAdmin(sections) {
     const socials = Object.fromEntries(socialKeys.filter(key => values[key]?.trim()).map(key => [key, values[key].trim()]));
     socialKeys.forEach(key => delete values[key]);
     try { await api('/api/admin/home/settings', { method: 'POST', body: JSON.stringify({ ...values, socials }) }); flash('Configuración guardada'); await navigate('home'); } catch (error) { flash(error.message, 'error'); }
+  };
+}
+
+async function announcements() {
+  const history = await api('/api/admin/announcements');
+  $('#content').innerHTML = `<section class="admin-announcements"><div class="home-admin-intro"><div><span class="kicker">Comunicación</span><h2>Crear anuncio</h2><p>Usa el mismo buzón interno de notificaciones. El envío se realiza con una sola inserción SQL y deduplicación.</p></div></div>
+    <form id="announcementForm" class="form-grid announcement-form">
+      ${field('title','Título','','text')} ${field('message','Mensaje','','textarea',true)}
+      ${field('imageUrl','Imagen opcional','','url',true)} ${field('linkUrl','Link opcional','','text',true)}
+      ${field('audienceType','Destinatarios','ALL','select',false,[{value:'ALL',label:'Todos los usuarios'},{value:'STUDIO_FOLLOWERS',label:'Seguidores de un estudio'},{value:'PROJECT_FOLLOWERS',label:'Seguidores/favoritos de un proyecto'},{value:'USER',label:'Usuario específico'}])}
+      ${field('audienceId','ID del estudio/proyecto o @username','','text',true)}
+      <button type="submit">Revisar y enviar</button><p class="editor-status" role="status"></p>
+    </form>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Anuncio</th><th>Destinatarios</th><th>Enviados</th><th>Fecha</th></tr></thead><tbody>${history.announcements.map(item=>`<tr><td><strong>${esc(item.title)}</strong><small class="record-sub">${esc(item.message)}</small></td><td>${esc(item.audienceType)} ${esc(item.audienceId)}</td><td>${item.recipientCount}</td><td>${dateLabel(item.createdAt)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Sin anuncios enviados.</td></tr>'}</tbody></table></div></section>`;
+  $('#announcementForm').onsubmit = async event => {
+    event.preventDefault(); const form=event.currentTarget; const body=Object.fromEntries(new FormData(form)); const status=$('.editor-status',form);
+    const warning=body.audienceType==='ALL'?'Esta notificación será enviada a todos los usuarios de Dubverse. ¿Deseas continuar?':'¿Deseas enviar esta notificación a los destinatarios seleccionados?';
+    if (!confirm(warning)) return;
+    body.requestId = form.dataset.requestId || crypto.randomUUID(); form.dataset.requestId = body.requestId;
+    status.textContent='Enviando…'; $('button[type="submit"]',form).disabled=true;
+    try { const result=await api('/api/admin/announcements',{method:'POST',body:JSON.stringify(body)}); flash(`Anuncio enviado a ${result.recipientCount} usuarios`); await announcements(); }
+    catch(error){status.textContent=error.message;$('button[type="submit"]',form).disabled=false;}
   };
 }
 
@@ -1083,6 +1106,11 @@ function openProject(project = null) {
     field('title', 'Título', project?.title || '') +
     field('type', 'Tipo', project?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
     field('alternateTitle', 'Título alternativo', project?.alternateTitle || project?.alternate_title || '') +
+    field('originalTitle', 'Título original (sólo Admin)', project?.originalTitle || '') +
+    field('alternateTitles', 'Títulos alternativos (uno por línea)', (project?.alternateTitles || []).join('\n'), 'textarea', true) +
+    field('searchAliases', 'Alias de búsqueda (uno por línea)', (project?.searchAliases || []).join('\n'), 'textarea', true) +
+    field('ageRating', 'Clasificación de edad', project?.ageRating || 'GENERAL', 'select', false, ['GENERAL', 'AGE_13', 'AGE_16', 'AGE_18']) +
+    field('contentWarnings', 'Advertencias', (project?.contentWarnings || []).join(', '), 'text', true) +
     field('status', 'Estado', project?.status || 'ONGOING', 'select', false, PROJECT_STATUS_OPTIONS) +
     field('synopsis', 'Sinopsis', project?.synopsis || '', 'textarea', true) +
     field('projectDirector', 'Director/a del proyecto', project?.projectDirector || project?.project_director || '', 'text', true) +

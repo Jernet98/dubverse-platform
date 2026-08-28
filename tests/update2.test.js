@@ -142,8 +142,9 @@ test('follow de estudios es único y las notificaciones sólo nacen al publicar'
   assert.match(notifications, /STUDIO_NEW_PROJECT/);
   assert.match(notifications, /STUDIO_NEW_EPISODE/);
   assert.match(notifications, /ON CONFLICT \(dedupe_key\) DO NOTHING/);
-  assert.match(api, /if \(!old\.published && published\) await notifyStudioFollowers/);
-  assert.doesNotMatch(api, /updated_at = now\(\)[^;]*notifyStudioFollowers/s);
+  assert.match(api, /if \(!old\.published && published\) await notifyGlobalProject/);
+  assert.match(api, /if \(!old\.published && published\) await notifyRelatedEpisode/);
+  assert.doesNotMatch(api, /updated_at = now\(\)[^;]*notifyRelatedEpisode/s);
 });
 
 test('hard delete elimina fila e imagen, deja sobrevivir respuestas y separa moderación', async () => {

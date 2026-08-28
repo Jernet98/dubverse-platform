@@ -121,8 +121,8 @@ function mapProfileSummary(row) {
 }
 
 function mapNotification(row) {
-  const studioActor = row.actor_studio_id ? {
-    studioId: row.actor_studio_id,
+  const studioActor = row.actor_studio_id || row.studio_id ? {
+    studioId: row.actor_studio_id || row.studio_id,
     username: '', displayName: row.actor_studio_name, avatar: row.actor_studio_logo || '',
     isStudio: true, isVerified: Boolean(row.actor_studio_verified)
   } : null;
@@ -139,6 +139,10 @@ function mapNotification(row) {
     readAt: dateValue(row.read_at),
     commentKind: row.context_kind || 'COMMENT',
     projectTitle: row.project_title || '',
+    title: row.title || '',
+    message: row.message || '',
+    imageUrl: row.image_url || '',
+    linkUrl: row.link_url || '',
     actor: studioActor || (row.username ? { ...mapProfileSummary(row), isStudio: false } : null)
   };
 }
@@ -737,13 +741,15 @@ async function notifications(session, page) {
     session.sql`
       SELECT n.*, actor.username, actor.display_name, au.image AS provider_image,
         avatar.public_url AS avatar_url, COALESCE(direct_project.title, p.title) AS project_title,
-        actor_studio.name AS actor_studio_name, actor_studio.logo AS actor_studio_logo,
-        actor_studio.is_verified AS actor_studio_verified
+        COALESCE(actor_studio.name, direct_studio.name) AS actor_studio_name,
+        COALESCE(actor_studio.logo, direct_studio.logo) AS actor_studio_logo,
+        COALESCE(actor_studio.is_verified, direct_studio.is_verified) AS actor_studio_verified
       FROM social_notifications n
       LEFT JOIN user_profiles actor ON actor.id = n.actor_profile_id
       LEFT JOIN auth_users au ON au.id = actor.auth_user_id
       LEFT JOIN user_media_uploads avatar ON avatar.id = actor.avatar_media_id AND avatar.status = 'ACTIVE'
       LEFT JOIN studios actor_studio ON actor_studio.id = n.actor_studio_id
+      LEFT JOIN studios direct_studio ON direct_studio.id = n.studio_id
       LEFT JOIN episode_comments c ON n.target_type = 'COMMENT' AND c.id = n.target_id
       LEFT JOIN episodes e ON e.id = n.episode_id
       LEFT JOIN projects p ON p.id = e.project_id
@@ -1025,6 +1031,11 @@ export async function GET(request, context) {
     }
     if (path[0] === 'me' && path.length === 1) return json(await privateProfile(await socialSession(request, { required: true }), page));
     if (path[0] === 'notifications' && path.length === 1) return json(await notifications(await socialSession(request, { required: true }), page));
+    if (path[0] === 'age-confirmation' && path.length === 1) {
+      const session = await socialSession(request, { required: true });
+      const rows = await session.sql`SELECT confirmed_at FROM age_confirmations WHERE user_profile_id = ${session.row.id}`;
+      return json({ confirmed: Boolean(rows.length), confirmedAt: rows[0]?.confirmed_at || null });
+    }
     if (path[0] === 'notifications' && path[1] === 'unread-count' && path.length === 2) {
       const session = await socialSession(request, { required: true });
       const counts = await session.sql`SELECT COUNT(*)::int AS unread FROM social_notifications
@@ -1109,6 +1120,12 @@ export async function PATCH(request, context) {
     if (path[0] === 'comments' && path[1] && path.length === 2) return await updateComment(request, path[1]);
     if (path[0] === 'reviews' && path[1]) return await updateReview(request, path[1]);
     if (path[0] === 'notifications' && path[1] === 'read-all' && path.length === 2) return await markAllNotificationsRead(request);
+    if (path[0] === 'age-confirmation' && path.length === 1) {
+      assertSocialWriteOrigin(request);
+      const session = await socialSession(request, { required: true, active: true });
+      await session.sql`INSERT INTO age_confirmations (user_profile_id, confirmed_at) VALUES (${session.row.id}, now()) ON CONFLICT (user_profile_id) DO UPDATE SET confirmed_at = EXCLUDED.confirmed_at`;
+      return json({ confirmed: true });
+    }
     if (path[0] === 'notifications' && path[1] && path.length === 2) return await markNotificationRead(request, path[1]);
     throw new AppError(404, 'Ruta social no encontrada.');
   } catch (error) {

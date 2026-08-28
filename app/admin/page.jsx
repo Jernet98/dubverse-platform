@@ -37,6 +37,7 @@ export default function AdminPage() {
             <button data-tab="studios" type="button">◉ <span>Estudios</span></button>
             <button data-tab="upload" type="button">⇧ <span>Subir a Archive</span></button>
             <button data-tab="moderation" type="button">⚑ <span>Moderación</span></button>
+            <button data-tab="announcements" type="button">✦ <span>Anuncios</span></button>
             <button data-tab="trash" type="button">♲ <span>Papelera</span></button>
             <button data-tab="ids" type="button"># <span>IDs y aliases</span></button>
           </nav>

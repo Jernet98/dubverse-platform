@@ -337,6 +337,10 @@ function relativeTime(value) {
 }
 
 function notificationCopy(item) {
+  if (item.type === 'ADMIN_ANNOUNCEMENT') return item.message || 'publicó un anuncio';
+  if (item.type === 'GLOBAL_NEW_STUDIO') return '¡Nuevo estudio en Dubverse!';
+  if (item.type === 'GLOBAL_NEW_PROJECT') return `Nuevo proyecto disponible${item.projectTitle ? `: ${item.projectTitle}` : ''}`;
+  if (item.type === 'CONTENT_NEW_EPISODE') return `Nuevo episodio disponible${item.projectTitle ? ` de ${item.projectTitle}` : ''}`;
   if (item.type === 'FOLLOW') return 'comenzó a seguirte';
   if (item.type === 'STUDIO_NEW_PROJECT') return `publicó un nuevo proyecto${item.projectTitle ? `: ${item.projectTitle}` : ''}`;
   if (item.type === 'STUDIO_NEW_EPISODE') return `publicó un nuevo episodio${item.projectTitle ? ` de ${item.projectTitle}` : ''}`;
@@ -345,6 +349,10 @@ function notificationCopy(item) {
 }
 
 function notificationUrl(item) {
+  if (item.type === 'ADMIN_ANNOUNCEMENT') return item.linkUrl || '/';
+  if (item.type === 'GLOBAL_NEW_STUDIO') return `/estudio/${encodeURIComponent(item.studioId)}`;
+  if (item.type === 'GLOBAL_NEW_PROJECT') return `/proyecto/${encodeURIComponent(item.projectId)}`;
+  if (item.type === 'CONTENT_NEW_EPISODE') return `/ver/${encodeURIComponent(item.episodeId)}`;
   if (item.type === 'FOLLOW') return `/u/${encodeURIComponent(item.actor.username)}`;
   if (item.type === 'STUDIO_NEW_PROJECT') return `/proyecto/${encodeURIComponent(item.projectId)}`;
   if (item.type === 'STUDIO_NEW_EPISODE') return `/ver/${encodeURIComponent(item.episodeId)}`;
@@ -365,8 +373,8 @@ function renderNotificationBell() {
 function renderNotifications() {
   const list = $('#notificationList');
   if (!list) return;
-  list.innerHTML = state.social.notifications.items.map(item => `<a class="notification-item ${item.readAt ? '' : 'unread'}" href="${notificationUrl(item)}" data-notification-id="${esc(item.id)}">
-    <img src="${avatarImage(item.actor)}" alt=""><span><strong>${esc(item.actor?.displayName || 'Dubverse')}</strong><small>${item.actor?.isStudio ? '' : item.actor?.username ? `@${esc(item.actor.username)} ` : ''}${esc(notificationCopy(item))}</small><time>${esc(relativeTime(item.createdAt))}</time></span></a>`).join('') || '<div class="empty compact-empty">No tienes notificaciones.</div>';
+  list.innerHTML = state.social.notifications.items.map(item => `<a class="notification-item ${item.readAt ? '' : 'unread'}" href="${esc(notificationUrl(item))}" data-notification-id="${esc(item.id)}">
+    <img src="${esc(item.imageUrl || avatarImage(item.actor))}" alt=""><span><strong>${esc(item.title || item.actor?.displayName || 'Dubverse')}</strong><small>${item.actor?.isStudio ? '' : item.actor?.username ? `@${esc(item.actor.username)} ` : ''}${esc(notificationCopy(item))}</small><time>${esc(relativeTime(item.createdAt))}</time></span></a>`).join('') || '<div class="empty compact-empty">No tienes notificaciones.</div>';
   $('#moreNotifications').classList.toggle('hidden', !state.social.notifications.hasMore);
   $$('[data-notification-id]', list).forEach(link => link.onclick = async event => {
     const item = state.social.notifications.items.find(value => value.id === link.dataset.notificationId);
@@ -431,6 +439,7 @@ function projectCard(project) {
       <div class="poster-wrap">
         <img class="poster" loading="lazy" src="${esc(imageOrFallback(project.poster))}" alt="${esc(project.title)}" />
         <span class="project-type">${esc(typeLabel(project.type))}</span>
+        ${project.ageRating && project.ageRating !== 'GENERAL' ? `<span class="age-rating-badge">${project.ageRating === 'AGE_18' ? '+18' : project.ageRating.replace('AGE_', '+')}</span>` : ''}
         <span class="play-pill" aria-hidden="true">▶</span>
       </div>
       <div class="project-card-copy">
@@ -440,6 +449,36 @@ function projectCard(project) {
     </a>
   `;
   return node;
+}
+
+const AGE_CONFIRMATION_KEY = 'dubverse:age-18-confirmed:v1';
+function ageConfirmed() { try { return localStorage.getItem(AGE_CONFIRMATION_KEY) === 'true'; } catch { return false; } }
+async function requireAdultConfirmation(project) {
+  if (project?.ageRating !== 'AGE_18' || ageConfirmed()) return true;
+  if (state.social.viewer) {
+    try {
+      const saved = await socialApi('/age-confirmation');
+      if (saved.confirmed) { try { localStorage.setItem(AGE_CONFIRMATION_KEY, 'true'); } catch {} return true; }
+    } catch {}
+  }
+  return new Promise(resolve => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'age-gate-dialog';
+    dialog.innerHTML = `<form method="dialog"><span class="age-rating-large">+18</span><h2>Contenido para mayores de 18 años</h2><p>Esta obra puede contener desnudez, violencia gráfica u otros temas dirigidos a público adulto.</p>${project.contentWarnings?.length ? `<ul>${project.contentWarnings.map(item => `<li>${esc(item.replaceAll('_', ' '))}</li>`).join('')}</ul>` : ''}<div><button class="btn btn-primary" value="accept">Soy mayor de 18 años</button><button class="btn btn-secondary" value="exit">Salir</button></div></form>`;
+    document.body.append(dialog);
+    dialog.onclose = async () => {
+      const accepted = dialog.returnValue === 'accept';
+      if (accepted) {
+        try { localStorage.setItem(AGE_CONFIRMATION_KEY, 'true'); } catch {}
+        if (state.social.viewer) socialApi('/age-confirmation', { method: 'POST', body: '{}' }).catch(() => {});
+      } else {
+        history.replaceState(null, '', '/catalogo');
+      }
+      dialog.remove(); resolve(accepted);
+      if (!accepted) router();
+    };
+    dialog.showModal();
+  });
 }
 
 function renderCards(projects, target) {
@@ -680,7 +719,7 @@ function catalog() {
     const type = $('#typeFilter').value;
     const status = $('#statusFilter').value;
     const chosen = $$('input[name="genre"]:checked').map(input => normalizeText(input.value));
-    if (query) list = list.filter(project => normalizeText(`${project.title} ${project.synopsis}`).includes(query));
+    if (query) list = list.filter(project => normalizeText(`${project.title} ${project.originalTitle || ''} ${project.alternateTitle || ''} ${(project.alternateTitles || []).join(' ')} ${(project.searchAliases || []).join(' ')} ${project.synopsis}`).includes(query));
     if (type) list = list.filter(project => project.type === type);
     if (status) list = list.filter(project => project.status === status);
     if (chosen.length) {
@@ -809,6 +848,7 @@ function bindPromoMedia(promos = []) {
 
 async function projectPage(id) {
   const project = await api(`/api/projects/${encodeURIComponent(id)}`);
+  if (!await requireAdultConfirmation(project)) return;
   const projectId = project.id;
   canonicalizeContentPath('proyecto', id, projectId);
   const social = await optionalSocial(`/projects/${encodeURIComponent(projectId)}`);
@@ -827,10 +867,13 @@ async function projectPage(id) {
           <div class="meta-row">
             <span class="chip">${esc(typeLabel(project.type))}</span>
             <span class="chip status-dot">${esc(statusLabel(project.status))}</span>
+            ${project.ageRating && project.ageRating !== 'GENERAL' ? `<span class="chip age-chip">${project.ageRating === 'AGE_18' ? '+18' : project.ageRating.replace('AGE_', '+')}</span>` : ''}
             <span class="chip">${project.episodeCount} ${project.episodeCount === 1 ? 'episodio' : 'episodios'}</span>
           </div>
           <h1>${esc(project.title)}</h1>
+          ${project.originalTitle ? `<p class="project-original-title">${esc(project.originalTitle)}</p>` : ''}
           <div class="tag-row">${project.genres.map(genre => `<a class="chip genre-link" href="/catalogo?genre=${encodeURIComponent(genre)}">${esc(genre)}</a>`).join('')}</div>
+          ${project.contentWarnings?.length ? `<div class="content-warning-list" aria-label="Advertencias de contenido">${project.contentWarnings.map(item => `<span>${esc(item.replaceAll('_', ' '))}</span>`).join('')}</div>` : ''}
         </div>
 
         <div class="project-details">
@@ -1305,6 +1348,7 @@ async function watch(id, recordHistory = true) {
   destroyActivePlayer();
   const episode = await api(`/api/episodes/${encodeURIComponent(id)}`);
   const episodeId = episode.id;
+  if (!await requireAdultConfirmation(episode.project)) return;
   canonicalizeContentPath('ver', id, episodeId);
   const [project, social, savedProgress] = await Promise.all([
     api(`/api/projects/${encodeURIComponent(episode.project_id)}`),
@@ -1582,12 +1626,17 @@ function bindProfileConnections(username) {
 
 async function publicUserPage(username, { visitorView = false } = {}) {
   const data = await socialApi(`/users/${encodeURIComponent(username)}`);
-  app.innerHTML = `${visitorView ? `<div class="visitor-view-banner"><span>${uiIcon('eye')} Vista como visitante</span><a class="btn btn-secondary" href="/perfil">Salir de vista como visitante</a></div>` : ''}${profileHero(data.profile, { visitorView, social: data.social })}
+  app.innerHTML = `${visitorView ? `<div class="visitor-view-banner"><span>${uiIcon('eye')} Vista como visitante</span><a class="btn btn-secondary" href="/perfil">Salir de vista como visitante</a></div>` : ''}<div class="own-profile-toolbar"><button class="btn btn-secondary" id="sharePublicProfile" type="button">${uiIcon('send')}<span>Compartir perfil</span></button></div>${profileHero(data.profile, { visitorView, social: data.social })}
     ${!visitorView && !data.social.viewerOwn ? `<section class="profile-follow-actions"><button class="btn ${data.social.viewerFollowing ? 'btn-secondary' : 'btn-primary'}" id="profileFollow" type="button">${data.social.viewerFollowing ? 'Siguiendo' : 'Seguir'}</button></section>` : ''}
     <section class="section"><div class="section-heading"><div><h2>Favoritos públicos</h2><p>Proyectos guardados por @${esc(data.profile.username)}.</p></div></div><div class="project-grid" id="publicFavorites"></div></section>
     <section class="section"><div class="section-heading"><div><h2>Reseñas</h2><p>Opiniones públicas de este usuario.</p></div></div><div class="social-list">${data.reviews.items.map(reviewMarkup).join('') || '<div class="empty">Aún no ha publicado reseñas.</div>'}</div></section>`;
   renderCards(data.favorites.items, $('#publicFavorites'));
   bindProfileConnections(data.profile.username);
+  $('#sharePublicProfile').onclick = async () => {
+    const url = `${location.origin}/u/${encodeURIComponent(data.profile.username)}`;
+    try { await navigator.clipboard.writeText(url); $('#sharePublicProfile span').textContent = 'Enlace copiado'; }
+    catch { prompt('Copia el enlace del perfil:', url); }
+  };
   if ($('#profileFollow')) $('#profileFollow').onclick = async () => {
     if (!requireViewer()) return;
     const button = $('#profileFollow');
@@ -1614,7 +1663,7 @@ async function ownProfilePage() {
   const data = await socialApi('/me');
   const profile = data.profile;
   const mediaControls = state.social.config.mediaAvailable ? `<div class="profile-media"><label>Avatar<input id="avatarFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="btn btn-secondary" data-upload-profile="AVATAR" type="button">Cambiar avatar</button><label>Banner<input id="bannerFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="btn btn-secondary" data-upload-profile="BANNER" type="button">Cambiar banner</button></div>` : '<p class="form-message">Las imágenes personalizadas no están disponibles hasta configurar R2.</p>';
-  app.innerHTML = `<div class="own-profile-toolbar"><a class="btn btn-secondary" href="/u/${encodeURIComponent(profile.username)}?view=public">${uiIcon('eye')}<span>Ver como visitante</span></a></div>${profileHero(profile, { own: true, social: data.social })}
+  app.innerHTML = `<div class="own-profile-toolbar"><button class="btn btn-secondary" id="shareProfile" type="button">${uiIcon('send')}<span>Compartir perfil</span></button><a class="btn btn-secondary" href="/u/${encodeURIComponent(profile.username)}?view=public">${uiIcon('eye')}<span>Ver como visitante</span></a></div>${profileHero(profile, { own: true, social: data.social })}
     <section class="section profile-layout">
       <article class="profile-settings"><h2>Editar perfil</h2><form id="profileForm" class="social-form"><label>Nombre visible<input class="form-control" name="displayName" maxlength="80" value="${esc(profile.displayName)}" required></label><label>Username<input class="form-control" name="username" minlength="3" maxlength="30" value="${esc(profile.username)}" required></label><label class="form-wide">Biografía<textarea name="bio" maxlength="500">${esc(profile.bio)}</textarea></label><button class="btn btn-primary" type="submit">Guardar perfil</button><p class="form-message" role="status"></p></form>${mediaControls}</article>
       <article class="profile-settings danger-zone"><h2>Cuenta</h2><p>Cerrar sesión no elimina datos. Eliminar la cuenta revoca sesiones, elimina identidades OAuth y datos privados, anonimiza comentarios/reseñas y limpia medios personalizados.</p><div class="actions"><button id="profileSignOut" class="btn btn-secondary" type="button">Cerrar sesión</button><button id="deleteAccount" class="btn btn-danger" type="button">Eliminar cuenta</button></div></article>
@@ -1625,6 +1674,11 @@ async function ownProfilePage() {
   renderCards(data.favorites.items, $('#ownFavorites'));
   renderCards(data.watchLater.items, $('#ownWatchLater'));
   bindProfileConnections(profile.username);
+  $('#shareProfile').onclick = async () => {
+    const url = `${location.origin}/u/${encodeURIComponent(profile.username)}`;
+    try { await navigator.clipboard.writeText(url); $('#shareProfile span').textContent = 'Enlace copiado'; }
+    catch { prompt('Copia el enlace de tu perfil:', url); }
+  };
   $('#profileForm').onsubmit = async event => {
     event.preventDefault(); const form = event.currentTarget; const message = $('.form-message', form); message.textContent = 'Guardando…';
     try {
@@ -1820,19 +1874,26 @@ $('#searchTrigger').addEventListener('click', () => {
   results.innerHTML = '<p class="empty">Escribe para buscar.</p>';
 });
 
+let searchTimer = null;
 input.addEventListener('input', () => {
-  const query = input.value.trim().toLowerCase();
+  const query = input.value.trim();
   if (!query) {
     results.innerHTML = '<p class="empty">Escribe para buscar.</p>';
     return;
   }
-  const projects = state.projects.filter(project => project.title.toLowerCase().includes(query)).slice(0, 8);
-  const studiosFound = state.studios.filter(studio => studio.name.toLowerCase().includes(query)).slice(0, 4);
-  results.innerHTML = [
-    ...projects.map(project => `<a class="search-item" href="/proyecto/${encodeURIComponent(project.id)}" data-close-search><img src="${esc(imageOrFallback(project.poster))}" alt=""><div><strong>${esc(project.title)}</strong><small>${esc(typeLabel(project.type))} · ${project.episodeCount} episodios</small></div></a>`),
-    ...studiosFound.map(studio => `<a class="search-item" href="/estudio/${encodeURIComponent(studio.id)}" data-close-search><img src="${esc(imageOrFallback(studio.logo))}" alt=""><div><strong>${esc(studio.name)}</strong><small>Estudio de fandoblaje</small></div></a>`)
-  ].join('') || '<p class="empty">Sin resultados.</p>';
-  $$('[data-close-search]', results).forEach(link => link.addEventListener('click', () => dialog.close()));
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    results.innerHTML = '<p class="empty">Buscando…</p>';
+    try {
+      const found = await api(`/api/search?q=${encodeURIComponent(query)}`);
+      if (input.value.trim() !== query) return;
+      results.innerHTML = [
+        ...found.projects.map(project => `<a class="search-item" href="/proyecto/${encodeURIComponent(project.id)}" data-close-search><img src="${esc(imageOrFallback(project.poster))}" alt=""><div><strong>${esc(project.title)}${project.ageRating && project.ageRating !== 'GENERAL' ? ` · ${project.ageRating === 'AGE_18' ? '+18' : project.ageRating.replace('AGE_', '+')}` : ''}</strong><small>${esc(typeLabel(project.type))} · ${project.episodeCount} episodios</small></div></a>`),
+        ...found.studios.map(studio => `<a class="search-item" href="/estudio/${encodeURIComponent(studio.id)}" data-close-search><img src="${esc(imageOrFallback(studio.logo))}" alt=""><div><strong>${esc(studio.name)}</strong><small>Estudio de fandoblaje</small></div></a>`)
+      ].join('') || '<p class="empty">Sin resultados.</p>';
+      $$('[data-close-search]', results).forEach(link => link.addEventListener('click', () => dialog.close()));
+    } catch { results.innerHTML = '<p class="empty">No se pudo completar la búsqueda.</p>'; }
+  }, 220);
 });
 
 menuButton.addEventListener('click', () => {
