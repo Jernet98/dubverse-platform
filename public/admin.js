@@ -68,7 +68,11 @@ async function api(path, options = {}) {
     : { 'Content-Type': 'application/json', ...(options.headers || {}) };
   const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `Error ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(data.error || `Error ${response.status}`);
+    error.field = data.field || null;
+    throw error;
+  }
   return data;
 }
 
@@ -1106,8 +1110,7 @@ function openProject(project = null) {
     field('title', 'Título', project?.title || '') +
     field('type', 'Tipo', project?.type || 'SERIES', 'select', false, PROJECT_TYPE_OPTIONS) +
     field('alternateTitle', 'Título alternativo', project?.alternateTitle || project?.alternate_title || '') +
-    field('ageRating', 'Clasificación de edad', project?.ageRating || 'GENERAL', 'select', false, ['GENERAL', 'AGE_13', 'AGE_16', 'AGE_18']) +
-    field('contentWarnings', 'Advertencias', (project?.contentWarnings || []).join(', '), 'text', true) +
+    field('adultContent', 'Contenido para mayores de 18 años', project?.ageRating === 'AGE_18', 'checkbox', true) +
     field('status', 'Estado', project?.status || 'ONGOING', 'select', false, PROJECT_STATUS_OPTIONS) +
     field('synopsis', 'Sinopsis', project?.synopsis || '', 'textarea', true) +
     field('projectDirector', 'Director/a del proyecto', project?.projectDirector || project?.project_director || '', 'text', true) +
@@ -1243,6 +1246,10 @@ $('#editorForm').addEventListener('submit', async event => {
   for (const [key, value] of formData) if (!['studioIds', 'projectIds'].includes(key)) body[key] = value;
   $$('input[type="checkbox"]', fields).filter(input => !['studioIds', 'projectIds'].includes(input.name)).forEach(input => body[input.name] = input.checked);
   if (editor.kind === 'projects') body.studioIds = $$('input[name="studioIds"]:checked', fields).map(input => input.value);
+  if (editor.kind === 'projects') {
+    body.ageRating = body.adultContent ? 'AGE_18' : 'GENERAL';
+    delete body.adultContent;
+  }
   if (body.genres) body.genres = body.genres.split(',').map(item => item.trim()).filter(Boolean);
   ['season', 'number'].forEach(key => { if (key in body) body[key] = Number(body[key]); });
 
@@ -1297,6 +1304,12 @@ $('#editorForm').addEventListener('submit', async event => {
     flash('Cambios guardados');
     await navigate(state.tab);
   } catch (error) {
+    $$('[aria-invalid="true"]', fields).forEach(input => input.removeAttribute('aria-invalid'));
+    const input = error.field ? $(`[name="${error.field === 'ageRating' ? 'adultContent' : error.field}"]`, fields) : null;
+    if (input) {
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+    }
     flash(error.message, 'error');
     $('#editorStatus').textContent = error.message;
   } finally {

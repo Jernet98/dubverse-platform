@@ -453,24 +453,34 @@ function projectCard(project) {
 
 const AGE_CONFIRMATION_KEY = 'dubverse:age-18-confirmed:v1';
 function ageConfirmed() { try { return localStorage.getItem(AGE_CONFIRMATION_KEY) === 'true'; } catch { return false; } }
+let adultAccessForSession = false;
+let accountAdultPreference = null;
 async function requireAdultConfirmation(project) {
-  if (project?.ageRating !== 'AGE_18' || ageConfirmed()) return true;
+  if (project?.ageRating !== 'AGE_18' || adultAccessForSession) return true;
   if (state.social.viewer) {
+    if (accountAdultPreference === true) return true;
     try {
       const saved = await socialApi('/age-confirmation');
-      if (saved.confirmed) { try { localStorage.setItem(AGE_CONFIRMATION_KEY, 'true'); } catch {} return true; }
+      accountAdultPreference = Boolean(saved.confirmed);
+      if (accountAdultPreference) return true;
     } catch {}
-  }
+  } else if (ageConfirmed()) return true;
   return new Promise(resolve => {
     const dialog = document.createElement('dialog');
     dialog.className = 'age-gate-dialog';
-    dialog.innerHTML = `<form method="dialog"><span class="age-rating-large">+18</span><h2>Contenido para mayores de 18 años</h2><p>Esta obra puede contener desnudez, violencia gráfica u otros temas dirigidos a público adulto.</p>${project.contentWarnings?.length ? `<ul>${project.contentWarnings.map(item => `<li>${esc(item.replaceAll('_', ' '))}</li>`).join('')}</ul>` : ''}<div><button class="btn btn-primary" value="accept">Soy mayor de 18 años</button><button class="btn btn-secondary" value="exit">Salir</button></div></form>`;
+    dialog.innerHTML = `<form method="dialog"><span class="age-rating-large">+18</span><h2>Contenido para mayores de edad</h2><p>Este contenido puede incluir escenas no aptas para menores de 18 años.</p><label class="age-gate-remember"><input type="checkbox" name="rememberAdult"><span>No volver a mostrar este aviso</span></label><div><button class="btn btn-primary" value="accept">Sí, soy mayor de 18 años</button><button class="btn btn-secondary" value="exit">No, salir</button></div></form>`;
     document.body.append(dialog);
     dialog.onclose = async () => {
       const accepted = dialog.returnValue === 'accept';
       if (accepted) {
-        try { localStorage.setItem(AGE_CONFIRMATION_KEY, 'true'); } catch {}
-        if (state.social.viewer) socialApi('/age-confirmation', { method: 'POST', body: '{}' }).catch(() => {});
+        adultAccessForSession = true;
+        const remember = Boolean(dialog.querySelector('[name="rememberAdult"]')?.checked);
+        if (remember && state.social.viewer) {
+          accountAdultPreference = true;
+          socialApi('/age-confirmation', { method: 'POST', body: '{}' }).catch(() => { accountAdultPreference = null; });
+        } else if (remember) {
+          try { localStorage.setItem(AGE_CONFIRMATION_KEY, 'true'); } catch {}
+        }
       } else {
         history.replaceState(null, '', '/catalogo');
       }

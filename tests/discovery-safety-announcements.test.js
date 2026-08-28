@@ -12,6 +12,18 @@ test('metadata restringida valida edad, advertencias y listas compatibles', () =
   assert.equal(value.ageRating, 'AGE_18');
   assert.throws(() => projectMetadataValue({ ageRating: 'AGE_21' }), /no permitida/);
   assert.throws(() => projectMetadataValue({ contentWarnings: ['INVENTED'] }), /no permitido/);
+  assert.deepEqual(projectMetadataValue({ ageRating: 'GENERAL' }, { content_warnings: ['Contenido sensible'] }).contentWarnings, ['Contenido sensible']);
+});
+
+test('admin simplifica edad y no vuelve a enviar advertencias legacy', async () => {
+  const [admin, app, api] = await Promise.all([source('public/admin.js'), source('public/app.js'), source('app/api/[...path]/route.js')]);
+  assert.match(admin, /adultContent[\s\S]*Contenido para mayores de 18 años/);
+  assert.doesNotMatch(admin.match(/function openProject[\s\S]*?function openStudio/)?.[0] || '', /contentWarnings|AGE_13|AGE_16/);
+  assert.match(admin, /body\.ageRating = body\.adultContent \? 'AGE_18' : 'GENERAL'/);
+  assert.match(api, /error\.field/);
+  assert.match(app, /Contenido para mayores de edad/);
+  assert.match(app, /No volver a mostrar este aviso/);
+  assert.match(app, /remember && state\.social\.viewer/);
 });
 
 test('links administrativos bloquean protocolos peligrosos', () => {

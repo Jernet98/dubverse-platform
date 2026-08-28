@@ -90,7 +90,7 @@ function json(payload, status = 200, headers = {}) {
 
 function errorResponse(error) {
   console.error('[Dubverse API]', error);
-  if (error instanceof AppError) return json({ ok: false, error: error.message }, error.status);
+  if (error instanceof AppError) return json({ ok: false, error: error.message, ...(error.field ? { field: error.field } : {}) }, error.status);
   if (error?.code === '23505') return json({ ok: false, error: 'Ese registro ya existe o el número de episodio está repetido.' }, 409);
   if (error?.code === '23503') return json({ ok: false, error: 'La operación viola una relación entre registros.' }, 409);
   if (error?.name === 'AbortError' || error?.name === 'TimeoutError') return json({ ok: false, error: 'La consulta tardó demasiado.' }, 504);
@@ -116,9 +116,9 @@ function requiredText(value, label) {
   return text;
 }
 
-function enumValue(value, allowed, fallback) {
+function enumValue(value, allowed, fallback, label = 'El valor', field = null) {
   const normalized = String(value || fallback).toUpperCase();
-  if (!allowed.has(normalized)) throw new AppError(400, `Valor no permitido: ${normalized}.`);
+  if (!allowed.has(normalized)) throw new AppError(400, `${label} contiene una opción no permitida: ${normalized}.`, field);
   return normalized;
 }
 
@@ -1014,8 +1014,8 @@ export async function POST(request, context) {
       const body = await bodyJson(request);
       const title = requiredText(body.title, 'El título');
       const id = slugify(body.id || title);
-      const type = enumValue(body.type, PROJECT_TYPES, 'SERIES');
-      const status = enumValue(body.status, PROJECT_STATUSES, 'ONGOING');
+      const type = enumValue(body.type, PROJECT_TYPES, 'SERIES', 'El campo “Tipo”', 'type');
+      const status = enumValue(body.status, PROJECT_STATUSES, 'ONGOING', 'El campo “Estado”', 'status');
       const studioIds = studioIdsValue(body.studioIds) || [];
       const metadata = projectMetadataValue(body);
       const queries = [sql`INSERT INTO projects (
@@ -1163,8 +1163,8 @@ export async function PATCH(request, context) {
       if (!rows.length) throw new AppError(404, 'Proyecto no encontrado.');
       const old = rows[0];
       const title = body.title !== undefined ? requiredText(body.title, 'El título') : old.title;
-      const type = body.type !== undefined ? enumValue(body.type, PROJECT_TYPES, old.type) : old.type;
-      const status = body.status !== undefined ? enumValue(body.status, PROJECT_STATUSES, old.status) : old.status;
+      const type = body.type !== undefined ? enumValue(body.type, PROJECT_TYPES, old.type, 'El campo “Tipo”', 'type') : old.type;
+      const status = body.status !== undefined ? enumValue(body.status, PROJECT_STATUSES, old.status, 'El campo “Estado”', 'status') : old.status;
       const poster = body.poster !== undefined ? (String(body.poster).trim() || null) : old.poster;
       const banner = body.banner !== undefined ? (String(body.banner).trim() || null) : old.banner;
       const published = body.published !== undefined ? booleanValue(body.published) : old.published;
