@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { r2ImagesStatus, uploadR2Image } from '@/lib/r2-images';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
@@ -746,7 +746,7 @@ export async function GET(request, context) {
         database: Boolean(process.env.DATABASE_URL),
         adminKey: Boolean(process.env.ADMIN_ACCESS_KEY),
         authSecret: Boolean(process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 32),
-        blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+        blob: r2ImagesStatus()
       });
     }
 
@@ -898,17 +898,50 @@ export async function POST(request, context) {
       return json(await inspectArchive(requiredText(body.identifier, 'El identificador de Archive.org')));
     }
 
-    if (path[0] === 'admin' && path[1] === 'upload') {
-      if (!process.env.BLOB_READ_WRITE_TOKEN) throw new AppError(503, 'Vercel Blob todavía no está conectado. Puedes pegar una URL manualmente.');
-      const form = await request.formData();
-      const file = form.get('file');
-      const folder = slugify(String(form.get('folder') || 'dubverse'));
-      if (!(file instanceof File)) throw new AppError(400, 'Selecciona una imagen.');
-      if (!file.type.startsWith('image/')) throw new AppError(400, 'Solo se permiten imágenes.');
-      if (file.size > 4_000_000) throw new AppError(413, 'La imagen supera 4 MB. Comprímela antes de subirla.');
-      const blob = await put(`${folder}/${Date.now()}-${slugify(file.name)}`, file, { access: 'public', addRandomSuffix: true });
-      return json({ ok: true, url: blob.url, pathname: blob.pathname }, 201);
-    }
+if (path[0] === 'admin' && path[1] === 'upload') {
+  if (!r2ImagesStatus()) {
+    throw new AppError(503, 'Cloudflare R2 Images todavía no está configurado.');
+  }
+
+  const form = await request.formData();
+  const file = form.get('file');
+  const folder = slugify(String(form.get('folder') || 'dubverse'));
+
+  if (!(file instanceof File)) {
+    throw new AppError(400, 'Selecciona una imagen.');
+  }
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new AppError(400, 'Sólo se permiten imágenes JPEG, PNG o WebP.');
+  }
+
+  if (file.size > 4_000_000) {
+    throw new AppError(413, 'La imagen supera 4 MB. Comprímela antes de subirla.');
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  const extension =
+    file.type === 'image/jpeg'
+      ? 'jpg'
+      : file.type === 'image/png'
+        ? 'png'
+        : 'webp';
+
+  const filename =
+    slugify(file.name.replace(/\.[^.]+$/, '')) || 'imagen';
+
+  const pathname =
+    `${folder}/${Date.now()}-${filename}-${crypto.randomUUID()}.${extension}`;
+
+  const image = await uploadR2Image(pathname, bytes, file.type);
+
+  return json({
+    ok: true,
+    url: image.url,
+    pathname: image.pathname
+  }, 201);
+}
 
     if (path[0] === 'admin' && path[1] === 'blob' && path[2] === 'cleanup') {
       const body = await bodyJson(request);
