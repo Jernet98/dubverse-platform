@@ -1089,7 +1089,7 @@ function bindImageUploads() {
         flash('Imagen subida');
       } catch (error) {
         target.value = previousValue;
-        setImagePreview(input.dataset.target, previousValue, 'La subida falló', false);
+        setImagePreview(input.dataset.target, previousValue, `Error: ${error.message}`, false);
         flash(error.message, 'error');
       } finally {
         URL.revokeObjectURL(localUrl);

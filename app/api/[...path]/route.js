@@ -11,7 +11,7 @@ import { isAliasSchemaMissing } from '@/lib/content-ids';
 import { episodePlayback, isUpdate2SchemaMissing, mapPromo, mapPromoResolved } from '@/lib/update2';
 import { notifyGlobalProject, notifyGlobalStudio, notifyRelatedEpisode } from '@/lib/content-notifications';
 import { projectMetadataValue } from '@/lib/content-discovery';
-import { cleanupBlobUrls } from '@/lib/blob-media';
+import { cleanupBlobUrls, validatePanelImageSignature } from '@/lib/blob-media';
 import {
   bannerValue,
   DEFAULT_HOME_SECTIONS,
@@ -899,10 +899,6 @@ export async function POST(request, context) {
     }
 
 if (path[0] === 'admin' && path[1] === 'upload') {
-  if (!r2ImagesStatus()) {
-    throw new AppError(503, 'Cloudflare R2 Images todavía no está configurado.');
-  }
-
   const form = await request.formData();
   const file = form.get('file');
   const folder = slugify(String(form.get('folder') || 'dubverse'));
@@ -920,6 +916,7 @@ if (path[0] === 'admin' && path[1] === 'upload') {
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
+  validatePanelImageSignature(bytes, file.type);
 
   const extension =
     file.type === 'image/jpeg'

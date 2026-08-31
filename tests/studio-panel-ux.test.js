@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { normalizeArchiveReference, normalizeYouTubeId, promoValue, youtubeThumbnailUrl } from '../lib/update2.js';
-import { panelMediaPolicy, uploadPanelImage, validatePanelImageSignature, validatePanelMediaFile } from '../lib/blob-media.js';
+import { panelMediaPolicy, validatePanelImageSignature, validatePanelMediaFile } from '../lib/blob-media.js';
+import { r2ImageUrl, r2ImagesStatus } from '../lib/r2-images.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -17,10 +18,11 @@ test('perfil del estudio usa archivos, previews y redes individuales sin exponer
   assert.match(page, /aria-live="polite"/);
 });
 
-test('upload del panel usa Vercel Blob directo y exige membresía antes de procesar archivos', async () => {
-  const [route, media, access] = await Promise.all([
+test('upload del panel usa R2 Images, valida configuración y exige membresía antes de subir', async () => {
+  const [route, media, r2Images, access] = await Promise.all([
     source('app/api/studio-panel/[[...path]]/route.js'),
     source('lib/blob-media.js'),
+    source('lib/r2-images.js'),
     source('lib/studio-access.js')
   ]);
   const image = (type, size = 256, name = 'imagen') => ({ name, type, size, arrayBuffer: async () => new ArrayBuffer(size) });
@@ -36,20 +38,33 @@ test('upload del panel usa Vercel Blob directo y exige membresía antes de proce
   assert.equal(validatePanelImageSignature(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 'image/png'), true);
   assert.equal(validatePanelImageSignature(Uint8Array.from([82, 73, 70, 70, 0, 0, 0, 0, 87, 69, 66, 80]), 'image/webp'), true);
   assert.throws(() => validatePanelImageSignature(Uint8Array.from([0, 1, 2]), 'image/jpeg'), /no coincide/);
-  const previousToken = process.env.BLOB_READ_WRITE_TOKEN;
-  delete process.env.BLOB_READ_WRITE_TOKEN;
+  const names = ['R2_IMAGES_ENDPOINT', 'R2_IMAGES_ACCESS_KEY_ID', 'R2_IMAGES_SECRET_ACCESS_KEY', 'R2_IMAGES_BUCKET', 'R2_IMAGES_PUBLIC_URL'];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
   try {
-    await assert.rejects(uploadPanelImage(image('image/jpeg', 256, 'logo.jpg'), { studioId: 'studio', kind: 'studio-logo' }), error => error.status === 503 && /no está disponible/.test(error.message));
+    process.env.R2_IMAGES_ENDPOINT = 'https://account.r2.cloudflarestorage.com';
+    process.env.R2_IMAGES_ACCESS_KEY_ID = 'a'.repeat(31);
+    process.env.R2_IMAGES_SECRET_ACCESS_KEY = 'b'.repeat(64);
+    process.env.R2_IMAGES_BUCKET = 'dubverse-images';
+    process.env.R2_IMAGES_PUBLIC_URL = 'https://images.example.com';
+    assert.equal(r2ImagesStatus(), false);
+    assert.throws(() => r2ImageUrl('studios/demo/logo.png'), /exactamente 32 caracteres/);
+    process.env.R2_IMAGES_ACCESS_KEY_ID = 'a'.repeat(32);
+    assert.equal(r2ImagesStatus(), true);
+    assert.equal(r2ImageUrl('studios/demo/logo con espacio.png'), 'https://images.example.com/studios/demo/logo%20con%20espacio.png');
   } finally {
-    if (previousToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
-    else process.env.BLOB_READ_WRITE_TOKEN = previousToken;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
   assert.doesNotMatch(media, /processImageBuffer|sharp\(/i);
   assert.doesNotMatch(media, /instanceof File/);
-  assert.match(media, /const token = process\.env\.BLOB_READ_WRITE_TOKEN/);
-  assert.match(media, /put\(pathname, Buffer\.from\(bytes\),[\s\S]*access: 'public'[\s\S]*addRandomSuffix: true[\s\S]*contentType,[\s\S]*token/);
+  assert.match(media, /uploadR2Image\(pathname, bytes, contentType\)/);
   assert.match(media, /validatePanelImageSignature\(bytes, contentType\)/);
-  assert.match(media, /del\(url, \{ token: process\.env\.BLOB_READ_WRITE_TOKEN \}\)/);
+  assert.match(media, /deleteR2ImageByUrl\(url\)/);
+  assert.match(r2Images, /PutObjectCommand[\s\S]*Bucket: current\.bucket[\s\S]*CacheControl/);
+  assert.match(r2Images, /R2_IMAGES_ACCESS_KEY_ID no es válida/);
+  assert.doesNotMatch(r2Images, /console\.error[\s\S]{0,250}(accessKeyId|secretAccessKey)/);
   assert.match(route, /studioAdminSession\(request, studioId\)[\s\S]*request\.formData\(\)[\s\S]*const file = form\.get\('file'\)[\s\S]*requireManagedProject[\s\S]*validatePanelMediaFile\(file, kind\)[\s\S]*uploadPanelImage\(file/);
   assert.match(access, /sm\.user_profile_id = \$\{session\.row\.id\}[\s\S]*sm\.studio_id = \$\{studioId\}/);
 });
@@ -68,7 +83,7 @@ test('panelApi normaliza errores estructurados sin mostrar object Object', async
   assert.doesNotMatch(panel, /new Error\(body\.error \|\|/);
 });
 
-test('reemplazos limpian Blob sólo después de actualizar referencias del estudio, proyecto o promo', async () => {
+test('reemplazos limpian R2 sólo después de actualizar referencias del estudio, proyecto o promo', async () => {
   const [route, media] = await Promise.all([source('app/api/studio-panel/[[...path]]/route.js'), source('lib/blob-media.js')]);
   assert.match(route, /UPDATE studios SET[\s\S]*cleanupBlobUrls\(session\.sql, \[old\.logo !== logo/);
   assert.match(route, /UPDATE projects SET[\s\S]*cleanupBlobUrls\(session\.sql, \[old\.poster !== poster/);
