@@ -38,6 +38,7 @@
       this.lastStallAt = 0;
       this.stallTimer = null;
       this.controlsTimer = null;
+      this.controlsInteracting = false;
       this.upgradeTimer = null;
       this.boundVisibility = () => this.renderState(document.hidden ? 'paused' : this.video?.paused ? 'paused' : 'playing');
       this.boundKeydown = event => this.onKeydown(event);
@@ -91,7 +92,26 @@
       document.addEventListener('visibilitychange', this.boundVisibility);
       this.root.addEventListener('keydown', this.boundKeydown);
       this.root.addEventListener('pointermove', () => this.showControls());
-      this.root.addEventListener('pointerdown', () => this.showControls());
+      this.root.addEventListener('pointerdown', event => {
+        if (this.isTouchControls() && event.target.closest('.dv-player-controls')) {
+          this.controlsInteracting = true;
+          this.showControls(true);
+          return;
+        }
+        this.showControls();
+      });
+      this.root.addEventListener('pointerup', () => this.finishControlsInteraction());
+      this.root.addEventListener('pointercancel', () => this.finishControlsInteraction());
+      this.controls.addEventListener('focusin', () => {
+        if (!this.isTouchControls()) return;
+        this.controlsInteracting = true;
+        this.showControls(true);
+      });
+      this.controls.addEventListener('focusout', () => {
+        if (!this.isTouchControls()) return;
+        this.controlsInteracting = false;
+        this.scheduleHideControls();
+      });
       this.updateQualityMenu();
       this.loadPrimary();
       if (this.variants.length > 1) this.upgradeTimer = setInterval(() => this.maybeUpgrade(), 10000);
@@ -193,7 +213,7 @@
         play.textContent = '▶';
         play.setAttribute('aria-label', 'Reproducir');
         this.renderState('paused');
-        this.showControls(true);
+        this.showControls(!this.isTouchControls());
         this.options.onPause?.({ position: video.currentTime, duration: video.duration });
       });
       video.addEventListener('waiting', () => this.handleStall('waiting', token));
@@ -359,10 +379,30 @@
       this.quality.value = this.autoQuality ? 'auto' : String(this.variantIndex);
     }
 
+    isTouchControls() {
+      return matchMedia('(hover: none) and (pointer: coarse)').matches;
+    }
+
+    hideControls() {
+      if (!this.controlsInteracting) this.root.classList.add('controls-hidden');
+    }
+
+    scheduleHideControls(force = false) {
+      clearTimeout(this.controlsTimer);
+      if (this.controlsInteracting) return;
+      const desktopShouldHide = !force && this.video && !this.video.paused && matchMedia('(pointer:fine)').matches;
+      if (this.isTouchControls() || desktopShouldHide) this.controlsTimer = setTimeout(() => this.hideControls(), 2500);
+    }
+
+    finishControlsInteraction() {
+      if (!this.isTouchControls() || !this.controlsInteracting) return;
+      this.controlsInteracting = false;
+      this.scheduleHideControls();
+    }
+
     showControls(force = false) {
       this.root.classList.remove('controls-hidden');
-      clearTimeout(this.controlsTimer);
-      if (!force && this.video && !this.video.paused && matchMedia('(pointer:fine)').matches) this.controlsTimer = setTimeout(() => this.root.classList.add('controls-hidden'), 2500);
+      this.scheduleHideControls(force);
     }
 
     onKeydown(event) {
