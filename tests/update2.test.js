@@ -12,7 +12,7 @@ import {
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos', async () => {
+test('player central conserva fallback Archive y añade adaptación acotada sin alterar DIRECT/HLS', async () => {
   const player = await source('public/player.js');
   const archive = episodePlayback({
     provider: 'ARCHIVE', archive_identifier: 'dubverse-demo', archive_file: 'episodio 01.mp4',
@@ -29,7 +29,7 @@ test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos
   assert.equal(direct.source.kind, 'VIDEO');
   assert.equal(hls.source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);
-  assert.match(player, /preload = 'metadata'/);
+  assert.match(player, /provider === 'ARCHIVE' \? 'auto' : 'metadata'/);
   for (const event of ['waiting', 'stalled', 'canplay', 'playing', 'seeking', 'seeked', 'error']) {
     assert.match(player, new RegExp(`addEventListener\\('${event}'`));
   }
@@ -39,6 +39,16 @@ test('player central usa Archive embed inmediato y conserva DIRECT y HLS nativos
   assert.match(player, /document\.exitFullscreen/);
   assert.match(player, /onKeydown[\s\S]*arrowleft[\s\S]*arrowright/);
   assert.match(player, /initialTime[\s\S]*loadedmetadata/);
+  assert.match(player, /navigator\.connection/);
+  assert.match(player, /waitForBuffer\(target, 12000/);
+  assert.match(player, /waitForBuffer\(4, 10000/);
+  assert.match(player, /bufferAhead/);
+  assert.match(player, /Date\.now\(\) - this\.lastSwitchAt < 9000/);
+  assert.match(player, /stableFor >= 60000 && this\.bufferAhead\(\) >= 20/);
+  assert.match(player, /switchVariant[\s\S]*currentTime/);
+  assert.match(player, /this\.failedVariants\.add\(this\.variantIndex\)[\s\S]*fuente rechazada/);
+  assert.match(player, /provider === 'ARCHIVE' && this\.config\.fallback\?\.url[\s\S]*this\.useFallback\(\)/);
+  assert.match(player, /host === 'localhost' \|\| host === '127\.0\.0\.1'/);
 });
 
 test('Archive promocional también evita tratar un MP4 no verificado como video directo', () => {

@@ -5,13 +5,14 @@ import { episodePlayback } from '../lib/update2.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Archive monta inmediatamente el iframe oficial fuera del reproductor nativo', async () => {
+test('Archive usa el reproductor propio cuando hay fuente y conserva iframe como fallback', async () => {
   const app = await source('public/app.js');
   const playback = episodePlayback({ provider: 'ARCHIVE', archive_identifier: 'serie-item', archive_file: 'episodio 8.mp4', video_url: 'https://archive.org/embed/serie-item/episodio%208.mp4' });
   assert.equal(playback.source, null);
   assert.equal(playback.fallback.url, 'https://archive.org/embed/serie-item/episodio%208.mp4');
   assert.equal(playback.identifier, 'serie-item');
-  assert.match(app, /if \(isArchivePlayback\) \{\s*mountArchiveEmbed/);
+  assert.match(app, /const useArchiveEmbed = isArchivePlayback && !playback\.source\?\.url/);
+  assert.match(app, /if \(useArchiveEmbed\) \{\s*mountArchiveEmbed/);
   assert.match(app, /else if \(window\.DubversePlayer\)/);
   const mount = app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel'));
   assert.match(mount, /<iframe src="\$\{esc\(embed\)\}"/);

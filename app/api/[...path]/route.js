@@ -4,7 +4,7 @@ import { r2ImagesStatus, uploadR2Image } from '@/lib/r2-images';
 import { AppError, booleanValue, getSql, slugify } from '@/lib/db';
 import { isAdminRequest, loginResponse, logoutResponse, requireAdmin, verifyAdminKey } from '@/lib/auth';
 import { mapEpisode, mapProject, mapStudio } from '@/lib/mappers';
-import { archiveEmbedUrl, inspectArchive } from '@/lib/archive';
+import { archiveEmbedUrl, inspectArchive, resolveArchiveEpisodePlayback } from '@/lib/archive';
 import { seedDatabase } from '@/lib/seed';
 import { socialSession } from '@/lib/social';
 import { isAliasSchemaMissing } from '@/lib/content-ids';
@@ -733,9 +733,12 @@ export async function GET(request, context) {
         throw new AppError(404, 'Episodio no encontrado.');
       }
       const row = rows[0];
+      const playback = String(row.provider || '').toUpperCase() === 'ARCHIVE'
+        ? await resolveArchiveEpisodePlayback(row)
+        : episodePlayback(row);
       return json(mapEpisode(row, {
         project: { id: row.project_id, title: row.project_title, poster: row.project_poster || '', banner: row.project_banner || '', ageRating: row.project_age_rating || 'GENERAL', contentWarnings: row.project_content_warnings || [] },
-        playback: episodePlayback(row)
+        playback
       }));
     }
 

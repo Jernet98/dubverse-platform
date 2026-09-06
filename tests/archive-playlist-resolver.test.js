@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { resolveArchiveEpisodePlayback, resolveArchivePlaylist } from '../lib/archive.js';
+import { archivePlaybackVariants, resolveArchiveEpisodePlayback, resolveArchivePlaylist } from '../lib/archive.js';
 import { archiveEmbedUrlSafe, episodePlayback, persistedArchiveEmbedUrl } from '../lib/update2.js';
 
 const fixtures = JSON.parse(await readFile(new URL('./fixtures/archive-playlists.json', import.meta.url), 'utf8'));
@@ -22,6 +22,18 @@ test('multiarchivo exige coincidencia y resuelve orig o derivative', () => {
   assert.equal(derivative.selected.orig, original.selected.orig);
   assert.equal(resolveArchivePlaylist(fixtures.uruwashi).status, 'FILE_REQUIRED');
   assert.equal(resolveArchivePlaylist(fixtures.uruwashi, 'missing.mp4').status, 'FILE_NOT_FOUND');
+});
+
+test('las variantes directas pertenecen únicamente al episodio seleccionado y se ordenan por coste', () => {
+  const playlist = resolveArchivePlaylist(fixtures.uruwashi, 'dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4');
+  const variants = archivePlaybackVariants('multi-fixture', playlist.selected);
+  assert.deepEqual(variants.map(item => item.name), [
+    'dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.ia.mp4',
+    'dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4'
+  ]);
+  assert.ok(variants.every(item => item.url.startsWith('https://archive.org/download/multi-fixture/')));
+  assert.ok(variants.every(item => !item.name.includes('e002')));
+  assert.ok(variants[0].estimatedBitrate < variants[1].estimatedBitrate);
 });
 
 test('Dororo normaliza el plus legado sólo cuando no existe un filename literal', () => {
@@ -53,28 +65,33 @@ test('single usa embed de item, multi usa orig exacto e identifier inexistente n
     };
     const single = await resolveArchiveEpisodePlayback({ archive_identifier: 'single-fixture', archive_file: 'Episodio%20%C3%BAnico.mp4' });
     const multi = await resolveArchiveEpisodePlayback({ archive_identifier: 'multi-fixture', archive_file: 'dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.ia.mp4' });
-    const missing = await resolveArchiveEpisodePlayback({ archive_identifier: 'missing-fixture', archive_file: 'episode.mp4' });
+    const missing = await resolveArchiveEpisodePlayback({ archive_identifier: 'missing-fixture', archive_file: 'episode.mp4', video_url: 'https://archive.org/embed/missing-fixture/episode.mp4' });
+    assert.equal(single.mode, 'ARCHIVE_SMART');
+    assert.match(single.source.url, /^https:\/\/archive\.org\/download\/single-fixture\//);
+    assert.equal(single.variants.length, 2);
     assert.equal(single.fallback.url, 'https://archive.org/embed/single-fixture');
     assert.equal(multi.fallback.url, 'https://archive.org/embed/multi-fixture/dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4');
     assert.equal(missing.status, 'UNRESOLVED');
     assert.equal(missing.reason, 'IDENTIFIER_NOT_FOUND');
-    assert.equal(missing.fallback, null);
+    assert.equal(missing.fallback.url, 'https://archive.org/embed/missing-fixture/episode.mp4');
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('la API usa la referencia canónica persistida sin metadata remota y conserva DIRECT/HLS', async () => {
+test('la API resuelve Archive en servidor, mantiene fallback local y conserva DIRECT/HLS', async () => {
   const [api, archive, app, player] = await Promise.all([
     source('app/api/[...path]/route.js'), source('lib/archive.js'), source('public/app.js'), source('public/player.js')
   ]);
-  assert.doesNotMatch(api, /resolveArchiveEpisodePlayback/);
-  assert.match(api, /playback: episodePlayback\(row\)/);
+  assert.match(api, /await resolveArchiveEpisodePlayback\(row\)/);
+  assert.match(api, /: episodePlayback\(row\)/);
+  assert.match(archive, /archiveMetadataCache/);
+  assert.match(archive, /signal: AbortSignal\.timeout\(6000\)/);
   assert.match(archive, /playlist\.entries\.length === 1[\s\S]*archiveEmbedUrl\(identifier\)[\s\S]*archiveEmbedUrl\(identifier, playlist\.selected\.orig\)/);
   assert.match(archive, /status: 'UNRESOLVED'/);
   assert.match(app, /Este episodio no pudo cargarse desde Archive\.org/);
   assert.doesNotMatch(app, /data-archive-retry/);
   assert.match(app.slice(app.indexOf('function mountArchiveEmbed'), app.indexOf('function initializeEditorialCarousel')), /allowfullscreen/);
   assert.match(app, /allow="autoplay; fullscreen"/);
-  assert.doesNotMatch(archive, /retry|setInterval/);
+  assert.doesNotMatch(archive, /setInterval/);
   assert.equal(episodePlayback({ provider: 'DIRECT', video_url: 'https://cdn.example/episode.mp4' }).source.kind, 'VIDEO');
   assert.equal(episodePlayback({ provider: 'HLS', video_url: 'https://cdn.example/master.m3u8' }).source.kind, 'HLS');
   assert.match(player, /class DubversePlayer/);

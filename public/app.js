@@ -1401,6 +1401,7 @@ async function watch(id, recordHistory = true) {
     ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
   const isArchivePlayback = playback.provider === 'ARCHIVE';
+  const useArchiveEmbed = isArchivePlayback && !playback.source?.url;
   let lastSavedAt = 0;
   let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
   let progressRequest = null;
@@ -1436,7 +1437,7 @@ async function watch(id, recordHistory = true) {
         }
       });
   };
-  if (isArchivePlayback) {
+  if (useArchiveEmbed) {
     mountArchiveEmbed($('#dubversePlayer'), playback, `${project.title} — ${episode.title}`);
   } else if (window.DubversePlayer) {
     activePlayer = new window.DubversePlayer($('#dubversePlayer'), {
