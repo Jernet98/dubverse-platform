@@ -18,6 +18,8 @@ export default function StudioPanelPage() {
     </div>
     <dialog id="studioPanelDialog"><form id="studioPanelForm"><header><div><span id="studioPanelKicker">Editar</span><h2 id="studioPanelTitle">Registro</h2></div><button id="studioPanelClose" type="button" aria-label="Cerrar">×</button></header><div id="studioPanelFields"></div><p id="studioPanelMessage" role="status" aria-live="polite"></p><footer><button id="studioPanelCancel" type="button">Cancelar</button><button type="submit"><span>Guardar cambios</span></button></footer></form></dialog>
     <Script src="/promotional-media-player.js" strategy="afterInteractive" />
+    <link rel="stylesheet" href="/analytics-dashboard.css" />
+    <Script src="/analytics-dashboard.js" strategy="afterInteractive" />
     <Script src="/studio-panel.js" strategy="afterInteractive" />
   </>;
 }

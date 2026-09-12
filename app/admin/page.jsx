@@ -7,6 +7,7 @@ export default function AdminPage() {
     <>
       <link rel="stylesheet" href="/admin.css" />
       <link rel="stylesheet" href="/admin-update2.css" />
+      <link rel="stylesheet" href="/analytics-dashboard.css" />
 
       <div id="loginView" className="login-view">
         <form id="loginForm" className="login-card">
@@ -31,6 +32,7 @@ export default function AdminPage() {
           </a>
           <nav aria-label="Secciones del panel">
             <button data-tab="dashboard" className="active" type="button">▦ <span>Resumen</span></button>
+            <button data-tab="analytics" type="button">◫ <span>Estadísticas</span></button>
             <button data-tab="home" type="button">⌂ <span>Portada</span></button>
             <button data-tab="projects" type="button">▣ <span>Proyectos</span></button>
             <button data-tab="episodes" type="button">▶ <span>Episodios</span></button>
@@ -113,6 +115,7 @@ export default function AdminPage() {
         </form>
       </dialog>
 
+      <Script src="/analytics-dashboard.js" strategy="afterInteractive" />
       <Script src="/admin.js" strategy="afterInteractive" />
     </>
   );

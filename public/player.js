@@ -202,6 +202,7 @@
       video.addEventListener('canplay', () => this.renderState(video.paused ? 'ready' : 'playing'));
       video.addEventListener('playing', () => {
         this.wantedPlay = true;
+        this.options.onPlaying?.();
         play.textContent = '❚❚';
         play.setAttribute('aria-label', 'Pausar');
         this.renderState('playing');

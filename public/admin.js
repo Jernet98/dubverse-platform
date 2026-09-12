@@ -21,6 +21,7 @@ const state = {
 
 const titles = {
   dashboard: 'Resumen',
+  analytics: 'Estadísticas',
   home: 'Portada',
   projects: 'Proyectos',
   episodes: 'Episodios',
@@ -169,6 +170,7 @@ async function navigate(tab) {
   $('#tabTitle').textContent = titles[tab] || titles.dashboard;
   $('#content').innerHTML = '<div class="loading">Cargando…</div>';
   try {
+    if (tab === 'analytics') return analytics();
     await refresh(tab === 'trash', tab === 'moderation', tab === 'home', tab === 'ids');
     await ({ dashboard, home, projects, episodes, studios, ids, upload, moderation, announcements, trash }[tab] || dashboard)();
   } catch (error) {
@@ -421,6 +423,27 @@ async function announcements() {
     try { const result=await api('/api/admin/announcements',{method:'POST',body:JSON.stringify(body)}); flash(`Anuncio enviado a ${result.recipientCount} usuarios`); await announcements(); }
     catch(error){status.textContent=error.message;$('button[type="submit"]',form).disabled=false;}
   };
+}
+
+async function analytics(period = '30d', studioId = '', projectId = '') {
+  const params = new URLSearchParams({ scope: 'admin', period });
+  if (studioId) params.set('studio', studioId);
+  if (projectId) params.set('project', projectId);
+  const [data, studios, projects] = await Promise.all([
+    api(`/api/analytics?${params}`),
+    api('/api/admin/studios'),
+    api('/api/admin/projects')
+  ]);
+  if (state.tab !== 'analytics') return;
+  $('#content').innerHTML = window.DubverseAnalyticsDashboard.render(data, { admin: true, period, studioId, projectId, studios, projects });
+  $('#content [data-analytics-series]').onchange = event => { $('#content [data-analytics-chart]').innerHTML = window.DubverseAnalyticsDashboard.chart(data.daily, event.target.value); };
+  const reload = () => analytics($('#content [data-analytics-period]').value, $('#content [data-analytics-studio]').value, $('#content [data-analytics-project]').value)
+    .catch(error => { $('#content').innerHTML = `<div class="empty error-panel">${esc(error.message)}</div>`; });
+  $$('[data-analytics-period], [data-analytics-studio], [data-analytics-project]', $('#content')).forEach(element => element.onchange = reload);
+  $$('[data-analytics-open-project]', $('#content')).forEach(button => button.onclick = () => {
+    $('#content [data-analytics-project]').value = button.dataset.analyticsOpenProject;
+    reload();
+  });
 }
 
 function projects() {

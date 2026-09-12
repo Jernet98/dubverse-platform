@@ -44,7 +44,7 @@ function panelStatus(status) { return ({ ONGOING: 'En emisión', UPCOMING: 'Pró
 
 function renderPanelSidebar() {
   const sidebar = $p('#studioPanelSidebar');
-  sidebar.innerHTML = `<span class="sidebar-label">Mis estudios</span>${panelState.studios.map(studio => `<button type="button" data-select-studio="${panelEsc(studio.id)}" class="${studio.id === panelState.selected ? 'active' : ''}"><img src="${panelEsc(studio.logo || '/assets/dubverse-icon.png')}" alt=""><span><strong>${panelEsc(studio.name)}</strong><small>${panelEsc(studio.role)}${studio.isVerified ? ' · Verificado' : ''}</small></span></button>`).join('')}<nav><button data-panel-tab="studio">Perfil público</button><button data-panel-tab="projects">Proyectos</button><button data-panel-tab="episodes">Episodios</button><button data-panel-tab="promos">Material promocional</button></nav><p class="sidebar-note">Este panel no concede acceso al Admin global ni muestra credenciales de infraestructura.</p>`;
+  sidebar.innerHTML = `<span class="sidebar-label">Mis estudios</span>${panelState.studios.map(studio => `<button type="button" data-select-studio="${panelEsc(studio.id)}" class="${studio.id === panelState.selected ? 'active' : ''}"><img src="${panelEsc(studio.logo || '/assets/dubverse-icon.png')}" alt=""><span><strong>${panelEsc(studio.name)}</strong><small>${panelEsc(studio.role)}${studio.isVerified ? ' · Verificado' : ''}</small></span></button>`).join('')}<nav><button data-panel-tab="studio">Perfil público</button><button data-panel-tab="projects">Proyectos</button><button data-panel-tab="episodes">Episodios</button><button data-panel-tab="promos">Material promocional</button><button data-panel-tab="analytics">Estadísticas</button></nav><p class="sidebar-note">Este panel no concede acceso al Admin global ni muestra credenciales de infraestructura.</p>`;
   $$p('[data-select-studio]', sidebar).forEach(button => button.onclick = () => selectStudio(button.dataset.selectStudio));
   $$p('[data-panel-tab]', sidebar).forEach(button => {
     button.classList.toggle('active', button.dataset.panelTab === panelState.tab);
@@ -72,6 +72,7 @@ function promosView(data) {
 function renderPanelContent() {
   const data = panelState.data;
   if (!data) return;
+  if (panelState.tab === 'analytics') return loadStudioAnalytics();
   $p('#studioPanelContent').innerHTML = `<div class="studio-panel-view">${({ studio: studioView, projects: projectsView, episodes: episodesView, promos: promosView })[panelState.tab](data)}</div>`;
   $p('[data-edit-studio]')?.addEventListener('click', () => openStudioEditor(data.studio));
   $$p('[data-edit-project]').forEach(button => button.onclick = () => openProjectEditor(data.projects.find(item => item.id === button.dataset.editProject)));
@@ -84,6 +85,27 @@ function renderPanelContent() {
     try { await panelApi(`/studios/${encodeURIComponent(panelState.selected)}/promos/${encodeURIComponent(button.dataset.deletePromo)}`, { method: 'DELETE' }); await selectStudio(panelState.selected); }
     catch (error) { alert(error.message); button.disabled = false; }
   });
+}
+
+async function loadStudioAnalytics(period = '30d', projectId = '') {
+  const studioId = panelState.selected;
+  $p('#studioPanelContent').innerHTML = '<div class="studio-panel-loading"><span></span><p>Cargando estadísticas…</p></div>';
+  try {
+    const params = new URLSearchParams({ studio: studioId, period });
+    if (projectId) params.set('project', projectId);
+    const response = await fetch(`/api/analytics?${params}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No pudimos cargar las estadísticas.');
+    if (panelState.tab !== 'analytics' || panelState.selected !== studioId) return;
+    $p('#studioPanelContent').innerHTML = `<div class="studio-panel-view">${window.DubverseAnalyticsDashboard.render(data, { period, projectId, projects: panelState.data.projects })}</div>`;
+    $p('[data-analytics-series]').onchange = event => { $p('[data-analytics-chart]').innerHTML = window.DubverseAnalyticsDashboard.chart(data.daily, event.target.value); };
+    const reload = () => loadStudioAnalytics($p('[data-analytics-period]').value, $p('[data-analytics-project]').value);
+    $$p('[data-analytics-period], [data-analytics-project]').forEach(element => element.onchange = reload);
+    $$p('[data-analytics-open-project]').forEach(button => button.onclick = () => {
+      $p('[data-analytics-project]').value = button.dataset.analyticsOpenProject;
+      reload();
+    });
+  } catch (error) { $p('#studioPanelContent').innerHTML = `<p class="studio-panel-error">${panelEsc(error.message)}</p>`; }
 }
 
 const panelDialog = $p('#studioPanelDialog');

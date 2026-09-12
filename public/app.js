@@ -861,6 +861,7 @@ async function projectPage(id) {
   if (!await requireAdultConfirmation(project)) return;
   const projectId = project.id;
   canonicalizeContentPath('proyecto', id, projectId);
+  try { window.DubverseAnalytics?.trackProject(projectId); } catch {}
   const social = await optionalSocial(`/projects/${encodeURIComponent(projectId)}`);
   const dubbing = dubbingPanel(project);
   const watched = new Set(social?.watchedEpisodeIds || []);
@@ -1359,6 +1360,7 @@ async function watch(id, recordHistory = true) {
   const episodeId = episode.id;
   if (!await requireAdultConfirmation(episode.project)) return;
   canonicalizeContentPath('ver', id, episodeId);
+  if (recordHistory) { try { window.DubverseAnalytics?.trackEpisode(episodeId); } catch {} }
   const [project, social, savedProgress] = await Promise.all([
     api(`/api/projects/${encodeURIComponent(episode.project_id)}`),
     optionalSocial(`/episodes/${encodeURIComponent(episodeId)}`),
@@ -1402,6 +1404,9 @@ async function watch(id, recordHistory = true) {
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
   const isArchivePlayback = playback.provider === 'ARCHIVE';
   const useArchiveEmbed = isArchivePlayback && !playback.source?.url;
+  let playbackAnalytics = null;
+  try { if (!useArchiveEmbed && window.DubverseAnalytics) playbackAnalytics = new window.DubverseAnalytics.Playback(episodeId); } catch {}
+  const trackPlayback = (method, snapshot) => { try { playbackAnalytics?.[method](snapshot); } catch {} };
   let lastSavedAt = 0;
   let lastSavedPosition = Number(savedProgress?.progress?.positionSeconds || 0);
   let progressRequest = null;
@@ -1445,10 +1450,11 @@ async function watch(id, recordHistory = true) {
       poster: episode.project?.banner || episode.project?.poster || project.banner || project.poster,
       playback,
       initialTime: Number(savedProgress?.progress?.positionSeconds || 0),
-      onProgress: snapshot => sendProgress(snapshot),
+      onPlaying: () => trackPlayback('start'),
+      onProgress: snapshot => { trackPlayback('progress', snapshot); sendProgress(snapshot); },
       onPause: snapshot => sendProgress(snapshot, { force: true }),
       onSeek: snapshot => sendProgress(snapshot, { force: true }),
-      onEnded: snapshot => sendProgress(snapshot, { force: true }),
+      onEnded: snapshot => { trackPlayback('complete'); sendProgress(snapshot, { force: true }); },
       onDestroy: snapshot => sendProgress(snapshot, { force: true, keepalive: true })
     });
     activeProgressSaver = snapshot => sendProgress(snapshot, { force: true, keepalive: true });
