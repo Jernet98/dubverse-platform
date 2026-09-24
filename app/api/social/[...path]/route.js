@@ -35,6 +35,7 @@ import {
   validateAndProcessUpload
 } from '@/lib/r2';
 import { assertStudioIdentity, managedStudios } from '@/lib/studio-access';
+import { notificationImageUrl } from '@/lib/content-notifications';
 import { normalizedProgress } from '@/lib/update2';
 
 export const runtime = 'nodejs';
@@ -141,7 +142,7 @@ function mapNotification(row) {
     projectTitle: row.project_title || '',
     title: row.title || '',
     message: row.message || '',
-    imageUrl: row.image_url || '',
+    imageUrl: notificationImageUrl(row),
     linkUrl: row.link_url || '',
     actor: studioActor || (row.username ? { ...mapProfileSummary(row), isStudio: false } : null)
   };
@@ -741,6 +742,7 @@ async function notifications(session, page) {
     session.sql`
       SELECT n.*, actor.username, actor.display_name, au.image AS provider_image,
         avatar.public_url AS avatar_url, COALESCE(direct_project.title, p.title) AS project_title,
+        direct_project.poster AS project_poster, direct_project.banner AS project_banner,
         COALESCE(actor_studio.name, direct_studio.name) AS actor_studio_name,
         COALESCE(actor_studio.logo, direct_studio.logo) AS actor_studio_logo,
         COALESCE(actor_studio.is_verified, direct_studio.is_verified) AS actor_studio_verified
