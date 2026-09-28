@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { analyticsDedupe, analyticsPeriod, recordAnalyticsEvent, validateAnalyticsEvent, analyticsDashboard } from '../lib/analytics.js';
+import { analyticsDedupe, analyticsPeriod, completedMexicoWeek, recordAnalyticsEvent, validateAnalyticsEvent, analyticsDashboard } from '../lib/analytics.js';
 import { resolveArchiveEpisodePlayback } from '../lib/archive.js';
 
 const source = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -26,6 +26,37 @@ test('dedupe es estable para refresh y único por reproducción', () => {
   assert.equal(analyticsDedupe(sessionId, event), analyticsDedupe(sessionId, event));
   assert.notEqual(analyticsDedupe(sessionId, event), analyticsDedupe(visitorId, event));
   assert.notEqual(analyticsDedupe(sessionId, event), analyticsDedupe(sessionId, { ...event, playbackId: visitorId }));
+});
+
+test('Top semanal cierra el domingo en hora de México y usa la última semana completa', () => {
+  assert.deepEqual(completedMexicoWeek(new Date('2026-09-27T06:00:00.000Z')), {
+    timeZone: 'America/Mexico_City', start: '2026-09-20', end: '2026-09-26', endExclusive: '2026-09-27'
+  });
+  assert.deepEqual(completedMexicoWeek(new Date('2026-09-27T05:59:59.999Z')), {
+    timeZone: 'America/Mexico_City', start: '2026-09-13', end: '2026-09-19', endExclusive: '2026-09-20'
+  });
+});
+
+test('Top semanal consulta PROJECT_VIEW histórico sin depender del filtro de periodo', async () => {
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    const query = parts.join('?');
+    calls.push({ query, values });
+    if (query.includes('active_studios')) return [{ visitors: 0, project_views: 0, episode_views: 0, plays: 0, completed: 0, active_studios: 0, active_projects: 0 }];
+    if (query.includes("AT TIME ZONE 'America/Mexico_City'")) return [{ id: 'p-1', title: 'Proyecto Uno', poster: '/poster.webp', views: 14 }];
+    return [];
+  };
+  const result = await analyticsDashboard(sql, { studioId: 'studio-a', projectId: 'project-filter', period: 'today', now: new Date('2026-09-27T12:00:00.000Z') });
+  assert.deepEqual(result.weeklyTop, {
+    timeZone: 'America/Mexico_City', start: '2026-09-20', end: '2026-09-26',
+    projects: [{ id: 'p-1', title: 'Proyecto Uno', poster: '/poster.webp', views: 14 }]
+  });
+  const weekly = calls.find(call => call.query.includes("AT TIME ZONE 'America/Mexico_City'"));
+  assert.ok(weekly);
+  assert.match(weekly.query, /a\.event_type = 'PROJECT_VIEW'/);
+  assert.match(weekly.query, /ORDER BY views DESC, p\.title, p\.id LIMIT 10/);
+  assert.deepEqual(weekly.values.slice(0, 2), ['2026-09-20', '2026-09-27']);
+  assert.doesNotMatch(weekly.query, /projectId/);
 });
 
 test('registra contenido público, evita duplicado y no confía en studioId arbitrario', async () => {
@@ -198,7 +229,8 @@ test('dashboard vacío es legible, separa vistas/reproducciones y ofrece filtros
   vm.runInNewContext(await source('public/analytics-dashboard.js'), context);
   const markup = context.window.DubverseAnalyticsDashboard.render({
     summary: { visitors: 0, projectViews: 0, episodeViews: 0, plays: 0, completed: 0 },
-    previous: null, daily: [], projects: [], episodes: [], studios: []
+    previous: null, daily: [], projects: [], episodes: [], studios: [],
+    weeklyTop: { start: '2026-09-20', end: '2026-09-26', projects: [{ id: 'p-1', title: 'Proyecto semanal', poster: '/poster.webp', views: 12 }] }
   });
   assert.match(markup, /Todavía no hay suficientes datos/);
   assert.match(markup, /Vistas de proyectos/);
@@ -206,6 +238,11 @@ test('dashboard vacío es legible, separa vistas/reproducciones y ofrece filtros
   assert.match(markup, /Archive\.org se abre en iframe, su reproducción no puede medirse/);
   assert.match(markup, /data-analytics-series/);
   assert.match(markup, /Datos disponibles desde la activación/);
+  assert.match(markup, /Top 10 semanal/);
+  assert.match(markup, /20\/09\/2026 al 26\/09\/2026/);
+  assert.match(markup, /Proyecto semanal/);
+  assert.match(markup, /12 vistas/);
+  assert.match(markup, /analytics-weekly-position">1</);
   assert.doesNotMatch(markup, /NaN|Infinity|undefined/);
   const styles = await source('public/analytics-dashboard.css');
   assert.match(styles, /@media\(max-width:520px\)/);
