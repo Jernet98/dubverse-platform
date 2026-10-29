@@ -179,7 +179,7 @@ test('ARCHIVE sin fuente nativa conserva iframe y no conecta callbacks de reprod
   assert.match(app, /if \(useArchiveEmbed\) \{\s*mountArchiveEmbed/);
   assert.match(app, /onPlaying: \(\) => trackPlayback\('start'\)/);
   const player = await source('public/player.js');
-  assert.match(player, /video\.addEventListener\('playing', \(\) => \{[\s\S]*?this\.options\.onPlaying\?\.\(\)/);
+  assert.match(player, /on\('playing', \(\) => \{[\s\S]*?this\.options\.onPlaying\?\.\(\)/);
 });
 
 test('roles reales OWNER/ADMIN acceden sólo a su estudio; admin global es distinto', async () => {

@@ -31,7 +31,7 @@ test('player central conserva fallback Archive y añade adaptación acotada sin 
   assert.match(player, /class DubversePlayer/);
   assert.match(player, /provider === 'ARCHIVE' \? 'auto' : 'metadata'/);
   for (const event of ['waiting', 'stalled', 'canplay', 'playing', 'seeking', 'seeked', 'error']) {
-    assert.match(player, new RegExp(`addEventListener\\('${event}'`));
+    assert.match(player, new RegExp(`on\\('${event}'`));
   }
   assert.match(player, /data-player-retry/);
   assert.match(player, /useFallback/);
@@ -40,24 +40,21 @@ test('player central conserva fallback Archive y añade adaptación acotada sin 
   assert.match(player, /onKeydown[\s\S]*arrowleft[\s\S]*arrowright/);
   assert.match(player, /initialTime[\s\S]*loadedmetadata/);
   assert.match(player, /navigator\.connection/);
-  assert.match(player, /waitForBuffer\(target, 12000/);
-  assert.match(player, /waitForBuffer\(4, 10000/);
+  assert.doesNotMatch(player, /waitForBuffer|initialGate|maybeUpgrade/);
   assert.match(player, /bufferAhead/);
-  assert.match(player, /Date\.now\(\) - this\.lastSwitchAt < 9000/);
-  assert.match(player, /stableFor >= 60000 && this\.bufferAhead\(\) >= 20/);
-  assert.match(player, /switchVariant[\s\S]*currentTime/);
-  assert.match(player, /this\.failedVariants\.add\(this\.variantIndex\)[\s\S]*fuente rechazada/);
+  assert.match(player, /new Artplayer/);
+  assert.match(player, /new Hls/);
+  assert.match(player, /switchVariant[\s\S]*restoreTime: snapshot\.position/);
+  assert.match(player, /this\.failedVariants\.add\(this\.variantIndex\)/);
   assert.match(player, /provider === 'ARCHIVE' && this\.config\.fallback\?\.url[\s\S]*this\.useFallback\(\)/);
-  assert.match(player, /host === 'localhost' \|\| host === '127\.0\.0\.1'/);
 });
 
 test('controles táctiles se ocultan tras inactividad sin interrumpir una interacción', async () => {
   const [player, styles] = await Promise.all([source('public/player.js'), source('public/styles.css')]);
-  assert.match(player, /matchMedia\('\(hover: none\) and \(pointer: coarse\)'\)/);
-  assert.match(player, /pointerdown[\s\S]*controlsInteracting = true[\s\S]*pointerup[\s\S]*pointercancel/);
+  assert.match(player, /gesture: true/);
+  assert.match(player, /controlsInteracting = true[\s\S]*pointerdown[\s\S]*pointerup[\s\S]*pointercancel/);
   assert.match(player, /focusin[\s\S]*focusout/);
-  assert.match(player, /scheduleHideControls[\s\S]*clearTimeout\(this\.controlsTimer\)[\s\S]*setTimeout\(\(\) => this\.hideControls\(\), 2500\)/);
-  assert.match(player, /showControls\(!this\.isTouchControls\(\)\)/);
+  assert.match(player, /showControls[\s\S]*clearTimeout\(this\.controlsTimer\)[\s\S]*controlsInteracting[\s\S]*2500/);
   assert.doesNotMatch(styles, /controls-hidden \.dv-player-controls\{opacity:1;pointer-events:auto\}/);
 });
 

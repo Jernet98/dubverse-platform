@@ -6,3 +6,7 @@ node_modules/
 npm-debug.log*
 .vercel
 .env*
+public/vendor/player/
+test-results/
+playwright-report/
+.codex-player-*
