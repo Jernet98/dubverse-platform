@@ -43,8 +43,9 @@
       this.loadToken = 0;
       this.variantIndex = -1;
       this.failedVariants = new Set();
+      this.variantSupport = new Map();
       this.variants = this.archiveVariants();
-      this.autoQuality = this.variants.length > 1;
+      this.autoQuality = this.config.provider === 'ARCHIVE';
       this.cleanups = [];
       this.render();
       this.ready = this.initialize().catch(() => this.showError('No se pudo cargar el reproductor. Reintenta para cargar sus componentes.'));
@@ -66,14 +67,21 @@
       this.container.innerHTML = `<div class="dv-player" data-player-state="loading">
         <div class="dv-player-stage"></div>
         <div class="dv-player-status" role="status"><span class="dv-player-spinner" aria-hidden="true"></span><strong>Cargando video…</strong><small>Preparando la fuente del episodio.</small></div>
-        <div class="dv-player-error hidden" role="alert"><strong>No pudimos reproducir este video.</strong><span data-player-error-message></span><div><button type="button" data-player-retry>Reintentar</button><button class="hidden" type="button" data-player-fallback>Usar reproductor compatible</button></div></div>
+        <div class="dv-player-error hidden" role="alert"><strong>No pudimos reproducir este video.</strong><span data-player-error-message></span><div><button type="button" data-player-retry>Reintentar</button><button class="hidden" type="button" data-player-recover>Probar otra calidad</button><button class="hidden" type="button" data-player-fallback>Usar reproductor compatible</button></div></div>
+        <div class="dv-player-recovery hidden" role="status"><span data-recovery-message></span><button type="button" data-recover-image>Recuperar imagen</button><button class="${this.config.fallback?.url ? '' : 'hidden'}" type="button" data-recovery-fallback>Usar reproductor compatible</button><button type="button" data-dismiss-recovery aria-label="Cerrar aviso">Cerrar</button></div>
       </div>`;
       this.root = this.container.querySelector('.dv-player');
       this.stage = this.root.querySelector('.dv-player-stage');
+      this.stage.inert = true;
       this.status = this.root.querySelector('.dv-player-status');
       this.error = this.root.querySelector('.dv-player-error');
+      this.recoveryNotice = this.root.querySelector('.dv-player-recovery');
       this.root.querySelector('[data-player-retry]').onclick = () => this.retry();
       this.root.querySelector('[data-player-fallback]').onclick = () => this.useFallback();
+      this.root.querySelector('[data-player-recover]').onclick = () => this.recoverImage();
+      this.root.querySelector('[data-recover-image]').onclick = () => this.recoverImage();
+      this.root.querySelector('[data-recovery-fallback]').onclick = () => this.useFallback();
+      this.root.querySelector('[data-dismiss-recovery]').onclick = () => this.hideVideoRecovery();
     }
 
     async initialize() {
@@ -105,6 +113,10 @@
       this.setupControls();
       this.setupBuffer();
       this.setupSubtitles();
+      this.art.setting.add({ name: 'dv-recover-image', html: 'Recuperar imagen', tooltip: 'Audio sin imagen', onClick: () => { this.recoverImage(); return ''; } });
+      await this.prepareVariantSupport();
+      if (this.destroyed || this.fallbackUsed) return;
+      this.stage.inert = false;
       this.loadPrimary();
     }
 
@@ -206,21 +218,57 @@
       progress.setAttribute('aria-valuenow', String(finite(this.video.currentTime)));
     }
 
+    async prepareVariantSupport() {
+      await Promise.all(this.variants.map(async (variant, index) => {
+        const video = variant.video;
+        const support = { supported: null, smooth: null };
+        if (video?.hasVideo === false) support.supported = false;
+        else if (video?.contentType && video.codec) {
+          try {
+            support.supported = Boolean(this.video.canPlayType(video.contentType));
+            const width = Number(video.width || variant.width), height = Number(video.height || variant.height);
+            const bitrate = Number(variant.estimatedBitrate), framerate = Number(video.framerate);
+            if (support.supported && navigator.mediaCapabilities?.decodingInfo && width > 0 && height > 0 && bitrate > 0 && framerate > 0) {
+              let timer;
+              const result = await Promise.race([
+                navigator.mediaCapabilities.decodingInfo({ type: 'file', video: { contentType: video.contentType, width, height, bitrate, framerate } }),
+                new Promise(resolve => { timer = setTimeout(() => resolve(null), 800); })
+              ]).finally(() => clearTimeout(timer));
+              if (result) { support.supported = result.supported; support.smooth = result.smooth; }
+            }
+          } catch { /* A missing/invalid capability response is unknown, not a codec ban. */ }
+        }
+        if (!this.destroyed) this.variantSupport.set(index, support);
+      }));
+    }
+
+    playableVariants() {
+      return this.variants.map((_, index) => index).filter(index => !this.failedVariants.has(index) && this.variantSupport?.get(index)?.supported !== false);
+    }
+
     chooseInitialVariant() {
+      const candidates = this.playableVariants().sort((a, b) =>
+        Number(this.variants[a].video?.height || this.variants[a].height || 0) - Number(this.variants[b].video?.height || this.variants[b].height || 0)
+        || this.variantMetric(this.variants[a]) - this.variantMetric(this.variants[b]));
+      const smooth = candidates.filter(index => this.variantSupport?.get(index)?.smooth !== false);
+      const pool = smooth.length ? smooth : candidates;
+      if (!pool.length) return -1;
+      const cheapest = () => [...pool].sort((a, b) => this.variantMetric(this.variants[a]) - this.variantMetric(this.variants[b]))[0];
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const downlink = Number(connection?.downlink);
-      if (connection?.saveData) return 0;
+      if (connection?.saveData) return cheapest();
       if (downlink > 0) {
-        const fitting = this.variants.map((variant, index) => ({ index, bitrate: Number(variant.estimatedBitrate) || Infinity })).filter(item => item.bitrate <= downlink * .58 * 1_000_000);
-        return fitting.at(-1)?.index ?? 0;
+        const fitting = pool.filter(index => (Number(this.variants[index].estimatedBitrate) || Infinity) <= downlink * .58 * 1_000_000);
+        return fitting.at(-1) ?? cheapest();
       }
-      return Math.floor((this.variants.length - 1) / 2);
+      return pool.at(-1);
     }
 
     loadPrimary() {
       let source = this.config.source;
       if (this.variants.length) {
         this.variantIndex = this.chooseInitialVariant();
+        if (this.variantIndex < 0) return this.config.fallback?.url ? this.useFallback() : this.showError('No hay una variante compatible con este navegador.');
         source = { kind: 'VIDEO', url: this.variants[this.variantIndex].url };
       }
       if (!source?.url) return this.config.fallback?.url ? this.useFallback() : this.showError('El episodio no tiene una fuente reproducible configurada.');
@@ -231,6 +279,8 @@
     mountVideo(source, { restoreTime = 0, resume = false } = {}) {
       if (this.destroyed || this.fallbackUsed) return;
       const token = ++this.loadToken;
+      this.stopFrameMonitor();
+      this.hideVideoRecovery();
       this.mediaAbort?.abort();
       this.mediaAbort = new AbortController();
       clearTimeout(this.stallTimer);
@@ -240,7 +290,10 @@
       this.restoring = restoreTime > 0;
       this.wantedPlay = resume;
       this.savedRate = this.video.playbackRate;
+      this.savedVolume = this.video.volume;
+      this.savedMuted = this.video.muted;
       this.video.pause();
+      this.savedHlsLevel = this.hls && this.source?.url === source.url && !this.hls.autoLevelEnabled ? this.hls.loadLevel : null;
       this.hls?.destroy();
       this.hls = null;
       this.source = source;
@@ -275,7 +328,11 @@
       let networkRecovery = false;
       let mediaRecovery = false;
       const active = () => !this.destroyed && token === this.loadToken && this.hls === hls;
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { if (active()) this.updateQualityMenu(); });
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (!active()) return;
+        if (this.savedHlsLevel !== null && this.savedHlsLevel >= 0 && this.savedHlsLevel < hls.levels.length) hls.loadLevel = this.savedHlsLevel;
+        this.updateQualityMenu();
+      });
       hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => { if (active()) this.updateSubtitleMenu(); });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!active() || !data.fatal) return;
@@ -299,8 +356,11 @@
       on('loadedmetadata', () => {
         this.lastDuration = finite(video.duration);
         video.playbackRate = this.savedRate || 1;
-        if (restoreTime > 0 && (!this.lastDuration || restoreTime < this.lastDuration - 1)) {
-          try { video.currentTime = restoreTime; } catch { this.restoring = false; }
+        if (Number.isFinite(this.savedVolume)) video.volume = this.savedVolume;
+        if (typeof this.savedMuted === 'boolean') video.muted = this.savedMuted;
+        if (restoreTime > 0) {
+          const position = this.lastDuration ? Math.min(restoreTime, Math.max(0, this.lastDuration - .05)) : restoreTime;
+          try { video.currentTime = position; } catch { this.restoring = false; }
         } else this.restoring = false;
         this.initialTime = 0;
         this.switching = false;
@@ -319,11 +379,14 @@
       });
       on('play', () => { this.wantedPlay = true; });
       on('canplay', () => {
+        this.frameWaiting = false;
         clearTimeout(this.stallTimer);
         this.stallTimer = null;
         this.renderState(video.paused ? 'ready' : 'playing');
       });
       on('playing', () => {
+        this.frameWaiting = false;
+        this.startFrameMonitor(token);
         clearTimeout(this.stallTimer);
         this.stallTimer = null;
         this.wantedPlay = true;
@@ -334,21 +397,24 @@
       on('pause', () => {
         if (this.switching || video.ended) return;
         this.wantedPlay = false;
+        this.stopFrameMonitor();
         clearTimeout(this.stallTimer);
         this.stallTimer = null;
         this.renderState('paused');
         this.showControls();
         this.options.onPause?.(this.snapshot());
       });
-      on('waiting', () => this.handleStall('waiting', token));
+      on('waiting', () => { this.frameWaiting = true; this.handleStall('waiting', token); });
       on('stalled', () => this.handleStall('stalled', token));
       on('seeking', () => {
+        this.stopFrameMonitor();
         if (this.switching || this.restoring) return;
         this.renderState('buffering', 'Buscando la nueva posición…');
         // Reset Analytics' baseline so even a short seek is not watched time.
         this.options.onProgress?.({ ...this.snapshot(), paused: true });
       });
       on('seeked', () => {
+        if (!video.paused) this.startFrameMonitor(token);
         if (this.restoring) { this.restoring = false; return; }
         if (this.switching) return;
         this.lastPosition = finite(video.currentTime);
@@ -356,6 +422,7 @@
         this.options.onSeek?.(this.snapshot());
       });
       on('ended', () => {
+        this.stopFrameMonitor();
         this.wantedPlay = false;
         this.renderState('ended');
         this.options.onEnded?.({ ...this.snapshot(), position: finite(video.duration) });
@@ -385,6 +452,101 @@
       return 0;
     }
 
+    frameCount() {
+      try {
+        const quality = this.video.getVideoPlaybackQuality?.();
+        if (quality && Number.isFinite(quality.totalVideoFrames) && Number.isFinite(quality.droppedVideoFrames)) {
+          return Math.max(0, quality.totalVideoFrames - quality.droppedVideoFrames - (Number(quality.corruptedVideoFrames) || 0));
+        }
+        if (Number.isFinite(this.video.webkitDecodedFrameCount)) return this.video.webkitDecodedFrameCount;
+      } catch {}
+      return null;
+    }
+
+    startFrameMonitor(token) {
+      this.stopFrameMonitor();
+      if (this.config.provider !== 'ARCHIVE' || !this.variants.length || this.video.paused) return;
+      const video = this.video, now = Date.now();
+      const state = this.frameMonitor = { token, warmUntil: now + 2000, lastNow: now, lastTime: video.currentTime, lastFrames: this.frameCount(), callbacks: 0, lastCallbacks: 0, wall: 0, media: 0, handled: false };
+      const active = () => !this.destroyed && token === this.loadToken && this.frameMonitor === state;
+      if (video.requestVideoFrameCallback) {
+        const presented = () => {
+          if (!active()) return;
+          state.callbacks += 1;
+          this.frameCallback = video.requestVideoFrameCallback(presented);
+        };
+        this.frameCallback = video.requestVideoFrameCallback(presented);
+      }
+      const sample = () => {
+        if (!active()) return;
+        this.checkVideoFrames();
+        if (active()) this.frameTimer = setTimeout(sample, 1000);
+      };
+      this.frameTimer = setTimeout(sample, 1000);
+    }
+
+    checkVideoFrames(now = Date.now()) {
+      const state = this.frameMonitor, video = this.video;
+      if (!state || state.token !== this.loadToken || this.destroyed || !video) return;
+      const frames = this.frameCount(), elapsed = (now - state.lastNow) / 1000;
+      const advance = video.currentTime - state.lastTime;
+      const progressed = state.callbacks > state.lastCallbacks || frames !== null && state.lastFrames !== null && frames > state.lastFrames;
+      const rect = video.getBoundingClientRect?.();
+      const inViewport = !rect || rect.bottom > 0 && rect.right > 0 && rect.top < (global.innerHeight || Infinity) && rect.left < (global.innerWidth || Infinity);
+      const center = rect && document.elementFromPoint?.(clamp(rect.left + rect.width / 2, 0, (global.innerWidth || Infinity) - 1), clamp(rect.top + rect.height / 2, 0, (global.innerHeight || Infinity) - 1));
+      const visible = !document.hidden && inViewport && (!center || this.root?.contains?.(center)) && this.root?.isConnected !== false && (!video.getClientRects || video.getClientRects().length > 0);
+      const framerate = Number(this.variants[this.variantIndex]?.video?.framerate);
+      const ready = visible && !document.pictureInPictureElement && !video.webkitCurrentPlaybackTargetIsWireless
+        && !video.paused && !video.ended && !video.seeking && !video.error && !this.switching && !this.restoring && !this.frameWaiting
+        && !(framerate > 0 && framerate < 1) && video.readyState >= 3 && (this.bufferAhead() >= 1 || video.readyState >= 4);
+      if (!ready || elapsed > 2.5 || advance < 0 || advance > elapsed * (video.playbackRate || 1) + 2 || frames !== null && state.lastFrames !== null && frames < state.lastFrames) {
+        state.warmUntil = now + 2000; state.wall = 0; state.media = 0;
+      } else if (progressed) {
+        state.wall = 0; state.media = 0; this.hideVideoRecovery();
+      } else if (now >= state.warmUntil && advance > .01) {
+        const observed = Math.max(0, (now - Math.max(state.lastNow, state.warmUntil)) / 1000);
+        state.wall += observed; state.media += elapsed > 0 ? advance * observed / elapsed : 0;
+      }
+      state.lastNow = now; state.lastTime = video.currentTime; state.lastFrames = frames; state.lastCallbacks = state.callbacks;
+      if (!state.handled && state.wall >= 6 && state.media >= 3) {
+        state.handled = true;
+        // No pixel sampling: a dark scene still presents frames. Counter failure
+        // or compositor-only ambiguity offers an action, never a guessed switch.
+        const variant = this.variants[this.variantIndex];
+        const confirmed = frames !== null && (Number(video.videoWidth) > 0 || variant?.video?.hasVideo === true || Number(variant?.height) > 0);
+        if (confirmed) this.failedVariants.add(this.variantIndex);
+        const next = confirmed && this.autoQuality ? this.chooseInitialVariant() : -1;
+        if (next >= 0 && next !== this.variantIndex) this.switchVariant(next);
+        else this.showVideoRecovery(confirmed ? 'El audio avanza, pero no se registran fotogramas nuevos. Puedes recuperar la imagen.' : 'Si escuchas audio pero no ves imagen, prueba recuperar la reproducción.');
+      }
+    }
+
+    stopFrameMonitor() {
+      clearTimeout(this.frameTimer);
+      if (this.frameCallback !== undefined) this.video?.cancelVideoFrameCallback?.(this.frameCallback);
+      this.frameCallback = undefined;
+      this.frameMonitor = null;
+    }
+
+    hideVideoRecovery() { this.recoveryNotice?.classList.add('hidden'); }
+
+    showVideoRecovery(message) {
+      if (this.destroyed || this.fallbackUsed || !this.recoveryNotice) return;
+      this.recoveryNotice.querySelector('[data-recovery-message]').textContent = message;
+      this.recoveryNotice.classList.remove('hidden');
+      this.showControls();
+    }
+
+    recoverImage() {
+      if (!this.video || this.destroyed || this.fallbackUsed) return;
+      this.failedVariants.add(this.variantIndex);
+      const next = this.chooseInitialVariant();
+      if (next >= 0 && next !== this.variantIndex) this.switchVariant(next);
+      else if (this.config.fallback?.url && this.video.error) this.useFallback();
+      else this.retry();
+      if (this.art) this.art.setting.show = false;
+    }
+
     handleStall(kind, token) {
       // stalled can fire while the browser has plenty of playable media.
       if (!this.video || this.video.paused || this.video.ended || this.switching || this.bufferAhead() >= 1) return;
@@ -395,7 +557,7 @@
         this.stallTimer = null;
         if (token !== this.loadToken || this.destroyed || this.video?.paused || this.video?.readyState >= 3 || this.bufferAhead() >= 1) return;
         if (this.autoQuality && this.variantIndex > 0 && Date.now() - (this.lastSwitchAt || 0) >= 15000) {
-          const next = this.variants.map((_, i) => i).filter(i => i < this.variantIndex && !this.failedVariants.has(i)).at(-1);
+          const next = this.playableVariants().filter(i => i < this.variantIndex).at(-1);
           if (next !== undefined) this.switchVariant(next, `${kind} prolongado`);
         }
       }, 6000);
@@ -426,9 +588,9 @@
       }
       if (this.variants.length) {
         this.failedVariants.add(this.variantIndex);
-        const next = this.variants.map((_, i) => i).filter(i => i < this.variantIndex).reverse()
-          .concat(this.variants.map((_, i) => i).filter(i => i > this.variantIndex)).find(i => !this.failedVariants.has(i));
-        if (next !== undefined) return this.switchVariant(next);
+        if (!this.autoQuality) return this.showError('La calidad seleccionada falló. Reintenta o elige otra calidad en Ajustes; también puedes usar el reproductor compatible.');
+        const next = this.chooseInitialVariant();
+        if (next >= 0) return this.switchVariant(next);
       }
       if (this.config.provider === 'ARCHIVE' && this.config.fallback?.url) return this.useFallback();
       this.showError('El proveedor rechazó la fuente o el archivo no está disponible.');
@@ -457,7 +619,9 @@
           if (this.hls) this.hls.loadLevel = Number(item.value); // keep buffered media
           else {
             this.autoQuality = Number(item.value) === -1;
-            this.switchVariant(this.autoQuality ? this.chooseInitialVariant() : Number(item.value));
+            const next = this.autoQuality ? this.chooseInitialVariant() : Number(item.value);
+            if (next >= 0) this.switchVariant(next);
+            else this.showError('No hay otra variante compatible disponible. Prueba el reproductor compatible.');
           }
           return item.html;
         }
@@ -534,12 +698,14 @@
 
     showError(message) {
       if (this.destroyed || this.fallbackUsed) return;
+      this.stopFrameMonitor();
       clearTimeout(this.stallTimer);
       this.root.dataset.playerState = 'error';
       this.status.classList.add('hidden');
       this.error.classList.remove('hidden');
       this.error.querySelector('[data-player-error-message]').textContent = message;
       this.error.querySelector('[data-player-fallback]').classList.toggle('hidden', !this.config.fallback?.url);
+      this.error.querySelector('[data-player-recover]').classList.toggle('hidden', !this.video || !this.playableVariants().some(index => index !== this.variantIndex));
       this.options.onError?.(message);
     }
 
@@ -553,6 +719,7 @@
     }
 
     releaseMedia() {
+      this.stopFrameMonitor();
       ++this.loadToken;
       this.mediaAbort?.abort();
       clearTimeout(this.stallTimer);
@@ -583,6 +750,7 @@
       this.options.onPause?.(snapshot);
       this.releaseMedia();
       this.stage.replaceChildren();
+      this.stage.inert = false;
       const iframe = document.createElement('iframe');
       iframe.src = fallback.url;
       iframe.title = this.options.title || 'Reproductor compatible';

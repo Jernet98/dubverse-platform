@@ -1,0 +1,1260 @@
+{
+  "inspectedAt": "2026-11-23T00:38:08.965Z",
+  "site": "https://dubversefandub.vercel.app",
+  "records": [
+    {
+      "projectId": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e001",
+      "identifier": "1-el-mayordomo-a-su-servicio",
+      "file": "1 El Mayordomo, A Su Servicio.mp4",
+      "status": "READY",
+      "original": "1 El Mayordomo, A Su Servicio.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/1-el-mayordomo-a-su-servicio/1%20El%20Mayordomo%2C%20A%20Su%20Servicio.mp4",
+          "name": "1 El Mayordomo, A Su Servicio.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 292044114,
+          "width": 1920,
+          "height": 1080,
+          "length": 1475.77,
+          "estimatedBitrate": 1583141.6223395246,
+          "original": "1 El Mayordomo, A Su Servicio.mp4",
+          "md5": "8f78e3d73514f34ae97eb99a64814e89",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600708.us.archive.org/30/items/1-el-mayordomo-a-su-servicio/1%20El%20Mayordomo%2C%20A%20Su%20Servicio.mp4",
+            "contentRange": "bytes 0-4095/292044114",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 612
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "hevc",
+                "profile": "Main 10",
+                "codec_type": "video",
+                "codec_tag_string": "hvc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le",
+                "level": 120,
+                "color_space": "bt470bg",
+                "color_transfer": "smpte170m",
+                "color_primaries": "bt470bg",
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1415779"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "158697"
+              }
+            ],
+            "format": {
+              "duration": "1475.766667",
+              "size": "292044114",
+              "bit_rate": "1583145"
+            },
+            "stderr": ""
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/1-el-mayordomo-a-su-servicio/1%20El%20Mayordomo%2C%20A%20Su%20Servicio.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.115666,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 153,
+        "totalVideoFrames": 158,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e002",
+      "identifier": "amen-67",
+      "file": "Amen67.mp4",
+      "status": "READY",
+      "original": "Amen67.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/amen-67/Amen67.ia.mp4",
+          "name": "Amen67.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 143937322,
+          "width": 854,
+          "height": 480,
+          "length": 1482.63,
+          "estimatedBitrate": 776659.4335741216,
+          "original": "Amen67.mp4",
+          "md5": "893c4cd5812aa6c5e5f4f4d07bcd762f",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600908.us.archive.org/24/items/amen-67/Amen67.ia.mp4",
+            "contentRange": "bytes 0-4095/143937322",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 505
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "h264",
+                "profile": "Main",
+                "codec_type": "video",
+                "codec_tag_string": "avc1",
+                "width": 854,
+                "height": 480,
+                "pix_fmt": "yuv420p",
+                "level": 30,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "691988",
+                "bits_per_raw_sample": "8"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "76031"
+              }
+            ],
+            "format": {
+              "duration": "1482.633333",
+              "size": "143937322",
+              "bit_rate": "776657"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.000394,
+            "endTime": 4.959934,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 854,
+            "height": 480,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia800908.us.archive.org/24/items/amen-67/Amen67.ia.mp4",
+            "contentRange": "bytes 0-4095/143937322",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 473
+          }
+        },
+        {
+          "url": "https://archive.org/download/amen-67/Amen67.mp4",
+          "name": "Amen67.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 275604023,
+          "width": 1920,
+          "height": 1080,
+          "length": 1482.63,
+          "estimatedBitrate": 1487108.8430694104,
+          "original": "Amen67.mp4",
+          "md5": "48099bd516d78b20d3726721171a8960",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600908.us.archive.org/24/items/amen-67/Amen67.mp4",
+            "contentRange": "bytes 0-4095/275604023",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 290
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "hevc",
+                "profile": "Main 10",
+                "codec_type": "video",
+                "codec_tag_string": "hvc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le",
+                "level": 120,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1318685"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "159755"
+              }
+            ],
+            "format": {
+              "duration": "1482.633333",
+              "size": "275604023",
+              "bit_rate": "1487105"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.002819,
+            "endTime": 4.962098,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 1920,
+            "height": 1080,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia600908.us.archive.org/24/items/amen-67/Amen67.mp4",
+            "contentRange": "bytes 0-4095/275604023",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 438
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/amen-67/Amen67.ia.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.121215,
+        "width": 854,
+        "height": 480,
+        "presentedCallbacks": 154,
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e003",
+      "identifier": "dubverse-black-butler-book-of-circus-s01-e003",
+      "file": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+      "status": "READY",
+      "original": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+          "name": "dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 143769565,
+          "width": 854,
+          "height": 480,
+          "length": 1483.03,
+          "estimatedBitrate": 775545.0125756054,
+          "original": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "md5": "82e269f61a1885e8613b3de9617b7e39",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia800802.us.archive.org/7/items/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+            "contentRange": "bytes 0-4095/143769565",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 1504
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "h264",
+                "profile": "Main",
+                "codec_type": "video",
+                "codec_tag_string": "avc1",
+                "width": 854,
+                "height": 480,
+                "pix_fmt": "yuv420p",
+                "level": 30,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "689850",
+                "bits_per_raw_sample": "8"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "77063"
+              }
+            ],
+            "format": {
+              "duration": "1483.033333",
+              "size": "143769565",
+              "bit_rate": "775543"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.000297,
+            "endTime": 4.961222,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 854,
+            "height": 480,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia800802.us.archive.org/7/items/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+            "contentRange": "bytes 0-4095/143769565",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 484
+          }
+        },
+        {
+          "url": "https://archive.org/download/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "name": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 313556457,
+          "width": 1920,
+          "height": 1080,
+          "length": 1483.03,
+          "estimatedBitrate": 1691436.893387187,
+          "original": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "md5": "d496d87dd00afb214feafa7c66ebd4d6",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia800802.us.archive.org/7/items/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.mp4",
+            "contentRange": "bytes 0-4095/313556457",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 265
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "hevc",
+                "profile": "Main 10",
+                "codec_type": "video",
+                "codec_tag_string": "hvc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le",
+                "level": 120,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1523125"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "159617"
+              }
+            ],
+            "format": {
+              "duration": "1483.033333",
+              "size": "313556457",
+              "bit_rate": "1691433"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.000311,
+            "endTime": 4.961287,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 1920,
+            "height": 1080,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia800802.us.archive.org/7/items/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.mp4",
+            "contentRange": "bytes 0-4095/313556457",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 647
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.119883,
+        "width": 854,
+        "height": 480,
+        "presentedCallbacks": 154,
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e004",
+      "identifier": "1-el-mayordomo-a-su-servicio",
+      "file": "4 El Mayordomo, Compañero.mp4",
+      "status": "READY",
+      "original": "4 El Mayordomo, Compañero.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/1-el-mayordomo-a-su-servicio/4%20El%20Mayordomo%2C%20Compa%C3%B1ero.mp4",
+          "name": "4 El Mayordomo, Compañero.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 272883614,
+          "width": 1920,
+          "height": 1080,
+          "length": 1478.23,
+          "estimatedBitrate": 1476812.7503839051,
+          "original": "4 El Mayordomo, Compañero.mp4",
+          "md5": "4fbd7f791b901814c3e8384a178424da",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600708.us.archive.org/30/items/1-el-mayordomo-a-su-servicio/4%20El%20Mayordomo%2C%20Compa%C3%B1ero.mp4",
+            "contentRange": "bytes 0-4095/272883614",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 285
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "hevc",
+                "profile": "Main 10",
+                "codec_type": "video",
+                "codec_tag_string": "hvc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le",
+                "level": 120,
+                "color_space": "bt470bg",
+                "color_transfer": "smpte170m",
+                "color_primaries": "bt470bg",
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1308398"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "159730"
+              }
+            ],
+            "format": {
+              "duration": "1478.233333",
+              "size": "272883614",
+              "bit_rate": "1476809"
+            },
+            "stderr": ""
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/1-el-mayordomo-a-su-servicio/4%20El%20Mayordomo%2C%20Compa%C3%B1ero.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.111001,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 153,
+        "totalVideoFrames": 158,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e001",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002",
+      "file": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+      "status": "READY",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 192050193,
+          "width": 1920,
+          "height": 1080,
+          "length": 1431.95,
+          "estimatedBitrate": 1072943.5692587032,
+          "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+          "md5": "9520352948d0a64a157952c7f175e9c1",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia903101.us.archive.org/4/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+            "contentRange": "bytes 0-4095/192050193",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 533
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "avc1.4D4028",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 40,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D4028\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "h264",
+                "profile": "Main",
+                "codec_type": "video",
+                "codec_tag_string": "avc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p",
+                "level": 40,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "903300",
+                "bits_per_raw_sample": "8"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "160764"
+              }
+            ],
+            "format": {
+              "duration": "1431.950998",
+              "size": "192050193",
+              "bit_rate": "1072942"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.00116,
+            "endTime": 4.96027,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 1920,
+            "height": 1080,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia903101.us.archive.org/4/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+            "contentRange": "bytes 0-4095/192050193",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 730
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.120766,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 154,
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e002",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002",
+      "file": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+      "status": "READY",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 219546298,
+          "width": 1920,
+          "height": 1080,
+          "length": 1426.29,
+          "estimatedBitrate": 1231425.8558918594,
+          "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+          "md5": "b4ea6044a2b1cc4f16da490bdc5f03e2",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia903101.us.archive.org/4/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+            "contentRange": "bytes 0-4095/219546298",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 318
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "avc1.4D4028",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 40,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D4028\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "h264",
+                "profile": "Main",
+                "codec_type": "video",
+                "codec_tag_string": "avc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p",
+                "level": 40,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1060477",
+                "bits_per_raw_sample": "8"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "162077"
+              }
+            ],
+            "format": {
+              "duration": "1426.285011",
+              "size": "219546298",
+              "bit_rate": "1231430"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.000354,
+            "endTime": 4.960232,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 1920,
+            "height": 1080,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia803101.us.archive.org/4/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+            "contentRange": "bytes 0-4095/219546298",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 635
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.122282,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 154,
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "projectId": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "file": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+      "status": "READY",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 141920596,
+          "width": 854,
+          "height": 480,
+          "length": 1431.44,
+          "estimatedBitrate": 793162.6669647348,
+          "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "md5": "cb53092a7507d92fdfc1f01e08ce9f4b",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600802.us.archive.org/12/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+            "contentRange": "bytes 0-4095/141920596",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 531
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "h264",
+                "profile": "Main",
+                "codec_type": "video",
+                "codec_tag_string": "avc1",
+                "width": 854,
+                "height": 480,
+                "pix_fmt": "yuv420p",
+                "level": 30,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "686441",
+                "bits_per_raw_sample": "8"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "98083"
+              }
+            ],
+            "format": {
+              "duration": "1431.440000",
+              "size": "141920596",
+              "bit_rate": "793162"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.000227,
+            "endTime": 4.960839,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 854,
+            "height": 480,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia800802.us.archive.org/12/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+            "contentRange": "bytes 0-4095/141920596",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 455
+          }
+        },
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 318232902,
+          "width": 1920,
+          "height": 1080,
+          "length": 1431.44,
+          "estimatedBitrate": 1778532.957022299,
+          "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "md5": "f0ca3380feb5a7d2396b550341e03066",
+          "http": {
+            "status": 206,
+            "finalUrl": "https://ia600802.us.archive.org/12/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+            "contentRange": "bytes 0-4095/318232902",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 309
+          },
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          },
+          "ffprobe": {
+            "code": 0,
+            "programs": [],
+            "streams": [
+              {
+                "index": 0,
+                "codec_name": "hevc",
+                "profile": "Main 10",
+                "codec_type": "video",
+                "codec_tag_string": "hvc1",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le",
+                "level": 120,
+                "r_frame_rate": "30/1",
+                "avg_frame_rate": "30/1",
+                "bit_rate": "1608390"
+              },
+              {
+                "index": 1,
+                "codec_name": "aac",
+                "profile": "LC",
+                "codec_type": "audio",
+                "codec_tag_string": "mp4a",
+                "r_frame_rate": "0/0",
+                "avg_frame_rate": "0/0",
+                "bit_rate": "161472"
+              }
+            ],
+            "format": {
+              "duration": "1431.440000",
+              "size": "318232902",
+              "bit_rate": "1778532"
+            },
+            "stderr": ""
+          },
+          "browser": {
+            "canPlayType": "probably",
+            "capabilities": {
+              "supported": true,
+              "smooth": true,
+              "powerEfficient": true
+            },
+            "startTime": 0.00029,
+            "endTime": 4.961094,
+            "presentedCallbacks": 150,
+            "totalVideoFrames": 154,
+            "droppedVideoFrames": 0,
+            "width": 1920,
+            "height": 1080,
+            "readyState": 4,
+            "mediaError": null,
+            "playError": null
+          },
+          "initialHttp": {
+            "status": 206,
+            "finalUrl": "https://ia600802.us.archive.org/12/items/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+            "contentRange": "bytes 0-4095/318232902",
+            "contentType": "video/mp4",
+            "cors": null,
+            "elapsedMs": 1196
+          }
+        }
+      ],
+      "playerBrowser": {
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.107704,
+        "width": 854,
+        "height": 480,
+        "presentedCallbacks": 153,
+        "totalVideoFrames": 158,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": []
+      }
+    }
+  ],
+  "browser": {
+    "engine": "Chromium",
+    "browserVersion": "157.0.8103.79",
+    "os": "win32",
+    "physicalMobileDevice": false,
+    "muted": true
+  },
+  "initialEpisodeIds": [
+    "black-butler-book-of-circus-s01-e002",
+    "black-butler-book-of-circus-s01-e003",
+    "mikadono-sanshimai-wa-angai-choroi-s01-e001",
+    "mikadono-sanshimai-wa-angai-choroi-s01-e002",
+    "mikadono-sanshimai-wa-angai-choroi-s01-e003"
+  ],
+  "integrationInspectedAt": "2026-11-23T00:51:48.418Z",
+  "integrationBrowser": {
+    "engine": "Chromium",
+    "browserVersion": "157.0.8103.79",
+    "os": "win32",
+    "physicalMobileDevice": false,
+    "muted": true
+  },
+  "timezone": "America/Mexico_City",
+  "visualChecks": {
+    "inspectedAt": "2026-11-23T01:07:00.216Z",
+    "browser": {
+      "engine": "Chromium",
+      "browserVersion": "157.0.8103.79",
+      "os": "win32",
+      "physicalMobileDevice": false,
+      "muted": true
+    },
+    "samples": [
+      {
+        "episodeId": "black-butler-book-of-circus-s01-e001",
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/1-el-mayordomo-a-su-servicio/1%20El%20Mayordomo%2C%20A%20Su%20Servicio.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.138105,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 154,
+        "downlink": 1.45,
+        "variantSupport": [
+          [
+            0,
+            {
+              "supported": true,
+              "smooth": true
+            }
+          ]
+        ],
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": [],
+        "observation": "Black frame at about 5.12 seconds also present in a direct FFmpeg extraction of the original; not treated as decoder failure."
+      },
+      {
+        "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e003",
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 5.121005,
+        "width": 854,
+        "height": 480,
+        "presentedCallbacks": 154,
+        "downlink": 1.5,
+        "variantSupport": [
+          [
+            1,
+            {
+              "supported": true,
+              "smooth": true
+            }
+          ],
+          [
+            0,
+            {
+              "supported": true,
+              "smooth": true
+            }
+          ]
+        ],
+        "totalVideoFrames": 159,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": [],
+        "observation": "Visible animated image in player screenshot."
+      },
+      {
+        "episodeId": "black-butler-book-of-circus-s01-e001",
+        "artplayerVersion": "5.4.0",
+        "source": "https://archive.org/download/1-el-mayordomo-a-su-servicio/1%20El%20Mayordomo%2C%20A%20Su%20Servicio.mp4",
+        "variantIndex": 0,
+        "auto": true,
+        "position": 35.133113,
+        "width": 1920,
+        "height": 1080,
+        "presentedCallbacks": 154,
+        "downlink": 1.5,
+        "variantSupport": [
+          [
+            0,
+            {
+              "supported": true,
+              "smooth": true
+            }
+          ]
+        ],
+        "totalVideoFrames": 258,
+        "mediaError": null,
+        "fallbackUsed": false,
+        "analytics": [
+          "EPISODE_VIEW",
+          "PLAY_START"
+        ],
+        "errors": [],
+        "observation": "Visible animated image after seeking to 30 seconds and playing to about 35 seconds; same source and one PLAY_START."
+      }
+    ]
+  }
+}

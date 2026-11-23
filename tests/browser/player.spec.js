@@ -16,7 +16,7 @@ async function serveMedia(route, name) {
   return route.fulfill({ contentType, headers: { 'Accept-Ranges': 'bytes' }, body });
 }
 
-async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false, noSource = false } = {}) {
+async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false, noSource = false, decoderMode = '', freezeHighFrames = false } = {}) {
   const analytics = [], progress = [], errors = [], requests = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => requests.push(request.url()));
@@ -28,6 +28,10 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
     ...(kind === 'ARCHIVE' ? { identifier: 'dubverse-player-fixture', archive: { orig: 'Episodio 1.mp4' }, fallback: { kind: 'IFRAME', url: fallback },
       variants: [{ name: 'Episodio 1.ia.mp4', url: `${archiveBase}Episodio%201.ia.mp4`, height: 180, estimatedBitrate: 200000 },
         { name: 'Episodio 1.mp4', url: `${archiveBase}Episodio%201.mp4`, height: 360, estimatedBitrate: 400000 }] } : {}) };
+  if (decoderMode) playback.variants.forEach((variant, index) => {
+    const codec = index ? 'hvc1.2.4.L120.90' : 'avc1.4D401E';
+    variant.video = { hasVideo: true, codec, contentType: `video/mp4; codecs="${codec}"`, width: index ? 640 : 320, height: variant.height, framerate: 24 };
+  });
   const episode = { id: 'player-ep-1', project_id: 'player-project', season: 1, number: 1, title: 'Episodio de prueba', provider: kind, playback, video_url: source.url,
     project: { id: 'player-project', title: 'Prueba del reproductor' } };
   const next = { ...episode, id: 'player-ep-2', number: 2, title: 'Segundo episodio' };
@@ -60,6 +64,25 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
   });
   await page.route('https://archive.org/embed/dubverse-player-fixture/**', route => route.fulfill({ contentType: 'text/html', body: '<html lang="es"><body>Archive iframe fixture</body></html>' }));
   await page.addInitScript(() => localStorage.setItem('dubverse:news:v1.2:hidden', '1'));
+  if (decoderMode || freezeHighFrames) await page.addInitScript(({ decoderMode, freezeHighFrames }) => {
+    // Deliberate decoder/compositor doubles; native H.264 media still plays.
+    // These scenarios test recovery behavior, not the device's HEVC support.
+    if (decoderMode) {
+      const canPlay = HTMLMediaElement.prototype.canPlayType;
+      HTMLMediaElement.prototype.canPlayType = function(type) { return /hvc1/.test(type) ? 'probably' : canPlay.call(this, type); };
+      Object.defineProperty(navigator, 'mediaCapabilities', { value: { decodingInfo: async ({ video }) => ({ supported: decoderMode !== 'unsupported-high' || !video.contentType.includes('hvc1'), smooth: true, powerEfficient: false }) } });
+    }
+    if (freezeHighFrames) {
+      const high = video => decodeURIComponent(video.currentSrc || video.src || '').endsWith('/Episodio 1.mp4');
+      const quality = HTMLVideoElement.prototype.getVideoPlaybackQuality;
+      HTMLVideoElement.prototype.getVideoPlaybackQuality = function() { return high(this) ? { totalVideoFrames: 0, droppedVideoFrames: 0, corruptedVideoFrames: 0 } : quality.call(this); };
+      const request = HTMLVideoElement.prototype.requestVideoFrameCallback;
+      const cancel = HTMLVideoElement.prototype.cancelVideoFrameCallback;
+      let pending = -1;
+      HTMLVideoElement.prototype.requestVideoFrameCallback = function(callback) { return high(this) ? pending-- : request.call(this, callback); };
+      HTMLVideoElement.prototype.cancelVideoFrameCallback = function(id) { if (id >= 0) cancel.call(this, id); };
+    }
+  }, { decoderMode, freezeHighFrames });
   if (kind === 'HLS') await page.addInitScript(() => {
     // These projects run Chromium with mobile layouts, not the Safari engine.
     const canPlay = HTMLMediaElement.prototype.canPlayType;
@@ -226,5 +249,53 @@ test('error directo permite reintentar y recupera el episodio', async ({ page })
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
   await ready(page);
   await expect(page.locator('.dv-player-error')).toBeHidden();
+  expect(state.errors).toEqual([]);
+});
+
+test('Auto filtra el códec rechazado antes de pedir la variante alta', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'unsupported-high' });
+  await ready(page);
+  expect(await page.evaluate(() => activePlayer.variantIndex)).toBe(0);
+  expect(state.requests.some(url => decodeURIComponent(url).endsWith('/Episodio 1.mp4'))).toBe(false);
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect.poll(() => state.analytics.filter(event => event.eventType === 'PLAY_START').length).toBe(1);
+  expect(state.errors).toEqual([]);
+});
+
+test('Auto conserva calidad alta cuando la consulta de decodificación permite reproducirla', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high' });
+  await ready(page);
+  expect(await page.evaluate(() => activePlayer.variantIndex)).toBe(1);
+  expect(await page.evaluate(() => activePlayer.variantSupport.get(1).supported)).toBe(true);
+  expect(state.errors).toEqual([]);
+});
+
+test('audio sin fotogramas: Auto recupera imagen, posición, volumen y velocidad sin duplicar Analytics', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high', freezeHighFrames: true });
+  await ready(page);
+  await page.evaluate(() => { activePlayer.video.volume = .27; activePlayer.video.muted = true; activePlayer.video.playbackRate = 1.5; });
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => activePlayer.variantIndex), { timeout: 16000 }).toBe(0);
+  await expect.poll(() => page.locator('.art-video').evaluate(video => !video.paused && video.currentTime > 8 && video.playbackRate === 1.5 && Math.abs(video.volume - .27) < .01 && video.muted)).toBe(true);
+  await expect.poll(() => page.locator('.art-video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames)).toBeGreaterThan(0);
+  expect(state.analytics.filter(event => event.eventType === 'PLAY_START')).toHaveLength(1);
+  expect(new Set(state.analytics.filter(event => event.playbackId).map(event => event.playbackId)).size).toBe(1);
+  expect(state.progress.some(snapshot => snapshot.positionSeconds > 3)).toBe(true);
+  expect(state.errors).toEqual([]);
+});
+
+test('calidad manual se mantiene ante fallo silencioso y ofrece recuperar imagen con una acción', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high', freezeHighFrames: true });
+  await ready(page);
+  await page.getByRole('button', { name: 'Ajustes de reproducción', exact: true }).click();
+  await page.locator('.art-setting-item[data-name="dv-quality"]').click();
+  await page.getByRole('button', { name: '360p', exact: true }).click();
+  await page.evaluate(() => { activePlayer.art.setting.show = false; });
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect(page.locator('.dv-player-recovery')).toBeVisible({ timeout: 16000 });
+  expect(await page.evaluate(() => ({ index: activePlayer.variantIndex, auto: activePlayer.autoQuality }))).toEqual({ index: 1, auto: false });
+  await page.locator('[data-recover-image]').click();
+  await expect.poll(() => page.evaluate(() => activePlayer.variantIndex)).toBe(0);
+  expect(await page.evaluate(() => activePlayer.autoQuality)).toBe(false);
   expect(state.errors).toEqual([]);
 });
