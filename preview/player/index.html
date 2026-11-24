@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>DUBVERSE · Prueba independiente del reproductor</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body{margin:0;background:#101116;color:#f5f5f5;font:16px system-ui}main{max-width:1100px;margin:auto;padding:16px}h1{font-size:1.4rem}p{line-height:1.5}label,select,button{font:inherit}select,button{min-height:44px;background:#222630;color:inherit;border:1px solid #616777;border-radius:6px;padding:8px}select{display:block;width:100%;margin:8px 0 16px}.lab-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.lab-panel{padding:12px;background:#191c25;border-radius:8px;margin:16px 0}.lab-data{display:grid;grid-template-columns:minmax(100px,1fr) 2fr;gap:8px;overflow-wrap:anywhere}.lab-data dt{color:#bbc1d0}.lab-data dd{margin:0}.lab-warning{color:#ffd47b}.lab-log{white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow:auto;font-size:.8rem}.lab-check{display:flex;align-items:center;gap:8px}.lab-check input{width:20px;height:20px}
+  </style>
+</head>
+<body><main>
+  <h1>DUBVERSE · Prueba del reproductor</h1>
+  <p>Entorno independiente, sin cuentas ni estadísticas de producción. Selecciona un episodio y pulsa reproducir. Se utiliza el reproductor de la rama de revisión y archivos públicos reales de Archive.</p>
+  <p id="secure-warning" class="lab-warning" hidden>Esta URL usa HTTP. Para evaluar MediaCapabilities desde el teléfono necesitas el enlace HTTPS de prueba.</p>
+  <label for="episode">Episodio</label><select id="episode"><option>Cargando…</option></select>
+  <div id="dubversePlayer" style="position:relative;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden"></div>
+  <section class="lab-panel" aria-label="Diagnóstico automático">
+    <h2>Diagnóstico automático</h2><dl class="lab-data" id="diagnostics"></dl>
+    <div class="lab-row"><button id="copy" type="button">Copiar resumen</button><button id="download" type="button">Descargar diagnóstico</button></div><p id="copy-status" role="status"></p>
+    <p>Los errores indicados son los que comunica el navegador. Que avance el contador no demuestra por sí solo que la imagen se vea correctamente.</p>
+    <label class="lab-check"><input id="visible-image" type="checkbox">Veo imagen y audio sincronizados</label>
+    <label class="lab-check"><input id="black-audio" type="checkbox">Escucho audio pero la imagen sigue negra</label>
+    <pre id="events" class="lab-log"></pre>
+  </section>
+  <p>Comprueba Auto durante 30–60 segundos, busca a mitad del episodio, pausa y reanuda, cambia orientación y prueba pantalla completa. Descarga un diagnóstico de cada episodio, especialmente si falla. El iframe de Archive puede usar el mismo códec y no garantiza una copia compatible.</p>
+</main><script src="/player.js"></script><script src="/preview.js"></script></body>
+</html>

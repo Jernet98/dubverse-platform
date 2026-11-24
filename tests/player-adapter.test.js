@@ -77,6 +77,7 @@ test('calidad manual inmediata reutiliza el video, restaura posición/velocidad 
 });
 
 const codecFixtures = JSON.parse(await readFile(new URL('./fixtures/archive-decoding.json', import.meta.url), 'utf8'));
+const originalAudit = JSON.parse(await readFile(new URL('../docs/player-media-audit-2026-11-22.json', import.meta.url), 'utf8'));
 function decodedFixture() {
   const fixtureData = fixture();
   const { player, video, context } = fixtureData;
@@ -117,6 +118,98 @@ test('Auto mantiene la calidad alta HEVC cuando es soportada y fluida aunque no 
   context.navigator.mediaCapabilities = { decodingInfo: async () => ({ supported: true, smooth: true, powerEfficient: false }) };
   await player.prepareVariantSupport();
   assert.equal(player.chooseInitialVariant(), 1);
+});
+
+test('los cinco originales HEVC conservan 1080p con soporte; sin soporte usan su derivado o explican la ausencia de copia', async () => {
+  const hevcEpisodes = originalAudit.records.filter(record => record.variants.some(variant => variant.video?.codecName === 'hevc'));
+  assert.equal(hevcEpisodes.length, 5);
+  for (const record of hevcEpisodes) {
+    const { player, context } = decodedFixture();
+    player.variants = record.variants; player.variantSupport.clear();
+    context.navigator.connection = { downlink: 100 };
+    context.navigator.mediaCapabilities = { decodingInfo: async () => ({ supported: true, smooth: true }) };
+    await player.prepareVariantSupport();
+    assert.equal(player.variants[player.chooseInitialVariant()].video.height, 1080, record.episodeId);
+    context.navigator.mediaCapabilities.decodingInfo = async ({ video }) => ({ supported: !video.contentType.includes('hvc1'), smooth: true });
+    await player.prepareVariantSupport();
+    const chosen = player.chooseInitialVariant();
+    if (record.variants.length > 1) assert.equal(player.variants[chosen].video.codecName, 'h264', record.episodeId);
+    else {
+      assert.equal(chosen, -1, record.episodeId);
+      const fallback = { kind: 'IFRAME', url: `https://archive.org/embed/${record.identifier}/${encodeURIComponent(record.original)}` };
+      player.config.fallback = fallback;
+      let message = '';
+      player.useFallback = () => assert.fail('El iframe no garantiza otro códec');
+      player.showError = text => { message = text; };
+      player.mountVideo = () => assert.fail('No debe solicitar un MP4 rechazado por el navegador');
+      player.loadPrimary();
+      assert.match(message, /copia de video compatible/);
+      assert.equal(player.config.fallback.url, fallback.url);
+    }
+  }
+});
+
+test('una fuente única sin fotogramas avisa una vez y no se recarga automáticamente', () => {
+  const { player, tick, events } = decodedFixture();
+  player.variants = [player.variants[1]]; player.variantIndex = 0;
+  player.switchVariant = () => assert.fail('Sin alternativa no puede cambiar de fuente');
+  player.retry = () => assert.fail('No debe crear un bucle de recarga');
+  player.showError = message => { events.push(['error', message]); player.video.pause(); player.stopFrameMonitor(); };
+  player.startFrameMonitor(1);
+  for (let i = 0; i < 60; i += 1) tick();
+  assert.equal(events.filter(event => event?.[0] === 'error').length, 1);
+  assert.equal(player.video.paused, true);
+  assert.equal(player.failedVariants.size, 1);
+});
+
+test('el monitor cubre video directo fuera de Archive y no compite con HLS', () => {
+  const { player, tick, events } = decodedFixture();
+  player.config = { provider: 'PIXELDRAIN' }; player.variants = []; player.variantIndex = -1;
+  player.source = { kind: 'VIDEO', url: 'https://pixeldrain.com/api/file/fixture' };
+  player.autoQuality = false;
+  player.showError = message => { events.push(['error', message]); player.video.pause(); player.stopFrameMonitor(); };
+  player.startFrameMonitor(1);
+  for (let i = 0; i < 30; i++) tick();
+  assert.equal(events.filter(event => event?.[0] === 'error').length, 1);
+  assert.equal(player.video.paused, true);
+  assert.equal(player.failedVariants.size, 0);
+  player.video.paused = false;
+  player.source = { kind: 'HLS', url: 'https://example.com/master.m3u8' };
+  player.startFrameMonitor(1);
+  assert.equal(player.frameMonitor, null);
+});
+
+test('Safari con readyState 4, playing y reloj en cero cambia una vez en Auto; manual muestra error', () => {
+  for (const auto of [true, false]) {
+    const { player, video, events } = decodedFixture();
+    player.autoQuality = auto; player.wantedPlay = true; video.currentTime = 0;
+    const changed = [];
+    player.switchVariant = index => changed.push(index);
+    player.showError = message => events.push(['error', message]);
+    player.startPlaybackWatch(1);
+    for (let i = 1; i <= 19; i++) player.checkPlaybackClock(i * 1000);
+    assert.equal(changed.length, 0);
+    player.checkPlaybackClock(20000);
+    for (let i = 21; i <= 60; i++) player.checkPlaybackClock(i * 1000);
+    assert.deepEqual(changed, auto ? [0] : []);
+    assert.equal(events.filter(event => event?.[0] === 'error').length, auto ? 0 : 1);
+    assert.equal(player.failedVariants.has(1), true);
+  }
+});
+
+test('el límite del reloj ignora pausas, background y progreso real; se cancela al destruir', () => {
+  for (const condition of ['pause','hidden','progress']) {
+    const { player, video, context } = decodedFixture(); player.wantedPlay = condition !== 'pause';
+    if (condition === 'hidden') context.document.hidden = true;
+    player.switchVariant = () => assert.fail(condition);
+    player.showError = () => assert.fail(condition);
+    player.startPlaybackWatch(1);
+    for (let i = 1; i <= 60; i++) { if (condition === 'progress') video.currentTime += 1; player.checkPlaybackClock(i * 1000); }
+    assert.equal(player.failedVariants.size, 0);
+    player.releaseMedia();
+    assert.equal(player.playbackWatch, null);
+    player.checkPlaybackClock(100000);
+  }
 });
 
 test('canPlayType negativo excluye sólo el códec verificado; APIs ausentes o rechazadas no inventan incompatibilidad', async () => {
@@ -241,6 +334,23 @@ test('destruir cancela el callback de vídeo y las respuestas tardías de compat
   await preparing;
   assert.equal(cancelled, 1);
   assert.equal(player.variantSupport.size, 0);
+});
+
+test('reconsultar fuentes no se duplica y una respuesta posterior a destroy no inicia reproducción', async () => {
+  const { player } = fixture();
+  player.config = { provider: 'ARCHIVE', status: 'UNRESOLVED' };
+  let calls = 0, finish;
+  player.options.reloadPlayback = () => { calls++; return new Promise(resolve => { finish = resolve; }); };
+  player.loadPrimary = () => assert.fail('No puede reproducir después de destroy');
+  const first = player.retry();
+  await Promise.resolve();
+  await player.retry();
+  assert.equal(calls, 1);
+  player.destroyed = true;
+  finish({ provider: 'ARCHIVE', status: 'READY' });
+  await first;
+  assert.equal(player.config.status, 'UNRESOLVED');
+  assert.equal(player.reloadingPlayback, false);
 });
 
 test('restauración inicial y destrucción conservan un snapshot finito sin eventos tardíos', () => {

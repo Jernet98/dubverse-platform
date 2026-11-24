@@ -1,8 +1,9 @@
 // Read-only public-source audit. No credentials, database access or write APIs.
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { resolveArchivePlaylist, archivePlaybackVariants } from '../lib/archive.js';
+import { resolveArchivePlaylist, archivePlaybackVariants, configuredArchiveSources } from '../lib/archive.js';
 import { inspectMp4Video } from '../lib/media-probe.js';
+import { createAuditFetch } from './lib/audit-fetch.mjs';
 
 const args = process.argv.slice(2);
 const argument = name => args.includes(name) ? args[args.indexOf(name) + 1] : '';
@@ -10,25 +11,70 @@ const site = 'https://dubversefandub.vercel.app';
 const output = argument('--output') || '.codex-player-audit-report.json';
 const ffprobe = argument('--ffprobe');
 const playerUrl = argument('--player-url');
+const catalog = args.includes('--catalog');
+const snapshotPath = argument('--snapshot');
+const resumePath = argument('--resume');
+const fetch = createAuditFetch({ dnsServer: argument('--dns-server') || undefined });
+const budgetMs = Math.max(1, Math.min(60, Number(argument('--budget-minutes')) || 10)) * 60000;
 const selectedEpisodes = argument('--episode').split(',').filter(Boolean);
 if (playerUrl && !['127.0.0.1','localhost','[::1]'].includes(new URL(playerUrl).hostname)) throw new Error('--player-url must be a local test server.');
-const report = { inspectedAt: new Date().toISOString(), site, records: [] };
+const report = { inspectedAt: new Date().toISOString(), site, scope: catalog ? 'public-catalog' : 'reported-projects', projects: [], errors: [], records: [] };
 const json = async url => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`${response.status}: ${url}`);
-  return response.json();
-};
-const items = new Map();
-for (const projectId of ['black-butler-book-of-circus','mikadono-sanshimai-wa-angai-choroi']) {
-  const project = await json(`${site}/api/projects/${projectId}`);
-  for (const episode of project.episodes) {
-    const identifier = episode.archive_identifier;
-    if (!items.has(identifier)) items.set(identifier, await json(`https://archive.org/metadata/${encodeURIComponent(identifier)}`));
-    const item = items.get(identifier), playlist = resolveArchivePlaylist(item.files, episode.archive_file);
-    report.records.push({ projectId, episodeId: episode.id, identifier, file: episode.archive_file, status: playlist.status, original: playlist.selected?.orig, entryCount: playlist.entries.length,
-      variants: archivePlaybackVariants(identifier, playlist.selected, item.metadata).map(variant => ({ ...variant, original: playlist.selected.orig, md5: playlist.selected.sources.find(file => file.name === variant.name)?.md5 })) });
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`${response.status}: ${url}`);
+      return await response.json();
+    } catch (error) { lastError = error; }
   }
+  throw lastError;
+};
+async function workers(values, callback) {
+  let next = 0;
+  await Promise.all([0,1,2].map(async () => { while (next < values.length) await callback(values[next++]); }));
 }
+const snapshot = snapshotPath ? JSON.parse(await readFile(snapshotPath, 'utf8')) : null;
+const previous = resumePath ? JSON.parse(await readFile(resumePath, 'utf8')) : null;
+const projectList = catalog ? (snapshot?.home?.catalog?.projects || await json(`${site}/api/projects`)) : ['black-butler-book-of-circus','mikadono-sanshimai-wa-angai-choroi'].map(id => ({ id }));
+report.catalogInspectedAt = snapshot?.inspectedAt || report.inspectedAt;
+const items = new Map();
+await workers(projectList, async ({ id: projectId }) => {
+  let project;
+  try { project = snapshot?.projects.find(project => project.id === projectId) || await json(`${site}/api/projects/${projectId}`); }
+  catch (error) { report.errors.push({ projectId, error: error.message }); return; }
+  report.projects.push({ id: project.id, title: project.title, episodeCount: project.episodes.length });
+  for (const episode of project.episodes) {
+    if (selectedEpisodes.length && !selectedEpisodes.includes(episode.id)) continue;
+    const identifier = episode.archive_identifier;
+    const record = { projectId, projectTitle: project.title, episodeId: episode.id, title: episode.title, season: episode.season, number: episode.number, provider: episode.provider, identifier, file: episode.archive_file, variants: [] };
+    report.records.push(record);
+    if (episode.provider !== 'ARCHIVE') {
+      record.status = 'EXTERNAL_PROVIDER'; record.externalUrl = episode.video_url;
+      continue;
+    }
+    const prior = previous?.records.find(item => item.episodeId === record.episodeId && item.identifier === identifier && item.file === record.file);
+    try {
+      if (!items.has(identifier)) items.set(identifier, json(`https://archive.org/metadata/${encodeURIComponent(identifier)}`).catch(error => ({ auditError: error.message })));
+      const item = await items.get(identifier);
+      if (item.auditError) throw new Error(item.auditError);
+      const playlist = resolveArchivePlaylist(item.files, episode.archive_file);
+      const selected = configuredArchiveSources(episode, identifier, playlist.selected, item);
+      Object.assign(record, { status: playlist.status, original: playlist.selected?.orig, entryCount: playlist.entries.length,
+        metadataFileCount: item.files?.length || 0,
+        publicFileList: Array.isArray(item.files), isDark: Boolean(item.is_dark),
+        groupedSources: playlist.selected?.sources.filter(file => /\.(?:mp4|m4v|webm|ogv|mkv)$/i.test(file.name)).map(file => ({ name: file.name, format: file.format, source: file.source, original: file.original })) || [],
+        variants: archivePlaybackVariants(identifier, selected, item.metadata).map(variant => {
+          const file = selected.sources.find(file => file.name === variant.name);
+          const known = prior?.variants.find(previous => previous.url === variant.url && previous.md5 && previous.md5 === file.md5 && previous.size === variant.size);
+          return { ...variant, original: playlist.selected.orig, archiveOriginal: file.original || null, md5: file.md5,
+            ...(known ? { video: known.video, http: known.http, probedAt: known.probedAt, codecEvidence: known.codecEvidence, evidenceInspectedAt: known.evidenceInspectedAt || previous.inspectedAt } : {}) };
+        }) });
+    } catch (error) { record.status = 'INSPECTION_FAILED'; record.error = error.message; }
+  }
+  console.log(`${projectId}: ${project.episodes.length} episodios públicos`);
+});
+report.records.sort((a, b) => a.projectId.localeCompare(b.projectId) || a.season - b.season || a.number - b.number);
 
 function runProbe(url) {
   return new Promise(resolve => {
@@ -47,21 +93,52 @@ function runProbe(url) {
 }
 
 if (selectedEpisodes.length) report.records = report.records.filter(record => selectedEpisodes.includes(record.episodeId));
-const variants = report.records.flatMap(record => record.variants);
-for (const variant of variants) {
+// Shared URLs are probed once even if several published records use them.
+const variants = [...new Map(report.records.flatMap(record => record.variants).map(variant => [variant.url, variant])).values()];
+variants.sort((a, b) => String(a.probedAt || '').localeCompare(String(b.probedAt || '')));
+const deadline = Date.now() + budgetMs;
+let deferred = 0;
+let inspected = 0, checkpoint = Promise.resolve();
+await workers(variants, async variant => {
+  if (variant.video?.codec && variant.http?.status === 206) return;
+  if (Date.now() >= deadline) { deferred++; return; }
   const started = Date.now();
-  try {
-    variant.video = await inspectMp4Video(variant.url, { fetchImpl: async (url, options) => {
+  const attempts = catalog ? 2 : 1;
+  variant.httpAttempts = [];
+  for (let attempt = 1; attempt <= attempts; attempt++) try {
+    variant.http = null;
+    variant.video = await inspectMp4Video(variant.url, { timeoutMs: catalog ? 20000 : 2200, fetchImpl: async (url, options) => {
       try {
         const response = await fetch(url, { ...options, headers: { ...options.headers, Origin: site } });
         variant.http ||= { status: response.status, finalUrl: response.url, contentRange: response.headers.get('content-range'), contentType: response.headers.get('content-type'), cors: response.headers.get('access-control-allow-origin'), elapsedMs: Date.now() - started };
         return response;
       } catch (error) { variant.http ||= { error: error.message }; throw error; }
     } });
-  } catch (error) { variant.http = { error: error.message }; }
+    variant.httpAttempts.push({ attempt, ...variant.http });
+    if (variant.video?.codec) break;
+  } catch (error) { variant.http = { error: error.message }; variant.httpAttempts.push({ attempt, ...variant.http }); }
   if (ffprobe) variant.ffprobe = await runProbe(variant.url);
-  console.log(`${variant.name}: ${variant.video?.codec || 'codec unknown'}; Range ${variant.http.status || 'unavailable'}`);
+  variant.probedAt = new Date().toISOString();
+  console.log(`${variant.name}: ${variant.video?.codec || 'codec unknown'}; Range ${variant.http?.status || 'unavailable'}`);
+  if (++inspected % 20 === 0) {
+    const data = JSON.stringify(report, null, 2);
+    checkpoint = checkpoint.then(() => writeFile(`${output}.partial`, data));
+    await checkpoint;
+  }
+});
+const byUrl = new Map(variants.map(variant => [variant.url, variant]));
+for (const record of report.records) for (const variant of record.variants) {
+  const measured = byUrl.get(variant.url);
+  Object.assign(variant, { video: measured.video, http: measured.http, probedAt: measured.probedAt, httpAttempts: measured.httpAttempts, ...(measured.ffprobe ? { ffprobe: measured.ffprobe } : {}) });
 }
+report.summary = {
+  projectCount: report.projects.length, episodeCount: report.records.length, uniqueVariantCount: variants.length,
+  codecs: variants.reduce((counts, variant) => { const codec = variant.video?.codec || 'UNKNOWN'; counts[codec] = (counts[codec] || 0) + 1; return counts; }, {}),
+  unresolved: report.records.filter(record => record.status !== 'READY').map(record => ({ episodeId: record.episodeId, status: record.status })),
+  duplicateSources: variants.map(variant => ({ url: variant.url, episodeIds: report.records.filter(record => record.variants.some(item => item.url === variant.url)).map(record => record.episodeId) })).filter(item => item.episodeIds.length > 1)
+};
+report.summary.deferredByBudget = deferred;
+report.summary.note = 'Unmeasured codecs and unavailable sources remain pending; this report never certifies physical-device playback.';
 
 if (args.includes('--browser') || playerUrl) {
   const { chromium } = await import('playwright');
@@ -107,6 +184,7 @@ if (args.includes('--browser') || playerUrl) {
   }));
   if (playerUrl) {
     for (const record of report.records) {
+      if (!record.variants.length) continue;
       const project = await json(`${site}/api/projects/${record.projectId}`);
       const episode = await json(`${site}/api/episodes/${record.episodeId}`);
       episode.playback = { ...episode.playback, provider: 'ARCHIVE', identifier: record.identifier,

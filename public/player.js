@@ -120,9 +120,9 @@
       this.loadPrimary();
     }
 
-    listen(target, event, handler) {
-      target.addEventListener(event, handler);
-      this.cleanups.push(() => target.removeEventListener(event, handler));
+    listen(target, event, handler, options) {
+      target.addEventListener(event, handler, options);
+      this.cleanups.push(() => target.removeEventListener(event, handler, options));
     }
 
     setupControls() {
@@ -130,6 +130,15 @@
       player.setAttribute('tabindex', '0');
       player.setAttribute('aria-label', 'Reproductor de video');
       this.listen(player, 'keydown', event => { this.keyboardMode = true; this.onKeydown(event); });
+      // Own the play promise so a bounded source switch can abort a pending
+      // mobile play() request without ArtPlayer leaking an unhandled rejection.
+      const togglePlayback = event => {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (!this.video.paused || this.wantedPlay) { this.wantedPlay = false; this.stopPlaybackWatch(); this.video.pause(); }
+        else this.requestPlay();
+      };
+      this.listen(this.art.controls.playAndPause, 'click', togglePlayback, true);
+      this.listen(this.art.template.$state, 'click', togglePlayback, true);
       const controls = this.art.template.$bottom;
       const keepVisible = () => { if (this.keyboardMode) this.controlsInteracting = true; this.showControls(); };
       const finish = () => {
@@ -265,10 +274,13 @@
     }
 
     loadPrimary() {
+      if (this.config.status === 'UNRESOLVED') return this.showError(this.config.reason === 'METADATA_UNAVAILABLE'
+        ? 'No pudimos comprobar las fuentes de este episodio. Reintenta cuando vuelva la conexión con Archive.'
+        : 'Este episodio no tiene una fuente de video reproducible disponible. Hace falta revisar o publicar una copia compatible.');
       let source = this.config.source;
       if (this.variants.length) {
         this.variantIndex = this.chooseInitialVariant();
-        if (this.variantIndex < 0) return this.config.fallback?.url ? this.useFallback() : this.showError('No hay una variante compatible con este navegador.');
+        if (this.variantIndex < 0) return this.showError('Este dispositivo no puede reproducir las fuentes disponibles de este episodio. Hace falta una copia de video compatible. Puedes probar el reproductor de Archive, pero utiliza los archivos del mismo episodio.');
         source = { kind: 'VIDEO', url: this.variants[this.variantIndex].url };
       }
       if (!source?.url) return this.config.fallback?.url ? this.useFallback() : this.showError('El episodio no tiene una fuente reproducible configurada.');
@@ -278,7 +290,10 @@
 
     mountVideo(source, { restoreTime = 0, resume = false } = {}) {
       if (this.destroyed || this.fallbackUsed) return;
+      this.playbackError = false;
+      if (this.stage) this.stage.inert = false;
       const token = ++this.loadToken;
+      this.stopPlaybackWatch();
       this.stopFrameMonitor();
       this.hideVideoRecovery();
       this.mediaAbort?.abort();
@@ -292,6 +307,7 @@
       this.savedRate = this.video.playbackRate;
       this.savedVolume = this.video.volume;
       this.savedMuted = this.video.muted;
+      this.ignoreSourcePause = !this.video.paused;
       this.video.pause();
       this.savedHlsLevel = this.hls && this.source?.url === source.url && !this.hls.autoLevelEnabled ? this.hls.loadLevel : null;
       this.hls?.destroy();
@@ -304,6 +320,7 @@
       this.attachSource(source, token).catch(() => {
         if (token === this.loadToken && !this.destroyed) this.handleMediaError(token);
       });
+      if (resume) this.startPlaybackWatch(token);
       this.updateQualityMenu();
     }
 
@@ -377,7 +394,7 @@
         this.updateBuffer();
         this.options.onProgress?.(this.snapshot());
       });
-      on('play', () => { this.wantedPlay = true; });
+      on('play', () => { this.wantedPlay = true; this.ignoreSourcePause = false; this.startPlaybackWatch(token); });
       on('canplay', () => {
         this.frameWaiting = false;
         clearTimeout(this.stallTimer);
@@ -386,6 +403,7 @@
       });
       on('playing', () => {
         this.frameWaiting = false;
+        this.startPlaybackWatch(token);
         this.startFrameMonitor(token);
         clearTimeout(this.stallTimer);
         this.stallTimer = null;
@@ -395,8 +413,10 @@
         this.options.onPlaying?.();
       });
       on('pause', () => {
-        if (this.switching || video.ended) return;
+        if (this.switching && this.ignoreSourcePause) { this.ignoreSourcePause = false; return; }
+        if (video.ended || !video.paused) return;
         this.wantedPlay = false;
+        this.stopPlaybackWatch();
         this.stopFrameMonitor();
         clearTimeout(this.stallTimer);
         this.stallTimer = null;
@@ -404,7 +424,7 @@
         this.showControls();
         this.options.onPause?.(this.snapshot());
       });
-      on('waiting', () => { this.frameWaiting = true; this.handleStall('waiting', token); });
+      on('waiting', () => { this.frameWaiting = true; this.startPlaybackWatch(token); this.handleStall('waiting', token); });
       on('stalled', () => this.handleStall('stalled', token));
       on('seeking', () => {
         this.stopFrameMonitor();
@@ -422,6 +442,7 @@
         this.options.onSeek?.(this.snapshot());
       });
       on('ended', () => {
+        this.stopPlaybackWatch();
         this.stopFrameMonitor();
         this.wantedPlay = false;
         this.renderState('ended');
@@ -438,9 +459,46 @@
       this.video.play().catch(error => {
         if (token !== this.loadToken || this.destroyed || error.name === 'AbortError') return;
         this.wantedPlay = false;
+        this.stopPlaybackWatch();
         if (error.name === 'NotAllowedError') { this.renderState('paused'); this.showControls(); }
         else this.showError('No se pudo iniciar el video. Reintenta la reproducción.');
       });
+      this.startPlaybackWatch(token);
+    }
+
+    startPlaybackWatch(token) {
+      if (!this.video || this.destroyed || this.fallbackUsed || this.playbackError || this.playbackWatch?.token === token) return;
+      if (!this.variants.length && (this.source?.kind !== 'VIDEO' || /\.m3u8(?:$|[?#])/i.test(this.source.url || ''))) return;
+      const state = this.playbackWatch = { token, lastNow: Date.now(), lastTime: this.video.currentTime, lastFrames: this.frameCount(), wall: 0 };
+      const sample = () => {
+        if (this.playbackWatch !== state || token !== this.loadToken || this.destroyed) return;
+        this.checkPlaybackClock();
+        if (this.playbackWatch === state) this.playbackTimer = setTimeout(sample, 1000);
+      };
+      this.playbackTimer = setTimeout(sample, 1000);
+    }
+
+    checkPlaybackClock(now = Date.now()) {
+      const state = this.playbackWatch, video = this.video;
+      if (!state || !video || state.token !== this.loadToken || this.destroyed) return;
+      const elapsed = (now - state.lastNow) / 1000, frames = this.frameCount();
+      const rect = video.getBoundingClientRect?.();
+      const visible = !document.hidden && this.root?.isConnected !== false && (!rect || rect.bottom > 0 && rect.right > 0 && rect.top < (global.innerHeight || Infinity) && rect.left < (global.innerWidth || Infinity));
+      const progressed = Math.abs(video.currentTime - state.lastTime) > .01 || frames !== null && state.lastFrames !== null && frames > state.lastFrames;
+      if (!this.wantedPlay || !visible || document.pictureInPictureElement || video.webkitCurrentPlaybackTargetIsWireless || elapsed > 2.5 || progressed) state.wall = 0;
+      else state.wall += Math.max(0, elapsed);
+      state.lastNow = now; state.lastTime = video.currentTime; state.lastFrames = frames;
+      if (state.wall < 20) return;
+      this.stopPlaybackWatch();
+      if (this.variantIndex >= 0) this.failedVariants.add(this.variantIndex);
+      const next = this.autoQuality ? this.chooseInitialVariant() : -1;
+      if (next >= 0 && next !== this.variantIndex) this.switchVariant(next);
+      else this.showError('El video no avanzó durante 20 segundos. No pudimos iniciar o continuar esta fuente. Reintenta o prueba otra calidad o el reproductor de Archive.');
+    }
+
+    stopPlaybackWatch() {
+      clearTimeout(this.playbackTimer);
+      this.playbackWatch = null;
     }
 
     bufferAhead() {
@@ -465,7 +523,8 @@
 
     startFrameMonitor(token) {
       this.stopFrameMonitor();
-      if (this.config.provider !== 'ARCHIVE' || !this.variants.length || this.video.paused) return;
+      const directVideo = this.source?.kind === 'VIDEO' && !/\.m3u8(?:$|[?#])/i.test(this.source.url || '');
+      if ((!this.variants.length && !directVideo) || this.video.paused) return;
       const video = this.video, now = Date.now();
       const state = this.frameMonitor = { token, warmUntil: now + 2000, lastNow: now, lastTime: video.currentTime, lastFrames: this.frameCount(), callbacks: 0, lastCallbacks: 0, wall: 0, media: 0, handled: false };
       const active = () => !this.destroyed && token === this.loadToken && this.frameMonitor === state;
@@ -514,9 +573,10 @@
         // or compositor-only ambiguity offers an action, never a guessed switch.
         const variant = this.variants[this.variantIndex];
         const confirmed = frames !== null && (Number(video.videoWidth) > 0 || variant?.video?.hasVideo === true || Number(variant?.height) > 0);
-        if (confirmed) this.failedVariants.add(this.variantIndex);
+        if (confirmed && this.variantIndex >= 0) this.failedVariants.add(this.variantIndex);
         const next = confirmed && this.autoQuality ? this.chooseInitialVariant() : -1;
         if (next >= 0 && next !== this.variantIndex) this.switchVariant(next);
+        else if (confirmed && !this.playableVariants().some(index => index !== this.variantIndex)) this.showError('El video no presenta fotogramas nuevos y no hay otra fuente compatible disponible para este episodio. Detuvimos la reproducción. Puedes reintentar o probar el reproductor de Archive.');
         else this.showVideoRecovery(confirmed ? 'El audio avanza, pero no se registran fotogramas nuevos. Puedes recuperar la imagen.' : 'Si escuchas audio pero no ves imagen, prueba recuperar la reproducción.');
       }
     }
@@ -574,7 +634,7 @@
     }
 
     handleMediaError(token) {
-      if (token !== this.loadToken || this.destroyed || this.fallbackUsed) return;
+      if (token !== this.loadToken || this.destroyed || this.fallbackUsed || this.playbackError) return;
       const code = this.video?.error?.code;
       if (code === 2 && !this.networkRetried) {
         this.networkRetried = true;
@@ -591,6 +651,7 @@
         if (!this.autoQuality) return this.showError('La calidad seleccionada falló. Reintenta o elige otra calidad en Ajustes; también puedes usar el reproductor compatible.');
         const next = this.chooseInitialVariant();
         if (next >= 0) return this.switchVariant(next);
+        if (code === 3 || code === 4) return this.showError('No pudimos abrir o decodificar las fuentes disponibles de este episodio. No hay otra fuente compatible confirmada. Puedes reintentar o probar el reproductor de Archive.');
       }
       if (this.config.provider === 'ARCHIVE' && this.config.fallback?.url) return this.useFallback();
       this.showError('El proveedor rechazó la fuente o el archivo no está disponible.');
@@ -688,7 +749,7 @@
     }
 
     renderState(state, message) {
-      if (this.destroyed || this.fallbackUsed) return;
+      if (this.destroyed || this.fallbackUsed || this.playbackError) return;
       this.root.dataset.playerState = state;
       this.status.classList.toggle('hidden', !['loading', 'buffering'].includes(state));
       this.status.querySelector('strong').textContent = state === 'buffering' ? 'Cargando video…' : 'Preparando video…';
@@ -698,7 +759,13 @@
 
     showError(message) {
       if (this.destroyed || this.fallbackUsed) return;
+      this.playbackError = true;
+      this.stopPlaybackWatch();
+      if (this.stage) this.stage.inert = true;
       this.stopFrameMonitor();
+      this.hideVideoRecovery();
+      this.wantedPlay = false;
+      this.video?.pause();
       clearTimeout(this.stallTimer);
       this.root.dataset.playerState = 'error';
       this.status.classList.add('hidden');
@@ -709,8 +776,29 @@
       this.options.onError?.(message);
     }
 
-    retry() {
+    async retry() {
       if (this.destroyed || this.fallbackUsed) return;
+      if (this.config.status === 'UNRESOLVED' && this.options.reloadPlayback) {
+        if (this.reloadingPlayback) return;
+        this.reloadingPlayback = true;
+        let timer;
+        try {
+          const config = await Promise.race([
+            Promise.resolve().then(() => this.options.reloadPlayback()),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 20000); })
+          ]);
+          if (this.destroyed || this.fallbackUsed || !config) return;
+          this.config = config;
+          this.variants = this.archiveVariants();
+          this.autoQuality = config.provider === 'ARCHIVE';
+          this.failedVariants.clear(); this.variantSupport.clear();
+          await this.prepareVariantSupport();
+          if (!this.destroyed && !this.fallbackUsed) this.loadPrimary();
+        } catch {
+          this.showError('No pudimos actualizar las fuentes. Comprueba tu conexión y vuelve a reintentar.');
+        } finally { clearTimeout(timer); this.reloadingPlayback = false; }
+        return;
+      }
       if (!this.art) { this.ready = this.initialize().catch(() => this.showError('No se pudo cargar el reproductor. Comprueba tu conexión.')); return; }
       this.networkRetried = false;
       this.failedVariants.clear();
@@ -719,6 +807,7 @@
     }
 
     releaseMedia() {
+      this.stopPlaybackWatch();
       this.stopFrameMonitor();
       ++this.loadToken;
       this.mediaAbort?.abort();
@@ -746,6 +835,7 @@
       this.lastPosition = snapshot.position;
       this.lastDuration = snapshot.duration;
       this.fallbackUsed = true;
+      this.hideVideoRecovery();
       this.wantedPlay = false;
       this.options.onPause?.(snapshot);
       this.releaseMedia();

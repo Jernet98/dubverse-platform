@@ -16,7 +16,7 @@ async function serveMedia(route, name) {
   return route.fulfill({ contentType, headers: { 'Accept-Ranges': 'bytes' }, body });
 }
 
-async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false, noSource = false, decoderMode = '', freezeHighFrames = false } = {}) {
+async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false, noSource = false, decoderMode = '', freezeHighFrames = false, singleVariant = false, unresolved = false, hangHigh = false } = {}) {
   const analytics = [], progress = [], errors = [], requests = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => requests.push(request.url()));
@@ -32,6 +32,8 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
     const codec = index ? 'hvc1.2.4.L120.90' : 'avc1.4D401E';
     variant.video = { hasVideo: true, codec, contentType: `video/mp4; codecs="${codec}"`, width: index ? 640 : 320, height: variant.height, framerate: 24 };
   });
+  if (singleVariant) playback.variants = [playback.variants.at(-1)];
+  if (unresolved) { playback.status = 'UNRESOLVED'; playback.reason = 'NO_VIDEO'; playback.source = null; playback.variants = []; }
   const episode = { id: 'player-ep-1', project_id: 'player-project', season: 1, number: 1, title: 'Episodio de prueba', provider: kind, playback, video_url: source.url,
     project: { id: 'player-project', title: 'Prueba del reproductor' } };
   const next = { ...episode, id: 'player-ep-2', number: 2, title: 'Segundo episodio' };
@@ -59,6 +61,7 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
     await serveMedia(route, name);
   });
   await page.route('https://archive.org/download/dubverse-player-fixture/**', async route => {
+    if (hangHigh && decodeURIComponent(route.request().url()).endsWith('/Episodio 1.mp4')) return;
     if (broken) return route.fulfill({ status: 404, body: '' });
     await serveMedia(route, 'episode.mp4');
   });
@@ -177,8 +180,10 @@ test('Archive: calidad manual conserva video, posición y estado; start no se du
   expect(state.errors).toEqual([]);
 });
 
-test('Archive rechaza fuentes directas y conserva iframe exacto sin Analytics ficticios', async ({ page }) => {
+test('Archive rechaza fuentes directas y ofrece iframe exacto sin Analytics ficticios', async ({ page }) => {
   const state = await prepare(page, { kind: 'ARCHIVE', broken: true });
+  await expect(page.locator('.dv-player-error')).toBeVisible();
+  await page.locator('[data-player-fallback]').click();
   const iframe = page.locator('#dubversePlayer iframe');
   await expect(iframe).toHaveAttribute('src', fallback);
   await expect(page.locator('.art-video')).toHaveCount(0);
@@ -190,6 +195,23 @@ test('Archive sin fuente conserva el reproductor compatible existente', async ({
   const state = await prepare(page, { kind: 'ARCHIVE', noSource: true });
   await expect(page.locator('#dubversePlayer iframe')).toHaveAttribute('src', fallback);
   expect(state.requests.some(url => /vendor\/player\//.test(url))).toBe(false);
+});
+
+test('Archive sin archivos públicos explica el problema y reconsulta fuentes sin duplicar vista ni sesión', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', unresolved: true });
+  await expect(page.locator('.dv-player-error')).toBeVisible();
+  await expect(page.locator('[data-player-error-message]')).toContainText('no tiene una fuente de video reproducible');
+  await expect(page.locator('#dubversePlayer iframe')).toHaveCount(0);
+  expect(state.analytics.filter(event => event.eventType.startsWith('PLAY_'))).toHaveLength(0);
+  const views = state.analytics.filter(event => event.eventType === 'EPISODE_VIEW').length;
+  state.playback.status = 'READY'; state.playback.source = { kind: 'VIDEO', url: `${archiveBase}Episodio%201.mp4` };
+  state.playback.variants = [{ name: 'Episodio 1.mp4', url: state.playback.source.url, height: 360, estimatedBitrate: 400000 }];
+  await page.locator('[data-player-retry]').click();
+  await ready(page);
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect.poll(() => state.analytics.filter(event => event.eventType === 'PLAY_START').length).toBe(1);
+  expect(state.analytics.filter(event => event.eventType === 'EPISODE_VIEW')).toHaveLength(views);
+  expect(state.errors).toEqual([]);
 });
 
 test('HLS: manifiesto con variantes, reproducción, selección manual y Auto sin recrear video', async ({ page }) => {
@@ -267,6 +289,47 @@ test('Auto conserva calidad alta cuando la consulta de decodificación permite r
   await ready(page);
   expect(await page.evaluate(() => activePlayer.variantIndex)).toBe(1);
   expect(await page.evaluate(() => activePlayer.variantSupport.get(1).supported)).toBe(true);
+  expect(state.errors).toEqual([]);
+});
+
+test('una carga inicial sin respuesta intenta otra fuente automáticamente y no duplica Analytics', async ({ page }) => {
+  test.setTimeout(40000);
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high', hangHigh: true, initialTime: 0 });
+  await expect(page.locator('.art-video')).toBeAttached();
+  await expect.poll(() => page.evaluate(() => activePlayer.stage.inert)).toBe(false);
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => activePlayer.variantIndex), { timeout: 28000 }).toBe(0);
+  await expect.poll(() => page.locator('.art-video').evaluate(video => !video.paused && video.currentTime > .1)).toBe(true);
+  expect(state.analytics.filter(event => event.eventType === 'PLAY_START')).toHaveLength(1);
+  expect(state.errors).toEqual([]);
+});
+
+test('HEVC único incompatible explica la falta de copia compatible sin pedir el original ni inventar reproducción', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'unsupported-high', singleVariant: true });
+  await expect(page.locator('.dv-player-error')).toBeVisible();
+  await expect(page.locator('[data-player-error-message]')).toContainText('Hace falta una copia de video compatible');
+  expect(state.requests.some(url => url.startsWith(archiveBase))).toBe(false);
+  expect(state.analytics.filter(event => event.eventType.startsWith('PLAY_'))).toHaveLength(0);
+  await page.locator('[data-player-fallback]').click();
+  await expect(page.locator('#dubversePlayer iframe')).toHaveAttribute('src', fallback);
+  expect(state.errors).toEqual([]);
+});
+
+test('fuente única sin imagen detiene audio, explica el fallo y permite el iframe sin duplicar sesión', async ({ page }) => {
+  const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high', singleVariant: true, freezeHighFrames: true });
+  await ready(page);
+  await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
+  await expect(page.locator('.dv-player-error')).toBeVisible({ timeout: 16000 });
+  await expect(page.locator('[data-player-error-message]')).toContainText('no hay otra fuente compatible');
+  expect(await page.locator('.art-video').evaluate(video => video.paused)).toBe(true);
+  // A queued pause/canplay after showError must not hide the explanation.
+  await page.evaluate(() => activePlayer.video.dispatchEvent(new Event('canplay')));
+  await expect(page.locator('.dv-player-error')).toBeVisible();
+  await page.locator('[data-player-fallback]').click();
+  await expect(page.locator('#dubversePlayer iframe')).toHaveAttribute('src', fallback);
+  await expect(page.locator('.dv-player-recovery')).toBeHidden();
+  await expect(page.locator('.art-video')).toHaveCount(0);
+  expect(state.analytics.filter(event => event.eventType === 'PLAY_START')).toHaveLength(1);
   expect(state.errors).toEqual([]);
 });
 

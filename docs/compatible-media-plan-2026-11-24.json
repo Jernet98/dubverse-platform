@@ -1,0 +1,2240 @@
+{
+  "generatedAt": "2026-11-24T18:41:49.580Z",
+  "auditAt": "2026-11-24T18:26:33.871Z",
+  "jobs": [
+    {
+      "enabled": false,
+      "episodeId": "aiura-s01-e002",
+      "identifier": "dubverse-aiura-s01-e002",
+      "original": "dubverse-aiura-s01-e002.mp4",
+      "originalMd5": "3daf9e7b66855171d95998c29ed6eab7",
+      "files": [
+        {
+          "name": "aiura-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L93.90",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "black-butler-book-of-circus-s01-e001",
+      "identifier": "1-el-mayordomo-a-su-servicio",
+      "original": "1 El Mayordomo, A Su Servicio.mp4",
+      "originalMd5": "8f78e3d73514f34ae97eb99a64814e89",
+      "files": [
+        {
+          "name": "bb-s01-e001-h264-1080p.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "black-butler-book-of-circus-s01-e002",
+      "identifier": "amen-67",
+      "original": "Amen67.mp4",
+      "originalMd5": "48099bd516d78b20d3726721171a8960",
+      "files": [
+        {
+          "name": "bb-s01-e002-h264-1080p.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "black-butler-book-of-circus-s01-e003",
+      "identifier": "dubverse-black-butler-book-of-circus-s01-e003",
+      "original": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+      "originalMd5": "d496d87dd00afb214feafa7c66ebd4d6",
+      "files": [
+        {
+          "name": "bb-s01-e003-h264-1080p.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "black-butler-book-of-circus-s01-e004",
+      "identifier": "1-el-mayordomo-a-su-servicio",
+      "original": "4 El Mayordomo, Compañero.mp4",
+      "originalMd5": "4fbd7f791b901814c3e8384a178424da",
+      "files": [
+        {
+          "name": "bb-s01-e004-h264-1080p.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "blend-s-s01-e001",
+      "identifier": "dubverse-blend-s-s01-e001",
+      "original": "dubverse-blend-s-s01-e001.mp4",
+      "originalMd5": "08f7c8284ee5e156d3210484df8326c5",
+      "files": [
+        {
+          "name": "blend-s-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L93.90",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "bloom-into-you-s01-e002",
+      "identifier": "dubverse-bloom-into-you-s01-e002",
+      "original": "dubverse-bloom-into-you-s01-e002.mp4",
+      "originalMd5": "4365c01ab83d77aabb424dfd423755f2",
+      "files": [
+        {
+          "name": "bloom-into-you-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L93.90",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "danganronpa-3-the-end-of-hope-s-peak-high-school-arco-de-la-desesperacion-s01-e001",
+      "identifier": "dubverse-danganronpa-3-the-end-of-hope-s-peak-high-school-arco-de-la-desesperacion-s01-e001",
+      "original": "dubverse-danganronpa-3-the-end-of-hope-s-peak-high-school-arco-de-la-desesperacion-s01-e001.mp4",
+      "originalMd5": "42468340f747097228615a7fc81324a7",
+      "files": [
+        {
+          "name": "danganronpa-3-the-end-of-hope-s-peak-high-school-arco-de-la-desesperacion-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "danganronpa-3-the-end-of-hope-s-peak-high-school-arco-del-futuro-s01-e001",
+      "identifier": "dubverse-danganronpa-3-the-end-of-hope-s-peak-high-school-arco-del-futuro-s01-e001",
+      "original": "dubverse-danganronpa-3-the-end-of-hope-s-peak-high-school-arco-del-futuro-s01-e001.mp4",
+      "originalMd5": "f0de14bc99998fcaab4489b1b6c55734",
+      "files": [
+        {
+          "name": "danganronpa-3-the-end-of-hope-s-peak-high-school-arco-del-futuro-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "dororo-s01-e024",
+      "identifier": "dubverse-dororo-s01-e024",
+      "original": "dubverse-dororo-s01-e024.mp4",
+      "originalMd5": "8f58513b49228a02a1ee24945c40eae0",
+      "files": [
+        {
+          "name": "dororo-s01-e024.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "eureka-seven-s01-e001",
+      "identifier": "dubverse-eureka-seven-s01-e001",
+      "original": "dubverse-eureka-seven-s01-e001.mp4",
+      "originalMd5": "0da652d059a3dda2c3f153c36882493d",
+      "files": [
+        {
+          "name": "eureka-seven-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1416,
+      "sourceHeight": 1064,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1064,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e001",
+      "identifier": "dubverse-grendizer-u-s01-e001-e003",
+      "original": "dubverse-grendizer-u-s01-e001.mp4",
+      "originalMd5": "403ae7312196c0a751823fc7609c6162",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "kinsou-no-vermeil-s01-e008",
+      "identifier": "dubverse-kinsou-no-vermeil-s01-e008",
+      "original": "KINSOU NO VEERMEIL 8 YA COMPLETADO.mp4",
+      "originalMd5": "cb714df17b22dd99609d188414cdfceb",
+      "files": [
+        {
+          "name": "kinsou-no-vermeil-s01-e008.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.1.2.H120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "mebius-dust-s01-e001",
+      "identifier": "dubverse-mebius-dust-s01-e001",
+      "original": "dubverse-mebius-dust-s01-e001.mp4",
+      "originalMd5": "eaf746e624a9118f82ae0339f03dd6ff",
+      "files": [
+        {
+          "name": "mebius-dust-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+      "originalMd5": "f0ca3380feb5a7d2396b550341e03066",
+      "files": [
+        {
+          "name": "mikadono-s01-e003-h264-1080p.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "nazo-no-kanojo-x-s01-e005",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e005-e006",
+      "original": "dubverse-nazo-no-kanojo-x-s01-e005.mp4",
+      "originalMd5": "10017e075166843c1b07c307980da9a5",
+      "files": [
+        {
+          "name": "nazo-no-kanojo-x-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e001",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e001.mp4",
+      "originalMd5": "2a3e46347d01c04abc76fde40567fccc",
+      "files": [
+        {
+          "name": "pupa-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e002",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e002.mp4",
+      "originalMd5": "d6c44cc654103376af239d44a774982a",
+      "files": [
+        {
+          "name": "pupa-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e003",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e003.mp4",
+      "originalMd5": "b12920ff2087ef3009a04bb504853705",
+      "files": [
+        {
+          "name": "pupa-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e004",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e004.mp4",
+      "originalMd5": "fa3a932a9af2456defc6abcc063a683f",
+      "files": [
+        {
+          "name": "pupa-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e005",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e005.mp4",
+      "originalMd5": "11e3b32f9f7cece4bab6f7ac946e79a1",
+      "files": [
+        {
+          "name": "pupa-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e006",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e006.mp4",
+      "originalMd5": "8a791b4f98526badf4f0a3abb08600e5",
+      "files": [
+        {
+          "name": "pupa-s01-e006.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e007",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e007.mp4",
+      "originalMd5": "f81d223a73687b94b33e50d1d19acb75",
+      "files": [
+        {
+          "name": "pupa-s01-e007.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e008",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e008.mp4",
+      "originalMd5": "4cd7648c6a94eae48f11cede25cf3b89",
+      "files": [
+        {
+          "name": "pupa-s01-e008.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e009",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e009.mp4",
+      "originalMd5": "0603fef7df9cd68a35fb9ce63c79bb2b",
+      "files": [
+        {
+          "name": "pupa-s01-e009.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e010",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e010.mp4",
+      "originalMd5": "0a6936805dec69628197d4c53660584d",
+      "files": [
+        {
+          "name": "pupa-s01-e010.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "pupa-s01-e011",
+      "identifier": "dubverse-senpai-wa-otokonoko-s01-e001-e011",
+      "original": "dubverse-pupa-s01-e011.mp4",
+      "originalMd5": "5f623683ecc0b74b07761e895c917724",
+      "files": [
+        {
+          "name": "pupa-s01-e011.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "VP9 compatibility gap at original resolution",
+      "sourceCodec": "vp09.00.31.08",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "under-the-dog-s01-e001",
+      "identifier": "dubverse-under-the-dog-s01-e001",
+      "original": "dubverse-under-the-dog-s01-e001.mp4",
+      "originalMd5": "9421296bfcd75fd4471d828d3572f87a",
+      "files": [
+        {
+          "name": "under-the-dog-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "10-bit AVC compatibility gap",
+      "sourceCodec": "avc1.6E0028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "uruwashi-no-yoi-no-tsuki-s01-e005",
+      "identifier": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e005",
+      "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e005.mp4",
+      "originalMd5": "69ae2f0faf4a30e5d761d8e1b4d7a31e",
+      "files": [
+        {
+          "name": "uruwashi-no-yoi-no-tsuki-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "watashi-o-tabetai-hito-de-nashi-s01-e001",
+      "identifier": "dubverse-watashi-o-tabetai-hito-de-nashi-s01-e001",
+      "original": "dubverse-watashi-o-tabetai-hito-de-nashi-s01-e001.mp4",
+      "originalMd5": "a05b9dd56e13c6581e77abd92688b978",
+      "files": [
+        {
+          "name": "watashi-o-tabetai-hito-de-nashi-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    },
+    {
+      "enabled": false,
+      "episodeId": "winx-club-temporada-8-s01-e001",
+      "identifier": "dubverse-winx-club-temporada-8-s01-e001",
+      "original": "dubverse-winx-club-temporada-8-s01-e001.mp4",
+      "originalMd5": "7c9fc79b71b643d5c640ff1fa9491915",
+      "files": [
+        {
+          "name": "winx-club-temporada-8-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "HEVC compatibility gap at original resolution",
+      "sourceCodec": "hvc1.2.4.L120.90",
+      "sourceWidth": 1912,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING"
+    }
+  ],
+  "review": [
+    {
+      "enabled": false,
+      "episodeId": "a-pizza-me-s01-e001",
+      "identifier": "dubverse-a-pizza-me-s01-e001",
+      "original": "dubverse-a-pizza-me-s01-e001.mp4",
+      "originalMd5": "687fb1d33509332c984954bf27481d1c",
+      "files": [
+        {
+          "name": "a-pizza-me-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 3840,
+      "sourceHeight": 2158,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "anohana-the-flower-we-saw-that-day-s01-e001",
+      "identifier": "anohana-cap-4",
+      "original": "Anohana cap1.mp4",
+      "originalMd5": "74c8729c9d2954fa214e46fa84af751d",
+      "files": [
+        {
+          "name": "anohana-the-flower-we-saw-that-day-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "anohana-the-flower-we-saw-that-day-s01-e007",
+      "identifier": "anohana-cap-4",
+      "original": "Anohana cap7.mp4",
+      "originalMd5": "5ccc6202be5a6455916a8e181db6d69f",
+      "files": [
+        {
+          "name": "anohana-the-flower-we-saw-that-day-s01-e007.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "butter-lover-s01-e001",
+      "identifier": "dubverse-butter-lover-s01-e001",
+      "original": "dubverse-butter-lover-s01-e001.mp4",
+      "originalMd5": "8720cc916758af8b05b318f3c950f7fa",
+      "files": [
+        {
+          "name": "butter-lover-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "danganronpa-the-animation-s01-e001",
+      "identifier": "danganronpa-fandub-latino-cap-3-by-master-voices-studios",
+      "original": "Danganronpa Fandub Latino - Cap 1 [By Master Voices Studios].mp4",
+      "originalMd5": "9898388794b1324970afb4061d664eb1",
+      "files": [
+        {
+          "name": "danganronpa-the-animation-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "danganronpa-the-animation-s01-e002",
+      "identifier": "danganronpa-fandub-latino-cap-3-by-master-voices-studios",
+      "original": "Danganronpa Fandub Latino - Cap 2 [By Master Voices Studios].mp4",
+      "originalMd5": "a4a464e0dbdae955f72583aca8744369",
+      "files": [
+        {
+          "name": "danganronpa-the-animation-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "eureka-seven-pachislot-original-episodes-s01-e001",
+      "identifier": "dubverse-eureka-seven-pachislot-original-episodes-s01-e001-e002",
+      "original": "dubverse-eureka-seven-pachislot-original-episodes-s01-e001.mp4",
+      "originalMd5": "45d35ce7b7154bc1f2ba243cc4900108",
+      "files": [
+        {
+          "name": "eureka-seven-pachislot-original-episodes-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "eureka-seven-pachislot-original-episodes-s01-e002",
+      "identifier": "dubverse-eureka-seven-pachislot-original-episodes-s01-e001-e002",
+      "original": "dubverse-eureka-seven-pachislot-original-episodes-s01-e002.mp4",
+      "originalMd5": "54dcca6cc59b9d02ce24952b01acbef7",
+      "files": [
+        {
+          "name": "eureka-seven-pachislot-original-episodes-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e002",
+      "identifier": "dubverse-grendizer-u-s01-e001-e003",
+      "original": "dubverse-grendizer-u-s01-e002.mp4",
+      "originalMd5": "6a2f0631068ffe47c6fec8f6c4060083",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D402A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e003",
+      "identifier": "dubverse-grendizer-u-s01-e001-e003",
+      "original": "dubverse-grendizer-u-s01-e003.mp4",
+      "originalMd5": "5225779a4a34fa989ad335d79a3fb523",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D402A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e004",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e004.mp4",
+      "originalMd5": "26fe2b56af40bbd34c04b5897bbe5423",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D402A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e005",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e005.mp4",
+      "originalMd5": "c7863f823704ce186e001153bedb3485",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e006",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e006.mp4",
+      "originalMd5": "8e7b1b99a38442b730d9d0d7d3132dd0",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e006.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e007",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e007.mp4",
+      "originalMd5": "02fb2965eeed55ae00516383be3f18f8",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e007.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e008",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e008.mp4",
+      "originalMd5": "12f7f9292df2b4578893db3625ae2c60",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e008.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e009",
+      "identifier": "dubverse-grendizer-u-s01-e004-e009",
+      "original": "dubverse-grendizer-u-s01-e009.mp4",
+      "originalMd5": "975c039fac3b46948a60f6aca12082dc",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e009.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "grendizer-u-las-aventuras-de-duke-fleed-s01-e010",
+      "identifier": "dubverse-grendizer-u-las-aventuras-de-duke-fleed-s01-e010",
+      "original": "dubverse-grendizer-u-las-aventuras-de-duke-fleed-s01-e010.mp4",
+      "originalMd5": "7d757cc019ad7a6c2730ae9c4eff90d7",
+      "files": [
+        {
+          "name": "grendizer-u-las-aventuras-de-duke-fleed-s01-e010.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "jojo-s-bizarre-adventure-s01-e012",
+      "identifier": "jojos-bizarre-adventure-ovas-cap-12-fandub-esp-lat-comprimido",
+      "original": "Jojos Bizarre Adventure Ova's (Cap 12) Fandub Esp Lat comprimido.mp4",
+      "originalMd5": "b1cad05c43c74b2fe4f9cf846ac2b86c",
+      "files": [
+        {
+          "name": "jojo-s-bizarre-adventure-s01-e012.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4028",
+      "sourceWidth": 1412,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "jojo-s-bizarre-adventure-s01-e013",
+      "identifier": "jojos-bizarre-adventure-ova-s-cap-13-fandub-esp-lat",
+      "original": "JoJos bizarre adventure OVA´S (cap 13) Fandub ESP LAT.mp4",
+      "originalMd5": "4d791b51b99b2104f4139c9b47db3ccf",
+      "files": [
+        {
+          "name": "jojo-s-bizarre-adventure-s01-e013.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.4D4032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "kinsou-no-vermeil-s01-e006",
+      "identifier": "kinsou-no-vermeil-capitulo-6-doblado-al-espan-ol-latino",
+      "original": "KINSOU NO VERMEIL CAPITULO 6 DOBLADO AL ESPAÑOL LATINO.mp4",
+      "originalMd5": "95921b8601821af18a926dff644ba1f6",
+      "files": [
+        {
+          "name": "kinsou-no-vermeil-s01-e006.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640032",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "kyoukai-no-rinne-s01-e002",
+      "identifier": "rinne-t-1-ep-1-2-3-latino_20260810",
+      "original": "Rinne T1 Ep2 - Latino Redoblaje.mp4",
+      "originalMd5": "8ec57f0f94d54c47674ad603d0a2c3a7",
+      "files": [
+        {
+          "name": "kyoukai-no-rinne-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640020",
+      "sourceWidth": 1120,
+      "sourceHeight": 640,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 640,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "kyoukai-no-rinne-s01-e003",
+      "identifier": "rinne-t-1-ep-1-2-3-latino_20260810",
+      "original": "Rinne T1 Ep3 Latino.mp4",
+      "originalMd5": "a957603763a749d583afdcb0846145f8",
+      "files": [
+        {
+          "name": "kyoukai-no-rinne-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640032",
+      "sourceWidth": 848,
+      "sourceHeight": 480,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 480,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e005",
+      "identifier": "hokuto-no-ken-episodio-5",
+      "original": "Hokuto no Ken - Episodio 5.mp4",
+      "originalMd5": "fb6aeb34702298303d49dd71e12bfa59",
+      "files": [
+        {
+          "name": "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e001",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e001-e002",
+      "original": "dubverse-mao-2026-s01-e001.mp4",
+      "originalMd5": "9d088069fe34100a3b78b322a3376e9c",
+      "files": [
+        {
+          "name": "mao-2026-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e002",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e001-e002",
+      "original": "dubverse-mao-2026-s01-e002.mp4",
+      "originalMd5": "be33e9a0f1d0d793a481e89aaffa0c58",
+      "files": [
+        {
+          "name": "mao-2026-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e003",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e003-e005",
+      "original": "dubverse-mao-2026-s01-e003.mp4",
+      "originalMd5": "f4b1e365e166220567965ffadcedaa0d",
+      "files": [
+        {
+          "name": "mao-2026-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e004",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e003-e005",
+      "original": "dubverse-mao-2026-s01-e004.mp4",
+      "originalMd5": "6490c6e2a9e90b081f19b1a8febaca71",
+      "files": [
+        {
+          "name": "mao-2026-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e005",
+      "identifier": "dubverse-nazo-no-kanojo-x-s01-e003-e005",
+      "original": "dubverse-mao-2026-s01-e005.mp4",
+      "originalMd5": "24f8152c5f289e42a2b5d1b38c8593f8",
+      "files": [
+        {
+          "name": "mao-2026-s01-e005.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "mao-2026-s01-e016",
+      "identifier": "dubverse-mao-2026-s01-e016",
+      "original": "dubverse-mao-2026-s01-e016.mp4",
+      "originalMd5": "b574a6515d5990e2202d6058a72e89e2",
+      "files": [
+        {
+          "name": "mao-2026-s01-e016.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64001F",
+      "sourceWidth": 640,
+      "sourceHeight": 352,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 352,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "nazo-no-kanojo-x-s01-e001",
+      "identifier": "redpandacompress-nazo-no-kanojo-x-cap-2_202507",
+      "original": "redpandacompress_Nazo no Kanojo X cap 1.mp4",
+      "originalMd5": "c13d580916e6289d908ba6ccaf78b57c",
+      "files": [
+        {
+          "name": "nazo-no-kanojo-x-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64002A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "nazo-no-kanojo-x-s01-e003",
+      "identifier": "redpandacompress-nazo-no-kanojo-x-cap-2_202507",
+      "original": "redpandacompress_Nazo no Kanojo X cap 3.mp4",
+      "originalMd5": "b1689a773d5fa607ada4a26d93d5697c",
+      "files": [
+        {
+          "name": "nazo-no-kanojo-x-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64002A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "one-punch-man-temporada-especial-s01-e007",
+      "identifier": "one-punch-man-ova-7-fandub-esp-lat",
+      "original": "One punch man Ova 7 (Fandub ESP LAT).mp4",
+      "originalMd5": "2c8f46fcc238732ae893bbde1e2521e4",
+      "files": [
+        {
+          "name": "one-punch-man-temporada-especial-s01-e007.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "senpai-wa-otokonoko-s01-e001",
+      "identifier": "senpai-wa-otonoko-3",
+      "original": "Senpai wa Otonoko 1.mp4",
+      "originalMd5": "8f82dc7a8c2846402e1b09e2afa89c43",
+      "files": [
+        {
+          "name": "senpai-wa-otokonoko-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640032",
+      "sourceWidth": 852,
+      "sourceHeight": 480,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 480,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "senpai-wa-otokonoko-s01-e002",
+      "identifier": "senpai-wa-otonoko-3",
+      "original": "Senpai wa Otonoko 2.mp4",
+      "originalMd5": "b4af5907705bde506fdbc6883a557ab5",
+      "files": [
+        {
+          "name": "senpai-wa-otokonoko-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "senpai-wa-otokonoko-s01-e003",
+      "identifier": "senpai-wa-otonoko-3",
+      "original": "Senpai wa Otonoko 3.mp4",
+      "originalMd5": "ccde335bb4398ef0b65e514ced103897",
+      "files": [
+        {
+          "name": "senpai-wa-otokonoko-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "senpai-wa-otokonoko-s01-e004",
+      "identifier": "senpai-wa-otonoko-3",
+      "original": "Senpai wa Otonoko 4.mp4",
+      "originalMd5": "75c7405ebdb27dfcf5ceadc4abbd7812",
+      "files": [
+        {
+          "name": "senpai-wa-otokonoko-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "street-catz-s01-e001",
+      "identifier": "dubverse-street-catz-s01-e001-e002",
+      "original": "dubverse-street-catz-s01-e001.mp4",
+      "originalMd5": "87c84126860635a66ae7886c426ac9a6",
+      "files": [
+        {
+          "name": "street-catz-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640028",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "sugar-apple-fairy-tale-s01-e001",
+      "identifier": "azucar-manzana-fairy-1",
+      "original": "Sugar Apple Fairy 1.mp4",
+      "originalMd5": "475b37a457aa49ae830ce561aeaf1963",
+      "files": [
+        {
+          "name": "sugar-apple-fairy-tale-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "tejina-senpai-s01-e004",
+      "identifier": "capitulo-07_202511",
+      "original": "Capitulo 04.mp4",
+      "originalMd5": "8a022618c2fea71a1455f3ec2ee928d8",
+      "files": [
+        {
+          "name": "tejina-senpai-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64002A",
+      "sourceWidth": 1280,
+      "sourceHeight": 720,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 720,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "tejina-senpai-s01-e008",
+      "identifier": "tejina-senpai-cap-8_202512",
+      "original": "Tejina Senpai Cap 8.mp4",
+      "originalMd5": "e770685562a8f0e7ecdb07cc4d5bf9b0",
+      "files": [
+        {
+          "name": "tejina-senpai-s01-e008.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.640033",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "uruwashi-no-yoi-no-tsuki-s01-e001",
+      "identifier": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001-e004",
+      "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001.mp4",
+      "originalMd5": "49585679e70ed939e2aebbc936d1d5c6",
+      "files": [
+        {
+          "name": "uruwashi-no-yoi-no-tsuki-s01-e001.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.64002A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "uruwashi-no-yoi-no-tsuki-s01-e002",
+      "identifier": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001-e004",
+      "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e002.mp4",
+      "originalMd5": "ba1f3965378b700a9f17f25dfab5adab",
+      "files": [
+        {
+          "name": "uruwashi-no-yoi-no-tsuki-s01-e002.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.42C02A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "uruwashi-no-yoi-no-tsuki-s01-e003",
+      "identifier": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001-e004",
+      "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e003.mp4",
+      "originalMd5": "7555d2887097f07a1df2f18070ca7ad2",
+      "files": [
+        {
+          "name": "uruwashi-no-yoi-no-tsuki-s01-e003.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.42C02A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    },
+    {
+      "enabled": false,
+      "episodeId": "uruwashi-no-yoi-no-tsuki-s01-e004",
+      "identifier": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e001-e004",
+      "original": "dubverse-uruwashi-no-yoi-no-tsuki-s01-e004.mp4",
+      "originalMd5": "dc2a171af4967e2ec9baea1e8c2a5fbd",
+      "files": [
+        {
+          "name": "uruwashi-no-yoi-no-tsuki-s01-e004.compatible-h264.mp4",
+          "md5": ""
+        }
+      ],
+      "reason": "High resolution, level or frame-rate gap; retain original and prepare a conservative H.264 alternative",
+      "sourceCodec": "avc1.42C02A",
+      "sourceWidth": 1920,
+      "sourceHeight": 1080,
+      "target": {
+        "codec": "H.264 High",
+        "maximumWidth": 1920,
+        "maximumHeight": 1080,
+        "maximumFramerate": 30,
+        "bitDepth": 8
+      },
+      "authorization": "NOT_AUTHORIZED_FOR_PUBLICATION",
+      "physicalDeviceVerification": "PENDING",
+      "action": "Verify missing timing/actual device behavior before deciding to encode. Not in the executable jobs list."
+    }
+  ],
+  "blocked": [
+    {
+      "episodeId": "bananya-s01-e001",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e001",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e002",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e003",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "idolish7-s01-e001",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "idolish7-s01-e002",
+      "reason": "NO_VIDEO",
+      "provider": "ARCHIVE"
+    },
+    {
+      "episodeId": "mao-2026-s01-e018",
+      "reason": "Review the correct episode source before deciding whether to encode."
+    },
+    {
+      "episodeId": "mao-2026-s01-e020",
+      "reason": "Review the correct episode source before deciding whether to encode."
+    },
+    {
+      "episodeId": "mao-2026-s01-e022",
+      "reason": "Review the correct episode source before deciding whether to encode."
+    },
+    {
+      "episodeId": "sugar-apple-fairy-tale-s01-e002",
+      "reason": "EXTERNAL_PROVIDER",
+      "provider": "PIXELDRAIN"
+    },
+    {
+      "episodeId": "uma-musume-pretty-derby-s01-e002",
+      "reason": "Review the correct episode source before deciding whether to encode."
+    },
+    {
+      "episodeId": "uma-musume-pretty-derby-s01-e003",
+      "reason": "Review the correct episode source before deciding whether to encode."
+    }
+  ],
+  "alreadyCovered": [
+    "aiura-s01-e001",
+    "anohana-the-flower-we-saw-that-day-s01-e002",
+    "anohana-the-flower-we-saw-that-day-s01-e003",
+    "anohana-the-flower-we-saw-that-day-s01-e004",
+    "anohana-the-flower-we-saw-that-day-s01-e005",
+    "anohana-the-flower-we-saw-that-day-s01-e006",
+    "anohana-the-flower-we-saw-that-day-s01-e008",
+    "anohana-the-flower-we-saw-that-day-s01-e009",
+    "anohana-the-flower-we-saw-that-day-s01-e010",
+    "anohana-the-flower-we-saw-that-day-s01-e011",
+    "bao-el-visitante-s01-e001",
+    "bloom-into-you-s01-e001",
+    "bridge-my-little-friends-s01-e001",
+    "bungo-stray-dogs-dead-apple-s01-e001",
+    "cuatro-corazones-s01-e001",
+    "cuatro-corazones-s01-e002",
+    "danganronpa-the-animation-s01-e003",
+    "desafio-champions-sendokai-s01-e008",
+    "desafio-champions-sendokai-s01-e013",
+    "desafio-champions-sendokai-s01-e018",
+    "desafio-champions-sendokai-s01-e026",
+    "desafio-champions-sendokai-s02-e035",
+    "desafio-champions-sendokai-s02-e043",
+    "desafio-champions-sendokai-s02-e045",
+    "desafio-champions-sendokai-s02-e046",
+    "desafio-champions-sendokai-s02-e050",
+    "detached-short-film-s01-e001",
+    "dororo-s01-e001",
+    "dororo-s01-e002",
+    "dororo-s01-e003",
+    "dororo-s01-e004",
+    "dororo-s01-e005",
+    "dororo-s01-e006",
+    "dororo-s01-e007",
+    "dororo-s01-e008",
+    "dororo-s01-e009",
+    "dororo-s01-e010",
+    "dororo-s01-e011",
+    "dororo-s01-e012",
+    "dororo-s01-e013",
+    "dororo-s01-e014",
+    "dororo-s01-e015",
+    "dororo-s01-e016",
+    "dororo-s01-e017",
+    "dororo-s01-e018",
+    "dororo-s01-e019",
+    "dororo-s01-e020",
+    "dororo-s01-e021",
+    "dororo-s01-e022",
+    "dororo-s01-e023",
+    "dragon-ball-episodio-de-bardock-s01-e001",
+    "dragon-ball-heroes-big-bang-mission-s01-e001",
+    "dragon-ball-heroes-big-bang-mission-s01-e002",
+    "dragon-ball-heroes-big-bang-mission-s01-e003",
+    "dragon-ball-heroes-big-bang-mission-s01-e004",
+    "dragon-ball-heroes-big-bang-mission-s01-e005",
+    "dragon-ball-heroes-big-bang-mission-s01-e006",
+    "dragon-ball-heroes-big-bang-mission-s01-e007",
+    "dragon-ball-heroes-big-bang-mission-s01-e008",
+    "dragon-ball-heroes-big-bang-mission-s01-e009",
+    "dragon-ball-heroes-big-bang-mission-s01-e010",
+    "dragon-ball-heroes-big-bang-mission-s01-e011",
+    "dragon-ball-heroes-big-bang-mission-s01-e012",
+    "dragon-ball-heroes-big-bang-mission-s01-e013",
+    "dragon-ball-heroes-big-bang-mission-s01-e014",
+    "dragon-ball-heroes-big-bang-mission-s01-e015",
+    "dragon-ball-heroes-big-bang-mission-s01-e016",
+    "dragon-ball-heroes-big-bang-mission-s01-e017",
+    "dragon-ball-heroes-big-bang-mission-s01-e018",
+    "dragon-ball-heroes-big-bang-mission-s01-e019",
+    "dragon-ball-heroes-big-bang-mission-s01-e020",
+    "dragon-ball-heroes-universe-mission-s01-e001",
+    "dragon-ball-heroes-universe-mission-s01-e002",
+    "dragon-ball-heroes-universe-mission-s01-e003",
+    "dragon-ball-heroes-universe-mission-s01-e004",
+    "dragon-ball-heroes-universe-mission-s01-e005",
+    "dragon-ball-heroes-universe-mission-s01-e006",
+    "dragon-ball-heroes-universe-mission-s01-e007",
+    "dragon-ball-heroes-universe-mission-s01-e008",
+    "dragon-ball-heroes-universe-mission-s01-e009",
+    "dragon-ball-heroes-universe-mission-s01-e010",
+    "dragon-ball-heroes-universe-mission-s01-e012",
+    "dragon-ball-heroes-universe-mission-s01-e013",
+    "dragon-ball-heroes-universe-mission-s01-e014",
+    "dragon-ball-heroes-universe-mission-s01-e015",
+    "dragon-ball-heroes-universe-mission-s01-e016",
+    "dragon-ball-heroes-universe-mission-s01-e017",
+    "dragon-ball-heroes-universe-mission-s01-e018",
+    "dragon-ball-heroes-universe-mission-s01-e019",
+    "dragon-ball-heroes-universe-mission-s01-e020",
+    "dragon-ball-z-el-plan-para-erradicar-a-los-saiyajins-s01-e001",
+    "eureka-seven-pachislot-original-episodes-s01-e003",
+    "fresh-pretty-cure-s01-e001",
+    "halo-legends-prototype-s01-e001",
+    "himouto-umaru-chan-s01-e001",
+    "himouto-umaru-chan-s01-e002",
+    "himouto-umaru-chan-s01-e003",
+    "himouto-umaru-chan-s01-e004",
+    "himouto-umaru-chan-s01-e005",
+    "inuyasha-kuroi-tessaiga-s01-e001",
+    "it-s-my-life-mi-vida-super-duper-wow-s01-e001",
+    "jojo-s-bizarre-adventure-s01-e001",
+    "jojo-s-bizarre-adventure-s01-e002",
+    "jojo-s-bizarre-adventure-s01-e003",
+    "jojo-s-bizarre-adventure-s01-e004",
+    "jojo-s-bizarre-adventure-s01-e005",
+    "jojo-s-bizarre-adventure-s01-e006",
+    "jojo-s-bizarre-adventure-s01-e007",
+    "jojo-s-bizarre-adventure-s01-e008",
+    "jojo-s-bizarre-adventure-s01-e009",
+    "jojo-s-bizarre-adventure-s01-e010",
+    "jojo-s-bizarre-adventure-s01-e011",
+    "kinsou-no-vermeil-s01-e001",
+    "kinsou-no-vermeil-s01-e002",
+    "kinsou-no-vermeil-s01-e003",
+    "kinsou-no-vermeil-s01-e004",
+    "kinsou-no-vermeil-s01-e005",
+    "kinsou-no-vermeil-s01-e007",
+    "kinsou-no-vermeil-s01-e009",
+    "kinsou-no-vermeil-s01-e010",
+    "kowloon-generic-romance-s01-e001",
+    "kowloon-generic-romance-s01-e002",
+    "kyoukai-no-rinne-s01-e001",
+    "kyoukai-no-rinne-s01-e004",
+    "kyoukai-no-rinne-s01-e005",
+    "kyoukai-no-rinne-s01-e006",
+    "kyoukai-no-rinne-s01-e007",
+    "kyoukai-no-rinne-s01-e008",
+    "kyoukai-no-rinne-s01-e009",
+    "kyoukai-no-rinne-s01-e010",
+    "kyoukai-no-rinne-s01-e011",
+    "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e001",
+    "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e002",
+    "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e003",
+    "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e004",
+    "la-leyenda-del-puno-estrella-norte-el-salvador-de-finales-de-siglo-s01-e006",
+    "llevame-a-casa-bring-me-nach-house-s01-e001",
+    "mao-2026-s01-e006",
+    "mao-2026-s01-e007",
+    "mao-2026-s01-e008",
+    "mao-2026-s01-e009",
+    "mao-2026-s01-e010",
+    "mao-2026-s01-e011",
+    "mao-2026-s01-e012",
+    "mao-2026-s01-e013",
+    "mao-2026-s01-e014",
+    "mao-2026-s01-e015",
+    "mao-2026-s01-e017",
+    "mao-2026-s01-e019",
+    "mao-2026-s01-e021",
+    "mikadono-sanshimai-wa-angai-choroi-s01-e001",
+    "mikadono-sanshimai-wa-angai-choroi-s01-e002",
+    "my-hero-academia-all-might-rising-s01-e001",
+    "my-hero-academia-save-rescue-training-s01-e001",
+    "nazo-no-kanojo-x-s01-e002",
+    "nazo-no-kanojo-x-s01-e004",
+    "nazo-no-kanojo-x-s01-e006",
+    "nazo-no-kanojo-x-s01-e007",
+    "one-punch-man-temporada-especial-s01-e001",
+    "one-punch-man-temporada-especial-s01-e002",
+    "one-punch-man-temporada-especial-s01-e003",
+    "one-punch-man-temporada-especial-s01-e004",
+    "one-punch-man-temporada-especial-s01-e005",
+    "one-punch-man-temporada-especial-s01-e006",
+    "post-mortem-mary-s01-e001",
+    "street-catz-s01-e002",
+    "sugar-apple-fairy-tale-s01-e003",
+    "sugar-apple-fairy-tale-s01-e004",
+    "sugar-apple-fairy-tale-s01-e005",
+    "sugar-apple-fairy-tale-s01-e006",
+    "tejina-senpai-s01-e001",
+    "tejina-senpai-s01-e002",
+    "tejina-senpai-s01-e003",
+    "tejina-senpai-s01-e005",
+    "tejina-senpai-s01-e006",
+    "tejina-senpai-s01-e007",
+    "tejina-senpai-s01-e009",
+    "uma-musume-pretty-derby-s01-e001"
+  ],
+  "note": "Technical coverage is not a real-device playback guarantee. All originals stay available; upload/link operations need separate approval."
+}

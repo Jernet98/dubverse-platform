@@ -207,7 +207,7 @@ body{overflow-x:hidden}.section-tight{padding-top:10px}.empty-page{width:min(760
 /* Episode player: ArtPlayer controls with real, disjoint buffered ranges. */
 .dv-player .dv-player-stage{position:absolute;inset:0;isolation:isolate}
 .dv-player .dv-player-status{pointer-events:none;background:rgba(0,0,0,.5);font-size:.85rem}
-.dv-player .dv-player-error{z-index:6;background:rgba(5,6,9,.94)}
+.dv-player .dv-player-error{z-index:6;background:rgba(5,6,9,.94);overflow:auto;justify-content:safe center}
 .dv-player .dv-player-error>div{flex-wrap:wrap;justify-content:center}
 .dv-player .dv-player-error button{min-height:44px;cursor:pointer;font:inherit;font-size:.8rem}
 .dv-player .dv-player-recovery{position:absolute;z-index:5;top:12px;left:12px;right:12px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-height:calc(100% - 24px);overflow:auto;padding:10px 12px;border:1px solid #454b59;border-radius:8px;background:rgba(12,14,19,.94);font-size:.8rem}

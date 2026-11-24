@@ -1,0 +1,116 @@
+{
+  "inspectedAt": "2026-11-24T18:26:33.871Z",
+  "corrections": [
+    {
+      "episodeId": "mao-2026-s01-e018",
+      "identifier": "dubverse-mao-2026-s01-e017-e018",
+      "currentFile": "dubverse-mao-2026-s01-e017.mp4",
+      "proposedFile": "dubverse-mao-2026-s01-e018.mp4",
+      "proposedMd5": "1842ad261da5bd27655060f635333b6e",
+      "proposedDuration": "1519.16",
+      "requiresOwnerApproval": true,
+      "contentVerification": "PENDING",
+      "applied": false,
+      "metadataVerifiedAt": "2026-11-24T18:48:20.986Z"
+    },
+    {
+      "episodeId": "mao-2026-s01-e020",
+      "identifier": "dubverse-mao-2026-s01-e019-e020",
+      "currentFile": "dubverse-mao-2026-s01-e019.mp4",
+      "proposedFile": "dubverse-mao-2026-s01-e020.mp4",
+      "proposedMd5": "64f61be18792017a13389ed8ebb6a4d0",
+      "proposedDuration": "1519.49",
+      "requiresOwnerApproval": true,
+      "contentVerification": "PENDING",
+      "applied": false,
+      "metadataVerifiedAt": "2026-11-24T18:48:21.266Z"
+    },
+    {
+      "episodeId": "mao-2026-s01-e022",
+      "identifier": "dubverse-mao-2026-s01-e021-e022",
+      "currentFile": "dubverse-mao-2026-s01-e021.mp4",
+      "proposedFile": "dubverse-mao-2026-s01-e022.mp4",
+      "proposedMd5": "c2965521c3232e24bb1d7b38751a838a",
+      "proposedDuration": "1519.4",
+      "requiresOwnerApproval": true,
+      "contentVerification": "PENDING",
+      "applied": false,
+      "metadataVerifiedAt": "2026-11-24T18:48:21.566Z"
+    },
+    {
+      "episodeId": "uma-musume-pretty-derby-s01-e002",
+      "identifier": "dubverse-uma-musume-pretty-derby-s01-e001-e003",
+      "currentFile": "dubverse-uma-musume-pretty-derby-s01-e001.mp4",
+      "proposedFile": "dubverse-uma-musume-pretty-derby-s01-e002.mp4",
+      "proposedMd5": "5731036fe82c9d540f98e26ae02358b6",
+      "proposedDuration": "1395.09",
+      "requiresOwnerApproval": true,
+      "contentVerification": "PENDING",
+      "applied": false,
+      "metadataVerifiedAt": "2026-11-24T18:48:21.704Z"
+    },
+    {
+      "episodeId": "uma-musume-pretty-derby-s01-e003",
+      "identifier": "dubverse-uma-musume-pretty-derby-s01-e001-e003",
+      "currentFile": "dubverse-uma-musume-pretty-derby-s01-e001.mp4",
+      "proposedFile": "dubverse-uma-musume-pretty-derby-s01-e003.mp4",
+      "proposedMd5": "49f6a493b88d263614be05818cd1023d",
+      "proposedDuration": "1409.96",
+      "requiresOwnerApproval": true,
+      "contentVerification": "PENDING",
+      "applied": false,
+      "metadataVerifiedAt": "2026-11-24T18:48:21.704Z"
+    }
+  ],
+  "availabilityIssues": [
+    {
+      "episodeId": "bananya-s01-e001",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e001",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e002",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "dragon-ball-super-beerus-s01-e003",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "idolish7-s01-e001",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "idolish7-s01-e002",
+      "status": "NO_VIDEO"
+    },
+    {
+      "episodeId": "sugar-apple-fairy-tale-s01-e002",
+      "status": "EXTERNAL_PROVIDER"
+    }
+  ],
+  "external": {
+    "at": "2026-11-24T18:29:40.549Z",
+    "episodeId": "sugar-apple-fairy-tale-s01-e002",
+    "playback": {
+      "provider": "PIXELDRAIN",
+      "source": {
+        "kind": "VIDEO",
+        "url": "https://pixeldrain.com/api/file/AsWrV4C5"
+      },
+      "fallback": null
+    },
+    "requests": [
+      {
+        "url": "https://pixeldrain.com/api/file/AsWrV4C5",
+        "status": 404,
+        "contentType": "application/json",
+        "contentRange": null
+      }
+    ],
+    "video": null
+  }
+}
