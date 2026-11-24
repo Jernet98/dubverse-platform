@@ -2,6 +2,8 @@
 
 Fecha local: 24 de noviembre de 2026, México. Rama: `codex/fix-archive-video-decoding`. Base de `main`: `8b6d6b93d3836eb7e93cd5e32bbe18dabf688926`.
 
+Revisión: [Pull Request #5, en borrador](https://github.com/Jernet98/dubverse-platform/pull/5). Prueba independiente: [laboratorio HTTPS temporal](https://exclusively-shower-confident-easy.trycloudflare.com), disponible mientras este equipo y su túnel estén abiertos.
+
 La solución requiere dos entregas: corregir la selección/recuperación del reproductor y disponer de archivos compatibles. El código, el laboratorio y el procedimiento de preparación están en esta rama. La publicación de copias completas, las correcciones de fuentes y el despliegue siguen pendientes de autorización. El incidente no se considera cerrado por aprobar las pruebas automatizadas.
 
 ## Comprobaciones en teléfonos reales
