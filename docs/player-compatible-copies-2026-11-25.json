@@ -1,0 +1,350 @@
+{
+  "dateLocal": "2026-11-25",
+  "timezone": "America/Mexico_City",
+  "status": "PLAYER_DEPLOYED_MEDIA_PREPARED_ARCHIVE_PENDING",
+  "production": {
+    "commit": "95817105e4bcff68106ead89daefdf5f5591637c",
+    "pullRequest": "https://github.com/Jernet98/dubverse-platform/pull/5",
+    "site": "https://dubversefandub.vercel.app",
+    "deployment": "https://vercel.com/jernet-kun/dubversefandub/83JSzHCXqYNnYY8GQfXs7RC9qDkn",
+    "state": "SUCCESS",
+    "verifiedPublicAssetHashes": true,
+    "priorityEpisodeApis": 7,
+    "nativePublicPlaybackCases": 5
+  },
+  "buffer": {
+    "preloadUnchanged": true,
+    "methodsUnchanged": [
+      "setupBuffer",
+      "updateBuffer",
+      "bufferAhead"
+    ],
+    "hlsBufferConfigurationUnchanged": true,
+    "networkStallPolicyUnchanged": true,
+    "decodeWatchExcludesNetworkBuffering": true,
+    "slowNetworkSameVideoAndSourceTestLayouts": 4
+  },
+  "tests": {
+    "unitPassed": 170,
+    "browserPassed": 60,
+    "build": "PASSED",
+    "physicalH264Samples": {
+      "passed": 4,
+      "reportedBy": "owner",
+      "devices": [
+        "Infinix Note 50 Pro / Chrome",
+        "iPhone / Safari"
+      ],
+      "episodes": [
+        "Black Butler E1",
+        "Black Butler E4"
+      ],
+      "scope": "12-second samples, not complete chapters"
+    }
+  },
+  "copies": [
+    {
+      "episodeId": "black-butler-book-of-circus-s01-e001",
+      "archiveIdentifier": "1-el-mayordomo-a-su-servicio",
+      "original": {
+        "name": "1 El Mayordomo, A Su Servicio.mp4",
+        "md5": "8f78e3d73514f34ae97eb99a64814e89",
+        "preserved": true
+      },
+      "compatible": {
+        "name": "bb-s01-e001-h264-1080p.mp4",
+        "md5": "9bc59d2fc5f7f47d4fdd6073f6171cfd",
+        "bytes": 609626776,
+        "codec": "h264",
+        "profile": "High",
+        "level": 41,
+        "pixelFormat": "yuv420p",
+        "width": 1920,
+        "height": 1080,
+        "frameRate": "30/1",
+        "audio": "aac",
+        "audioChannels": 2,
+        "color": {
+          "primaries": "bt470bg",
+          "transfer": "smpte170m",
+          "matrix": "bt470bg"
+        },
+        "duration": 1475.766667,
+        "durationDifference": 0,
+        "faststart": true
+      },
+      "localFile": ".codex-player-compatible-media/black-butler-book-of-circus-s01-e001/bb-s01-e001-h264-1080p.mp4",
+      "checks": {
+        "fullFileDecode": {
+          "passed": true,
+          "video": true,
+          "audio": true,
+          "errors": [],
+          "elapsedSeconds": 216
+        },
+        "nativeChromePlayback": {
+          "width": 1920,
+          "height": 1080,
+          "seekPositions": [
+            1.52986,
+            35.517552,
+            737.527192,
+            1471.281853
+          ],
+          "mediaError": null
+        },
+        "physicalFullPhonePlayback": "PENDING"
+      },
+      "archivePublication": "NOT_PUBLISHED_NO_CONFIGURED_ACCESS",
+      "associationEnabled": false
+    },
+    {
+      "episodeId": "black-butler-book-of-circus-s01-e002",
+      "archiveIdentifier": "amen-67",
+      "original": {
+        "name": "Amen67.mp4",
+        "md5": "48099bd516d78b20d3726721171a8960",
+        "preserved": true
+      },
+      "compatible": {
+        "name": "bb-s01-e002-h264-1080p.mp4",
+        "md5": "82fba21f2f73edbfb9d25a458a99117d",
+        "bytes": 558093179,
+        "codec": "h264",
+        "profile": "High",
+        "level": 41,
+        "pixelFormat": "yuv420p",
+        "width": 1920,
+        "height": 1080,
+        "frameRate": "30/1",
+        "audio": "aac",
+        "audioChannels": 2,
+        "color": {
+          "primaries": "bt470bg",
+          "transfer": "smpte170m",
+          "matrix": "bt470bg"
+        },
+        "duration": 1482.633333,
+        "durationDifference": 0,
+        "faststart": true
+      },
+      "localFile": ".codex-player-compatible-media/black-butler-book-of-circus-s01-e002/bb-s01-e002-h264-1080p.mp4",
+      "checks": {
+        "fullFileDecode": {
+          "passed": true,
+          "video": true,
+          "audio": true,
+          "errors": [],
+          "elapsedSeconds": 206
+        },
+        "nativeChromePlayback": {
+          "width": 1920,
+          "height": 1080,
+          "seekPositions": [
+            1.527659,
+            35.519782,
+            741.529688,
+            1478.150532
+          ],
+          "mediaError": null
+        },
+        "physicalFullPhonePlayback": "PENDING"
+      },
+      "archivePublication": "NOT_PUBLISHED_NO_CONFIGURED_ACCESS",
+      "associationEnabled": false
+    },
+    {
+      "episodeId": "black-butler-book-of-circus-s01-e003",
+      "archiveIdentifier": "dubverse-black-butler-book-of-circus-s01-e003",
+      "original": {
+        "name": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+        "md5": "d496d87dd00afb214feafa7c66ebd4d6",
+        "preserved": true
+      },
+      "compatible": {
+        "name": "bb-s01-e003-h264-1080p.mp4",
+        "md5": "4d8aa82e0d6e94546c598792de7de9e3",
+        "bytes": 617453960,
+        "codec": "h264",
+        "profile": "High",
+        "level": 41,
+        "pixelFormat": "yuv420p",
+        "width": 1920,
+        "height": 1080,
+        "frameRate": "30/1",
+        "audio": "aac",
+        "audioChannels": 2,
+        "color": {
+          "primaries": "bt470bg",
+          "transfer": "smpte170m",
+          "matrix": "bt470bg"
+        },
+        "duration": 1483.033333,
+        "durationDifference": 0,
+        "faststart": true
+      },
+      "localFile": ".codex-player-compatible-media/black-butler-book-of-circus-s01-e003/bb-s01-e003-h264-1080p.mp4",
+      "checks": {
+        "fullFileDecode": {
+          "passed": true,
+          "video": true,
+          "audio": true,
+          "errors": [],
+          "elapsedSeconds": 121
+        },
+        "nativeChromePlayback": {
+          "width": 1920,
+          "height": 1080,
+          "seekPositions": [
+            1.52714,
+            35.51765,
+            741.522276,
+            1478.548143
+          ],
+          "mediaError": null
+        },
+        "physicalFullPhonePlayback": "PENDING"
+      },
+      "archivePublication": "NOT_PUBLISHED_NO_CONFIGURED_ACCESS",
+      "associationEnabled": false
+    },
+    {
+      "episodeId": "black-butler-book-of-circus-s01-e004",
+      "archiveIdentifier": "1-el-mayordomo-a-su-servicio",
+      "original": {
+        "name": "4 El Mayordomo, Compañero.mp4",
+        "md5": "4fbd7f791b901814c3e8384a178424da",
+        "preserved": true
+      },
+      "compatible": {
+        "name": "bb-s01-e004-h264-1080p.mp4",
+        "md5": "ca793962efb078ff7db1fc8151134a33",
+        "bytes": 583117875,
+        "codec": "h264",
+        "profile": "High",
+        "level": 41,
+        "pixelFormat": "yuv420p",
+        "width": 1920,
+        "height": 1080,
+        "frameRate": "30/1",
+        "audio": "aac",
+        "audioChannels": 2,
+        "color": {
+          "primaries": "bt470bg",
+          "transfer": "smpte170m",
+          "matrix": "bt470bg"
+        },
+        "duration": 1478.233333,
+        "durationDifference": 0,
+        "faststart": true
+      },
+      "localFile": ".codex-player-compatible-media/black-butler-book-of-circus-s01-e004/bb-s01-e004-h264-1080p.mp4",
+      "checks": {
+        "fullFileDecode": {
+          "passed": true,
+          "video": true,
+          "audio": true,
+          "errors": [],
+          "elapsedSeconds": 212
+        },
+        "nativeChromePlayback": {
+          "width": 1920,
+          "height": 1080,
+          "seekPositions": [
+            1.521806,
+            35.536327,
+            739.53743,
+            1473.747733
+          ],
+          "mediaError": null
+        },
+        "physicalFullPhonePlayback": "PENDING"
+      },
+      "archivePublication": "NOT_PUBLISHED_NO_CONFIGURED_ACCESS",
+      "associationEnabled": false
+    },
+    {
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "archiveIdentifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "original": {
+        "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+        "md5": "f0ca3380feb5a7d2396b550341e03066",
+        "preserved": true
+      },
+      "compatible": {
+        "name": "mikadono-s01-e003-h264-1080p.mp4",
+        "md5": "f57741120d5ee5b20a40e2b95be87301",
+        "bytes": 570584885,
+        "codec": "h264",
+        "profile": "High",
+        "level": 41,
+        "pixelFormat": "yuv420p",
+        "width": 1920,
+        "height": 1080,
+        "frameRate": "30/1",
+        "audio": "aac",
+        "audioChannels": 2,
+        "color": {
+          "primaries": "bt709",
+          "transfer": "bt709",
+          "matrix": "bt709"
+        },
+        "duration": 1431.44,
+        "durationDifference": 0,
+        "faststart": true
+      },
+      "localFile": ".codex-player-compatible-media/mikadono-sanshimai-wa-angai-choroi-s01-e003/mikadono-s01-e003-h264-1080p.mp4",
+      "checks": {
+        "fullFileDecode": {
+          "passed": true,
+          "video": true,
+          "audio": true,
+          "errors": [],
+          "elapsedSeconds": 209
+        },
+        "nativeChromePlayback": {
+          "width": 1920,
+          "height": 1080,
+          "seekPositions": [
+            1.52454,
+            35.516364,
+            715.518414,
+            1426.967585
+          ],
+          "mediaError": null
+        },
+        "physicalFullPhonePlayback": "PENDING"
+      },
+      "archivePublication": "NOT_PUBLISHED_NO_CONFIGURED_ACCESS",
+      "associationEnabled": false
+    }
+  ],
+  "archiveUploadsExecuted": 0,
+  "activeNewAssociations": 0,
+  "productionDataWritesExecuted": false,
+  "otherCatalogWork": {
+    "otherPlannedCopies": 26,
+    "reviewCandidates": 44,
+    "wrongSourceAssignments": 5,
+    "unavailableSources": 7
+  },
+  "pending": [
+    "Configure Archive publication access with the owner account or upload the verified full copies manually to the exact listed items without replacing originals.",
+    "Verify public MD5, duration, Range and codec after Archive publication.",
+    "Test full files in the real phones and activate only the verified exact associations."
+  ],
+  "fullCopyLab": {
+    "url": "https://exclusively-shower-confident-easy.trycloudflare.com",
+    "serveCommand": "node scripts/preview-player.mjs --samples --full-copies --port 4173",
+    "scope": "Direct full local copies served by HTTPS; Archive Auto integration remains pending publication and activation.",
+    "availability": "While this computer, server and tunnel remain running.",
+    "nativeHttpsPlaybackVerified": [
+      "black-butler-book-of-circus-s01-e001",
+      "black-butler-book-of-circus-s01-e004",
+      "mikadono-sanshimai-wa-angai-choroi-s01-e003"
+    ],
+    "rangeBytes0To1": "206, 2 bytes verified for Black Butler E1/E4",
+    "protectedPaths": "/.env.local and account APIs return 404; POST returns 405",
+    "physicalFullPhoneResults": "AWAITING_OWNER"
+  }
+}

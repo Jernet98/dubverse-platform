@@ -7,6 +7,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
 import { mp4VideoInfo } from '../lib/media-probe.js';
+import compatibleMappings from '../config/archive-compatible-variants.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -44,7 +45,29 @@ if (args.includes('--samples')) for (const [name, number] of [['bb1', 1], ['bb4'
   episodes.push({ id: `black-butler-e${number}-h264-sample`, title: `Black Butler E${number} · Fragmento H.264 1080p (12 segundos)`, sample: true,
     playback: { provider: 'DIRECT', source: { kind: 'VIDEO', url, video, estimatedBitrate: (await stat(resolve(root, path))).size * 8 / 12 }, fallback: null } });
 }
-const catalog = JSON.stringify({ inspectedAt: report.inspectedAt, episodes });
+if (args.includes('--full-copies')) {
+  if (args.includes('--export')) throw Error('Full-copy preview is served directly from verified local files; export the small lab separately.');
+  for (const mapping of compatibleMappings) {
+    const name = mapping.files[0].name;
+    const path = `.codex-player-compatible-media/${mapping.episodeId}/${name}`;
+    const qa = JSON.parse(await readFile(resolve(root, dirname(path), 'local-verification.json'), 'utf8'));
+    if (qa.md5 !== mapping.files[0].md5 || !/^[a-f0-9]{32}$/i.test(qa.md5 || '') || !qa.fullFileDecode?.passed || !qa.faststart) throw Error(`Full copy is not verified: ${mapping.episodeId}`);
+    const episode = episodes.find(item => item.id === mapping.episodeId);
+    if (!episode) throw Error(`Preview catalog has no exact episode: ${mapping.episodeId}`);
+    const file = await open(resolve(root, path), 'r'), buffer = Buffer.alloc(16384);
+    let length;
+    try { ({ bytesRead: length } = await file.read(buffer, 0, buffer.length, 0)); } finally { await file.close(); }
+    const video = mp4VideoInfo(buffer.subarray(0, length)), size = (await stat(resolve(root, path))).size;
+    if (!video?.codec?.startsWith('avc1.') || video.bitDepth !== 8 || size !== qa.size) throw Error(`Full copy metadata changed: ${mapping.episodeId}`);
+    const url = `/prepared/${name}`;
+    files.set(url, [path, 'video/mp4']);
+    // Local files use DIRECT, preserving the production adapter's restriction
+    // that ARCHIVE variants must belong to the exact archive.org item.
+    episodes.push({ id: `${mapping.episodeId}-h264-full`, title: `${episode.title} · Copia H.264 completa 1080p`, fullCopy: true,
+      playback: { provider: 'DIRECT', source: { kind: 'VIDEO', url, video, estimatedBitrate: size * 8 / qa.duration }, fallback: null } });
+  }
+}
+const catalog = JSON.stringify({ inspectedAt: report.inspectedAt, fullCopies: args.includes('--full-copies'), episodes });
 if (args.includes('--export')) {
   const output = resolve(root, '.codex-player-preview');
   for (const [url, [path]] of files) {
@@ -78,7 +101,11 @@ if (args.includes('--export')) {
         response.setHeader('Content-Length', end - start + 1);
         if (range) response.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${size}` });
         if (request.method === 'HEAD') response.end();
-        else createReadStream(filePath, { start, end }).on('error', () => response.destroy()).pipe(response);
+        else {
+          const stream = createReadStream(filePath, { start, end });
+          response.on('close', () => stream.destroy());
+          stream.on('error', () => response.destroy()).pipe(response);
+        }
       } else { const data = await readFile(resolve(root, asset[0])); response.end(request.method === 'HEAD' ? '' : data); }
     }
     catch { response.writeHead(404); response.end(); }
