@@ -14,7 +14,7 @@ function snapshot() {
   try { quality = video?.getVideoPlaybackQuality?.(); } catch {}
   return {
     at: new Date().toISOString(), episodeId: episode?.id,
-    mode: player?.variants.length ? (player?.autoQuality ? 'Auto' : 'Manual') : 'Fuente única', file: variant?.name || (episode?.sample ? episode.playback.source.url.split('/').at(-1) : null),
+    mode: player?.variants.length ? (player?.autoQuality ? 'Auto' : 'Manual') : 'Fuente única', file: variant?.name || (episode?.sample || episode?.fullCopy ? episode.playback.source.url.split('/').at(-1) : null),
     variantIndex: player?.variantIndex,
     codec: info?.codec || 'No medido', bitDepth: info?.bitDepth || null,
     width: video?.videoWidth || info?.width || null, height: video?.videoHeight || info?.height || null,
@@ -71,7 +71,7 @@ async function selectEpisode(value, catalog) {
   const player = activePlayer;
   await player.ready;
   if (activePlayer !== player) return;
-  if (episode.sample && navigator.mediaCapabilities?.decodingInfo) {
+  if ((episode.sample || episode.fullCopy) && navigator.mediaCapabilities?.decodingInfo) {
     const source = episode.playback.source, info = source.video;
     let timer;
     try {
@@ -106,9 +106,10 @@ byId('copy').onclick = async () => {
   byId('secure-warning').hidden = isSecureContext;
   const response = await fetch('/catalog.json'); if (!response.ok) throw Error('No se pudo cargar la muestra pública.');
   const catalog = await response.json();
+  byId('full-copy-note').hidden = !catalog.fullCopies;
   byId('episode').replaceChildren(...catalog.episodes.map(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = item.title; return option; }));
   byId('episode').onchange = () => selectEpisode(byId('episode').value, catalog);
   const requested = new URL(location.href).searchParams.get('episode');
-  byId('episode').value = catalog.episodes.some(item => item.id === requested) ? requested : catalog.episodes.find(item => item.id.includes('black-butler'))?.id || catalog.episodes[0].id;
+  byId('episode').value = catalog.episodes.some(item => item.id === requested) ? requested : catalog.episodes.find(item => item.fullCopy)?.id || catalog.episodes.find(item => item.id.includes('black-butler'))?.id || catalog.episodes[0].id;
   await selectEpisode(byId('episode').value, catalog); setInterval(render, 1000);
 })().catch(error => record('LAB_ERROR', { message: error.message }));

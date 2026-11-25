@@ -49,6 +49,13 @@ for (const job of jobs) {
   if (['smpte2084','arib-std-b67'].includes(transfer)) throw Error(`HDR requires a separately reviewed color/tone-mapping plan: ${source}`);
   if ((!transfer || transfer === 'unknown') && !args.includes('--assume-sdr')) throw Error(`SDR is unconfirmed for ${source}; review it before explicitly using --assume-sdr.`);
   if (before.streams.some(stream => stream.codec_type === 'subtitle')) throw Error(`Review embedded subtitles before converting ${source}; the script will not silently discard them.`);
+  // Preserve declared SDR color in the AVC VUI and MP4 metadata. Resolution is
+  // not a reliable way to infer the matrix (some 1080p originals declare 601).
+  const colorOptions = [], colorMetadata = {};
+  for (const [field, option] of [['color_primaries','-color_primaries'],['color_transfer','-color_trc'],['color_space','-colorspace'],['color_range','-color_range']]) {
+    const value = video[field];
+    if (value && !['unknown','unspecified','reserved'].includes(value)) { colorOptions.push(option, value); colorMetadata[field] = value; }
+  }
   const [frames, seconds] = String(video.avg_frame_rate || '').split('/').map(Number), fps = frames / seconds;
   if (!(fps > 0 && fps <= 60)) throw Error(`Unverified frame rate: ${source}`);
   if (!(video.width > 0 && video.height > 0)) throw Error(`Unverified dimensions: ${source}`);
@@ -56,7 +63,7 @@ for (const job of jobs) {
   const sar = sarWidth > 0 && sarHeight > 0 ? sarWidth / sarHeight : 1;
   const width = video.width * sar, factor = Math.min(1, 1920 / width, 1080 / video.height);
   const targetWidth = Math.max(2, Math.floor(width * factor / 2) * 2), targetHeight = Math.max(2, Math.floor(video.height * factor / 2) * 2);
-  plan.push({ ...job, source, output, before, targetWidth, targetHeight, level: '4.1', frameRate: fps <= 30 ? video.avg_frame_rate : '30' });
+  plan.push({ ...job, source, output, before, targetWidth, targetHeight, colorOptions, colorMetadata, level: '4.1', frameRate: fps <= 30 ? video.avg_frame_rate : '30' });
 }
 // All inputs are checked before encoding the first file. -n additionally protects
 // against overwriting a file created after this preflight.
@@ -67,11 +74,13 @@ for (const job of plan) {
   await run(ffmpeg, ['-n','-hide_banner','-loglevel','warning','-i',job.source,
     '-map','0:v:0','-map','0:a:0?','-vf',`scale=${job.targetWidth}:${job.targetHeight},setsar=1`,
     '-r',job.frameRate,'-c:v','libx264','-profile:v','high','-level:v',job.level,'-pix_fmt','yuv420p','-preset',preset,'-crf','18','-maxrate','16M','-bufsize','32M',
+    ...job.colorOptions,
     '-c:a','aac','-ac','2','-b:a','160k','-movflags','+faststart',job.output]);
   const after = await probe(job.output), video = after.streams.find(stream => stream.codec_type === 'video');
   const durationDifference = Math.abs(Number(after.format.duration) - Number(job.before.format.duration));
   if (video?.codec_name !== 'h264' || video.pix_fmt !== 'yuv420p' || durationDifference > 1) throw Error(`Output verification failed; keep it unpublished and inspect ${job.output}`);
-  results.push({ episodeId: job.episodeId, identifier: job.identifier, original: job.original, originalMd5: job.originalMd5, output: job.output, md5: await md5(job.output), after, durationDifference, preset, crf: 18, publication: 'NOT_PUBLISHED', physicalDeviceVerification: 'PENDING' });
+  if (Object.entries(job.colorMetadata).some(([field, value]) => video[field] !== value)) throw Error(`Output lost declared SDR color metadata; keep it unpublished and inspect ${job.output}`);
+  results.push({ episodeId: job.episodeId, identifier: job.identifier, original: job.original, originalMd5: job.originalMd5, output: job.output, md5: await md5(job.output), after, durationDifference, sourceColor: job.colorMetadata, preset, crf: 18, publication: 'NOT_PUBLISHED', physicalDeviceVerification: 'PENDING' });
   await writeFile(join(outputRoot, 'preparation-report.json'), JSON.stringify(results, null, 2));
 }
 console.log('Local copies prepared. Validate image, audio, color, subtitles and real phones before requesting publication. Nothing was uploaded or linked.');
