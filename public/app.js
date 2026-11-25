@@ -1403,7 +1403,7 @@ async function watch(id, recordHistory = true) {
     ? { provider: 'ARCHIVE', source: null, fallback: episode.video_url ? { kind: 'IFRAME', url: episode.video_url } : null }
     : { provider: episode.provider, source: episode.video_url ? { kind: /\.m3u8(?:$|[?#])/i.test(episode.video_url) ? 'HLS' : 'VIDEO', url: episode.video_url } : null, fallback: null });
   const isArchivePlayback = playback.provider === 'ARCHIVE';
-  const useArchiveEmbed = isArchivePlayback && !playback.source?.url;
+  const useArchiveEmbed = isArchivePlayback && !playback.source?.url && playback.status !== 'UNRESOLVED';
   let playbackAnalytics = null;
   try { if (!useArchiveEmbed && window.DubverseAnalytics) playbackAnalytics = new window.DubverseAnalytics.Playback(episodeId); } catch {}
   const trackPlayback = (method, snapshot) => { try { playbackAnalytics?.[method](snapshot); } catch {} };
@@ -1449,6 +1449,7 @@ async function watch(id, recordHistory = true) {
       title: `${project.title} — ${episode.title}`,
       poster: episode.project?.banner || episode.project?.poster || project.banner || project.poster,
       playback,
+      reloadPlayback: async () => (await api(`/api/episodes/${encodeURIComponent(episodeId)}`)).playback,
       initialTime: Number(savedProgress?.progress?.positionSeconds || 0),
       onPlaying: () => trackPlayback('start'),
       onProgress: snapshot => { trackPlayback('progress', snapshot); sendProgress(snapshot); },

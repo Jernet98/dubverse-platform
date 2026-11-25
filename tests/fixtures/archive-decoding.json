@@ -1,0 +1,242 @@
+{
+  "inspectedOn": "2026-11-22",
+  "records": [
+    {
+      "project": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e002",
+      "identifier": "amen-67",
+      "original": "Amen67.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/amen-67/Amen67.ia.mp4",
+          "name": "Amen67.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 143937322,
+          "width": 854,
+          "height": 480,
+          "length": 1482.63,
+          "estimatedBitrate": 776659.4335741216,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          }
+        },
+        {
+          "url": "https://archive.org/download/amen-67/Amen67.mp4",
+          "name": "Amen67.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 275604023,
+          "width": 1920,
+          "height": 1080,
+          "length": 1482.63,
+          "estimatedBitrate": 1487108.8430694104,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          }
+        }
+      ]
+    },
+    {
+      "project": "black-butler-book-of-circus",
+      "episodeId": "black-butler-book-of-circus-s01-e003",
+      "identifier": "dubverse-black-butler-book-of-circus-s01-e003",
+      "original": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+          "name": "dubverse-black-butler-book-of-circus-s01-e003.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 143769565,
+          "width": 854,
+          "height": 480,
+          "length": 1483.03,
+          "estimatedBitrate": 775545.0125756054,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          }
+        },
+        {
+          "url": "https://archive.org/download/dubverse-black-butler-book-of-circus-s01-e003/dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "name": "dubverse-black-butler-book-of-circus-s01-e003.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 313556457,
+          "width": 1920,
+          "height": 1080,
+          "length": 1483.03,
+          "estimatedBitrate": 1691436.893387187,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          }
+        }
+      ]
+    },
+    {
+      "project": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e001",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 192050193,
+          "width": 1920,
+          "height": 1080,
+          "length": 1431.95,
+          "estimatedBitrate": 1072943.5692587032,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "avc1.4D4028",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 40,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D4028\"",
+            "framerate": 30
+          }
+        }
+      ]
+    },
+    {
+      "project": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e002",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+      "entryCount": 2,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e001-e002/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e002.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 219546298,
+          "width": 1920,
+          "height": 1080,
+          "length": 1426.29,
+          "estimatedBitrate": 1231425.8558918594,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "avc1.4D4028",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 40,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D4028\"",
+            "framerate": 30
+          }
+        }
+      ]
+    },
+    {
+      "project": "mikadono-sanshimai-wa-angai-choroi",
+      "episodeId": "mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "identifier": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003",
+      "original": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+      "entryCount": 1,
+      "variants": [
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.ia.mp4",
+          "format": "h.264 IA",
+          "source": "derivative",
+          "size": 141920596,
+          "width": 854,
+          "height": 480,
+          "length": 1431.44,
+          "estimatedBitrate": 793162.6669647348,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "avc1",
+            "width": 854,
+            "height": 480,
+            "codec": "avc1.4D401E",
+            "codecName": "h264",
+            "profileId": 77,
+            "level": 30,
+            "bitDepth": 8,
+            "contentType": "video/mp4; codecs=\"avc1.4D401E\"",
+            "framerate": 30
+          }
+        },
+        {
+          "url": "https://archive.org/download/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003/dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "name": "dubverse-mikadono-sanshimai-wa-angai-choroi-s01-e003.mp4",
+          "format": "MPEG4",
+          "source": "original",
+          "size": 318232902,
+          "width": 1920,
+          "height": 1080,
+          "length": 1431.44,
+          "estimatedBitrate": 1778532.957022299,
+          "video": {
+            "hasVideo": true,
+            "sampleEntry": "hvc1",
+            "width": 1920,
+            "height": 1080,
+            "codec": "hvc1.2.4.L120.90",
+            "codecName": "hevc",
+            "profileId": 2,
+            "level": 120,
+            "bitDepth": 10,
+            "contentType": "video/mp4; codecs=\"hvc1.2.4.L120.90\"",
+            "framerate": 30
+          }
+        }
+      ]
+    }
+  ]
+}

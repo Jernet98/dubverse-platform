@@ -207,9 +207,12 @@ body{overflow-x:hidden}.section-tight{padding-top:10px}.empty-page{width:min(760
 /* Episode player: ArtPlayer controls with real, disjoint buffered ranges. */
 .dv-player .dv-player-stage{position:absolute;inset:0;isolation:isolate}
 .dv-player .dv-player-status{pointer-events:none;background:rgba(0,0,0,.5);font-size:.85rem}
-.dv-player .dv-player-error{z-index:6;background:rgba(5,6,9,.94)}
+.dv-player .dv-player-error{z-index:6;background:rgba(5,6,9,.94);overflow:auto;justify-content:safe center}
 .dv-player .dv-player-error>div{flex-wrap:wrap;justify-content:center}
 .dv-player .dv-player-error button{min-height:44px;cursor:pointer;font:inherit;font-size:.8rem}
+.dv-player .dv-player-recovery{position:absolute;z-index:5;top:12px;left:12px;right:12px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-height:calc(100% - 24px);overflow:auto;padding:10px 12px;border:1px solid #454b59;border-radius:8px;background:rgba(12,14,19,.94);font-size:.8rem}
+.dv-player .dv-player-recovery span{flex:1 1 220px}
+.dv-player .dv-player-recovery button{min-height:44px;padding:6px 10px;border:1px solid #555b67;border-radius:6px;background:#20242d;color:#fff;font:inherit;cursor:pointer}
 .dv-player .art-video-player{--art-theme:#e7232d;--art-progress-height:5px;--art-progress-color:#34363d;--art-loaded-color:transparent;--art-control-height:44px;--art-control-icon-size:26px;--art-control-opacity:1;--art-indicator-size:11px;--art-indicator-scale:1;--art-padding:14px;--art-bottom-gap:8px;--art-widget-background:rgba(17,19,25,.96);--art-settings-max-height:220px;font-family:inherit}
 .dv-player .art-bottom{padding-bottom:max(8px,env(safe-area-inset-bottom));background-image:linear-gradient(transparent,rgba(0,0,0,.83))}
 .dv-player .art-bottom .art-progress .art-control-progress{height:24px;padding:0;cursor:pointer}
