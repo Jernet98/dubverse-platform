@@ -485,7 +485,11 @@
       const rect = video.getBoundingClientRect?.();
       const visible = !document.hidden && this.root?.isConnected !== false && (!rect || rect.bottom > 0 && rect.right > 0 && rect.top < (global.innerHeight || Infinity) && rect.left < (global.innerWidth || Infinity));
       const progressed = Math.abs(video.currentTime - state.lastTime) > .01 || frames !== null && state.lastFrames !== null && frames > state.lastFrames;
-      if (!this.wantedPlay || !visible || document.pictureInPictureElement || video.webkitCurrentPlaybackTargetIsWireless || elapsed > 2.5 || progressed) state.wall = 0;
+      // Network buffering is not evidence of decoder failure. Keep accumulated
+      // media and the original stall policy while waiting for actual data.
+      const decodeReady = !video.seeking && !video.ended && !video.error && !this.switching && !this.restoring
+        && video.readyState >= 3 && (this.bufferAhead() >= 1 || video.readyState >= 4);
+      if (!this.wantedPlay || !decodeReady || !visible || document.pictureInPictureElement || video.webkitCurrentPlaybackTargetIsWireless || elapsed > 2.5 || progressed) state.wall = 0;
       else state.wall += Math.max(0, elapsed);
       state.lastNow = now; state.lastTime = video.currentTime; state.lastFrames = frames;
       if (state.wall < 20) return;
@@ -493,7 +497,7 @@
       if (this.variantIndex >= 0) this.failedVariants.add(this.variantIndex);
       const next = this.autoQuality ? this.chooseInitialVariant() : -1;
       if (next >= 0 && next !== this.variantIndex) this.switchVariant(next);
-      else this.showError('El video no avanzó durante 20 segundos. No pudimos iniciar o continuar esta fuente. Reintenta o prueba otra calidad o el reproductor de Archive.');
+      else this.showError('El video tiene datos disponibles, pero no pudo mostrar la imagen ni avanzar. Reintenta o prueba otra calidad o el reproductor de Archive.');
     }
 
     stopPlaybackWatch() {

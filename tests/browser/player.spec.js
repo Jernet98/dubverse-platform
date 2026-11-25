@@ -17,7 +17,7 @@ async function serveMedia(route, name) {
 }
 
 async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false, noSource = false, decoderMode = '', freezeHighFrames = false, singleVariant = false, unresolved = false, hangHigh = false } = {}) {
-  const analytics = [], progress = [], errors = [], requests = [];
+  const analytics = [], progress = [], errors = [], requests = [], heldMedia = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => requests.push(request.url()));
   const direct = '/__player_fixture/episode.mp4';
@@ -61,7 +61,7 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
     await serveMedia(route, name);
   });
   await page.route('https://archive.org/download/dubverse-player-fixture/**', async route => {
-    if (hangHigh && decodeURIComponent(route.request().url()).endsWith('/Episodio 1.mp4')) return;
+    if (hangHigh && decodeURIComponent(route.request().url()).endsWith('/Episodio 1.mp4')) { heldMedia.push(route); return; }
     if (broken) return route.fulfill({ status: 404, body: '' });
     await serveMedia(route, 'episode.mp4');
   });
@@ -92,7 +92,7 @@ async function prepare(page, { kind = 'DIRECT', initialTime = 3, broken = false,
     HTMLMediaElement.prototype.canPlayType = function(type) { return /mpegurl/.test(type) ? '' : canPlay.call(this, type); };
   });
   await page.goto('/ver/player-ep-1');
-  return { analytics, progress, errors, requests, playback };
+  return { analytics, progress, errors, requests, playback, releaseHigh: () => Promise.all(heldMedia.splice(0).map(route => serveMedia(route, 'episode.mp4'))) };
 }
 
 async function ready(page) {
@@ -292,14 +292,25 @@ test('Auto conserva calidad alta cuando la consulta de decodificación permite r
   expect(state.errors).toEqual([]);
 });
 
-test('una carga inicial sin respuesta intenta otra fuente automáticamente y no duplica Analytics', async ({ page }) => {
-  test.setTimeout(40000);
+test('una conexión lenta conserva la fuente y su precarga sin agotar el detector de decodificación', async ({ page }) => {
   const state = await prepare(page, { kind: 'ARCHIVE', decoderMode: 'supported-high', hangHigh: true, initialTime: 0 });
   await expect(page.locator('.art-video')).toBeAttached();
   await expect.poll(() => page.evaluate(() => activePlayer.stage.inert)).toBe(false);
   await page.getByRole('button', { name: 'Reproducir o pausar', exact: true }).click();
-  await expect.poll(() => page.evaluate(() => activePlayer.variantIndex), { timeout: 28000 }).toBe(0);
+  const before = await page.evaluate(() => {
+    const player = activePlayer, video = player.video;
+    window.__bufferVideo = video;
+    const now = Date.now();
+    for (let i = 1; i <= 25; i++) player.checkPlaybackClock(now + i * 1000);
+    return { index: player.variantIndex, failed: [...player.failedVariants], wall: player.playbackWatch.wall, preload: video.preload, ready: video.readyState };
+  });
+  expect(before).toEqual({ index: 1, failed: [], wall: 0, preload: 'auto', ready: 0 });
+  expect(state.requests.some(url => decodeURIComponent(url).endsWith('/Episodio 1.ia.mp4'))).toBe(false);
+  // Let the same pending request finish; no load(), src change or retry is needed.
+  await state.releaseHigh();
+  await ready(page);
   await expect.poll(() => page.locator('.art-video').evaluate(video => !video.paused && video.currentTime > .1)).toBe(true);
+  expect(await page.evaluate(() => activePlayer.video === window.__bufferVideo)).toBe(true);
   expect(state.analytics.filter(event => event.eventType === 'PLAY_START')).toHaveLength(1);
   expect(state.errors).toEqual([]);
 });

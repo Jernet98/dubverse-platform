@@ -2,9 +2,9 @@
 
 Fecha local: 24 de noviembre de 2026, México. Rama: `codex/fix-archive-video-decoding`. Base de `main`: `8b6d6b93d3836eb7e93cd5e32bbe18dabf688926`.
 
-Revisión: [Pull Request #5, en borrador](https://github.com/Jernet98/dubverse-platform/pull/5). Prueba independiente: [laboratorio HTTPS temporal](https://exclusively-shower-confident-easy.trycloudflare.com), disponible mientras este equipo y su túnel estén abiertos.
+Revisión: [Pull Request #5](https://github.com/Jernet98/dubverse-platform/pull/5). Prueba independiente: [laboratorio HTTPS temporal](https://exclusively-shower-confident-easy.trycloudflare.com), disponible mientras este equipo y su túnel estén abiertos.
 
-La solución requiere dos entregas: corregir la selección/recuperación del reproductor y disponer de archivos compatibles. El código, el laboratorio y el procedimiento de preparación están en esta rama. La publicación de copias completas, las correcciones de fuentes y el despliegue siguen pendientes de autorización. El incidente no se considera cerrado por aprobar las pruebas automatizadas.
+La solución requiere dos entregas: corregir la selección/recuperación del reproductor y disponer de archivos compatibles. El propietario autorizó commits, push, fusión del PR #5 y despliegue automático de `main`, sujetos a las comprobaciones finales y a conservar el búfer. La publicación multimedia sigue pendiente de claves S3 de Archive. Las cinco asociaciones permanecen desactivadas hasta verificar las copias completas publicadas. El incidente no se considera cerrado por aprobar las pruebas automatizadas.
 
 ## Comprobaciones en teléfonos reales
 
@@ -15,7 +15,7 @@ El propietario probó el laboratorio HTTPS desde un **Infinix Note 50 Pro con Ch
 
 Este segundo caso confirma un hueco adicional: el reloj puede quedar detenido aunque se haya emitido `playing`. El monitor anterior requería avance de tiempo y no detectaba ese estado. Se añadió una comprobación de progreso con límite de 20 segundos. Los datos no permiten atribuir por sí solos ese bloqueo a Archive, GPU o decodificador.
 
-La comprobación física de la nueva recuperación y de las copias H.264 figura en el registro de pruebas. Las versiones completas requieren una nueva revisión de reproducción, color, audio y continuidad antes de publicarse.
+Posteriormente, el propietario confirmó **cuatro pruebas exitosas de los fragmentos H.264 de Black Butler E1/E4: ambos episodios en el Infinix Note 50 Pro/Chrome y ambos en iPhone/Safari**. Esta evidencia comprueba los fragmentos de 12 segundos, no la continuidad de capítulos completos. Las copias completas siguen requiriendo verificación de duración, reproducción, color y audio.
 
 ## Alcance de la auditoría
 
@@ -55,7 +55,7 @@ No hubo lista pública de video resuelta para Bananya E1, Dragon Ball Super: Bee
 
 1. `lib/media-probe.js` lee `avcC`, SPS, `hvcC` y `vpcC`. Distingue AVC de 8/10 bits, HEVC y VP9. Normalmente usa 4 KiB; si faltan los tiempos, puede ampliar a 16 KiB. Conserva el códec ya verificado si falla esa ampliación. Siguen vigentes los límites de tiempo, seis peticiones y 2 MiB de `moov`; rechaza servidores que ignoren Range.
 2. Auto consulta `canPlayType()` y, con datos suficientes, `MediaCapabilities.decodingInfo()`. Excluye rechazos explícitos y prefiere opciones fluidas dentro de la estimación de conexión. No bloquea las resoluciones altas por nombre de códec ni por `powerEfficient: false`.
-3. El monitor de fotogramas detecta tiempo avanzando sin nuevas imágenes. El nuevo monitor del reloj detecta carga o reproducción sin avance durante **20 segundos visibles de intención de reproducir**, incluido `readyState: 4`/`playing`. Pausa, background, PiP y AirPlay no consumen ese presupuesto. El monitor del reloj se aplica también a video directo fuera de Archive; HLS conserva su recuperación propia.
+3. El monitor de fotogramas detecta tiempo avanzando sin nuevas imágenes. El monitor del reloj detecta reproducción sin avance durante **20 segundos visibles con datos suficientes para decodificar**, incluido `readyState: 4`/`playing`. La espera de datos de red, las búsquedas/restauraciones, pausa, background, PiP y AirPlay no consumen ese presupuesto. No recarga una fuente por tardar en descargar. Se aplica también a video directo fuera de Archive; HLS conserva su recuperación propia.
 4. Auto marca una fuente fallida y prueba otra compatible del mismo episodio una sola vez por instancia. Conserva posición, volumen, silencio, velocidad y el mismo elemento de video. Una calidad manual no se sustituye silenciosamente. Agotar alternativas detiene el audio y muestra un error persistente con acciones explícitas.
 5. El iframe sigue disponible como alternativa elegida por el visitante. No se presenta como prueba de compatibilidad: Archive puede utilizar el mismo original HEVC. Entrar al iframe cancela los monitores y retira los avisos anteriores.
 6. `public/app.js` presenta un error cuando el resolver devuelve `UNRESOLVED`; no deja que el caso conocido sin fuentes pase automáticamente al iframe. **Reintentar** puede reconsultar la API una vez, con límite de 20 segundos y sin crear otra sesión de Analytics ni otra vista del episodio.
@@ -80,12 +80,18 @@ Las escenas oscuras conservan fotogramas y no disparan recuperación por brillo.
 
 - `npm test`: **170/170** aprobadas.
 - `npm run build`: compilación de producción correcta.
-- `npm run test:player:browser`: **60/60** aprobadas en escritorio, Android, iPhone y tablet emulados en Chrome de Windows. Incluyen MP4/HLS, iframe, calidades, carga que nunca responde, imagen sin fotogramas, reloj detenido, progreso, Analytics y navegación.
+- `npm run test:player:browser`: **60/60 aprobadas** en escritorio, Android, iPhone y tablet emulados en Chrome de Windows. Incluyen MP4/HLS, iframe, calidades, conexión lenta sin recargas, imagen sin fotogramas, reloj detenido, progreso, Analytics y navegación.
 - Dos fragmentos reales H.264 de Black Butler E1/E4: **1080p**, aproximadamente cinco segundos de reproducción observada, 153–154 fotogramas y sin error en Chrome de Windows a través del laboratorio HTTPS.
 
 También se probó la preparación por lotes con un clip sintético HEVC de 10 bits: salieron cinco copias H.264 de 8 bits, sin sobrescribir entradas ni salidas existentes. Esos cinco archivos sintéticos no son capítulos de DUBVERSE.
 
 No se modificaron Neon, R2, cuentas, metadatos publicados ni archivos de Archive. Se conserva fuera del commit `lib/.vscode/settings.json`, que ya existía antes del trabajo.
+
+### Conservación del búfer
+
+Comparación directa con `main` estable `8b6d6b9`: los métodos `setupBuffer()`, `updateBuffer()` y `bufferAhead()` permanecen idénticos. También permanecen iguales `preload: auto` para Archive, `metadata` para otros proveedores y la construcción `new Hls()` sin alterar sus parámetros de búfer. El temporizador previo de espera de red de seis segundos y su separación de quince segundos entre cambios se conservan; su búsqueda de alternativas ahora excluye códecs rechazados.
+
+La comprobación nueva del reloj sólo acumula tiempo con `readyState >= 3` y al menos un segundo cargado por delante, o `readyState: 4`. Las pruebas comprueban que una descarga pendiente conserva fuente, elemento de video y precarga, y que continúa al llegar los datos. La reproducción saludable, las búsquedas y las restauraciones no disparan esta recuperación. Ningún monitor usa un plazo de espera para permitir iniciar la reproducción.
 
 ## Preparar e incorporar copias completas
 
@@ -106,7 +112,7 @@ node scripts/prepare-compatible-media.mjs --manifest docs/compatible-media-plan-
 node scripts/prepare-compatible-media.mjs --manifest docs/compatible-media-plan-2026-11-24.json --source-root C:/DUBVERSE-media/originales --output-root C:/DUBVERSE-media/compatibles --ffmpeg C:/herramientas/ffmpeg.exe --ffprobe C:/herramientas/ffprobe.exe --encode
 ```
 
-El script verifica todos los inputs y sus MD5 antes de empezar. Genera AVC High nivel 4.1, `yuv420p` de 8 bits, AAC estéreo y `faststart`, hasta 1920×1080 sin aumentar la resolución original, con aspecto correcto y hasta 30 fps. Las copias de fuentes de 720p permanecen en 720p; un original de 60/120 fps se conserva junto a la copia de hasta 30 fps. El codificador actual exige FPS de entrada comprobable y como máximo 60; un archivo de 120 fps requiere revisión y una adaptación aprobada antes de entrar al lote.
+El script verifica todos los inputs y sus MD5 antes de empezar. Genera AVC High nivel 4.1, `yuv420p` de 8 bits, AAC estéreo y `faststart`, hasta 1920×1080 sin aumentar la resolución original, con aspecto correcto y hasta 30 fps. `--episodes id1,id2` permite preparar primero capítulos concretos; `--preset fast` reduce el tiempo de cómputo conservando CRF 18 y las restricciones de compatibilidad. Las copias de fuentes de 720p permanecen en 720p; un original de 60/120 fps se conserva junto a la copia de hasta 30 fps. El codificador actual exige FPS de entrada comprobable y como máximo 60; un archivo de 120 fps requiere revisión y una adaptación aprobada antes de entrar al lote.
 
 Se detiene ante HDR, subtítulos embebidos o color SDR desconocido. `--assume-sdr` sólo procede después de revisar material con metadatos de color ausentes; no elude el bloqueo HDR. El informe de salida incluye `ffprobe`, duración y MD5. Se verifica imagen, color, sincronía, subtítulos y reproducción prolongada. La recodificación tiene pérdida y puede aumentar el tamaño; los originales se conservan.
 
@@ -122,7 +128,7 @@ Este comando de publicación no se ha ejecutado. La sintaxis procede de la [docu
 
 5. Consultar los metadatos y comprobar nombre, tamaño, MD5 de la copia y MD5 intacto del original. Una subida separada aparece como otro original de Archive: el resolver no debe asociarla automáticamente por similitud de nombres.
 6. Incorporar la entrada revisada del manifiesto a `config/archive-compatible-variants.js`, rellenar el MD5 real de la copia y habilitarla **después de su prueba y de aprobar ese cambio**. El código exige coincidencia de episodio, item, original, ambos hashes y duración con diferencia máxima de un segundo. Un fragmento de prueba no puede activarse como variante de un capítulo completo. Esperar a que Archive exponga la duración de la copia antes de habilitarla. Mantener `archive_file` apuntando al original permite conservar HEVC/4K junto con la copia H.264 sin migrar ni escribir el esquema de Neon.
-7. Probar en el entorno independiente y en los dos teléfonos. Revisar el commit de activación y autorizar el despliegue por separado. Las fuentes erróneas tienen su propio plan de corrección de datos; no se ocultan mediante la lista de copias.
+7. Probar en el entorno independiente y en los dos teléfonos. Revisar el commit de activación y desplegar dentro de la autorización vigente cuando las comprobaciones sean satisfactorias. Las fuentes erróneas tienen su propio plan de corrección de datos; no se ocultan mediante la lista de copias.
 
 Referencias técnicas: [parámetros de códec](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/codecs_parameter), [VP9 en MP4](https://www.webmproject.org/vp9/mp4/), [FFmpeg](https://ffmpeg.org/ffmpeg.html), [MediaCapabilities](https://developer.mozilla.org/en-US/docs/Web/API/MediaCapabilities/decodingInfo).
 
@@ -146,4 +152,4 @@ En Infinix/Chrome y iPhone/Safari:
 3. Confirmar que el tiempo avanza, hay imagen y audio sincronizados; después probar pausa/reanudación, búsqueda, orientación, pantalla completa y background/reactivación.
 4. Marcar el resultado visual y usar **Copiar resumen** o **Descargar diagnóstico**. El informe recoge UA, códec, calidad, soporte declarado, fotogramas, buffers, estado de búsqueda y eventos. Un contador que avance no prueba por sí solo la imagen.
 
-Quedan pendientes la reproducción prolongada de las copias completas, la validación de todos los archivos propuestos y las operaciones de publicación/datos/despliegue autorizadas. La conectividad del 23 de noviembre impidió mediciones; el registro incompleto de esa fecha se conserva y queda superado por esta consulta del catálogo del día 24.
+Quedan pendientes la reproducción prolongada de las copias completas y su publicación en Archive con claves S3, además de los otros trabajos del catálogo que no deben bloquear esta entrega del reproductor. Black Butler E1/E4 no se consideran resueltos en dispositivos incompatibles hasta disponer de sus copias completas publicadas y activadas. La conectividad del 23 de noviembre impidió mediciones; el registro incompleto de esa fecha se conserva y queda superado por esta consulta del catálogo del día 24.

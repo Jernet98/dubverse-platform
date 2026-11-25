@@ -11,10 +11,14 @@ const sourceRoot = arg('--source-root');
 const outputRoot = resolve(arg('--output-root') || '.codex-player-compatible-media');
 const ffmpeg = arg('--ffmpeg') || 'ffmpeg', ffprobe = arg('--ffprobe') || 'ffprobe';
 const encode = args.includes('--encode');
+const preset = arg('--preset') || 'slow';
+if (!['fast','medium','slow'].includes(preset)) throw Error('--preset must be fast, medium or slow; CRF 18 and the output compatibility constraints are unchanged.');
 const manifestInput = arg('--manifest') ? JSON.parse(await readFile(arg('--manifest'), 'utf8')) : mappings;
 const manifest = Array.isArray(manifestInput) ? manifestInput : manifestInput.jobs;
 if (!Array.isArray(manifest)) throw Error('A manifest must contain an array of reviewed jobs.');
-const jobs = manifest.map(item => ({ episodeId: item.episodeId, identifier: item.identifier, original: item.original, originalMd5: item.originalMd5, output: item.files[0].name }));
+const selected = arg('--episodes') ? new Set(arg('--episodes').split(',')) : null;
+const jobs = manifest.filter(item => !selected || selected.has(item.episodeId)).map(item => ({ episodeId: item.episodeId, identifier: item.identifier, original: item.original, originalMd5: item.originalMd5, output: item.files[0].name }));
+if (!jobs.length || selected && jobs.length !== selected.size) throw Error('Every --episodes ID must match exactly one reviewed job.');
 if (!encode) {
   console.log(JSON.stringify({ mode: 'plan-only', outputRoot, jobs, next: 'Place authorized originals under <source-root>/<identifier>/<original>; review SDR/color, then run with --encode. No file was transcoded or published.' }, null, 2));
   process.exit(0);
@@ -62,12 +66,12 @@ for (const job of plan) {
   console.log(`Preparing ${job.episodeId} locally…`);
   await run(ffmpeg, ['-n','-hide_banner','-loglevel','warning','-i',job.source,
     '-map','0:v:0','-map','0:a:0?','-vf',`scale=${job.targetWidth}:${job.targetHeight},setsar=1`,
-    '-r',job.frameRate,'-c:v','libx264','-profile:v','high','-level:v',job.level,'-pix_fmt','yuv420p','-preset','slow','-crf','18','-maxrate','16M','-bufsize','32M',
+    '-r',job.frameRate,'-c:v','libx264','-profile:v','high','-level:v',job.level,'-pix_fmt','yuv420p','-preset',preset,'-crf','18','-maxrate','16M','-bufsize','32M',
     '-c:a','aac','-ac','2','-b:a','160k','-movflags','+faststart',job.output]);
   const after = await probe(job.output), video = after.streams.find(stream => stream.codec_type === 'video');
   const durationDifference = Math.abs(Number(after.format.duration) - Number(job.before.format.duration));
   if (video?.codec_name !== 'h264' || video.pix_fmt !== 'yuv420p' || durationDifference > 1) throw Error(`Output verification failed; keep it unpublished and inspect ${job.output}`);
-  results.push({ episodeId: job.episodeId, identifier: job.identifier, original: job.original, originalMd5: job.originalMd5, output: job.output, md5: await md5(job.output), after, durationDifference, publication: 'NOT_PUBLISHED', physicalDeviceVerification: 'PENDING' });
+  results.push({ episodeId: job.episodeId, identifier: job.identifier, original: job.original, originalMd5: job.originalMd5, output: job.output, md5: await md5(job.output), after, durationDifference, preset, crf: 18, publication: 'NOT_PUBLISHED', physicalDeviceVerification: 'PENDING' });
   await writeFile(join(outputRoot, 'preparation-report.json'), JSON.stringify(results, null, 2));
 }
 console.log('Local copies prepared. Validate image, audio, color, subtitles and real phones before requesting publication. Nothing was uploaded or linked.');

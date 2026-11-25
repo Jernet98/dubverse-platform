@@ -197,10 +197,14 @@ test('Safari con readyState 4, playing y reloj en cero cambia una vez en Auto; m
   }
 });
 
-test('el límite del reloj ignora pausas, background y progreso real; se cancela al destruir', () => {
-  for (const condition of ['pause','hidden','progress']) {
+test('el límite del reloj respeta precarga, búsquedas, pausas, background y progreso; se cancela al destruir', () => {
+  for (const condition of ['pause','hidden','progress','network','seeking','restoring','switching']) {
     const { player, video, context } = decodedFixture(); player.wantedPlay = condition !== 'pause';
     if (condition === 'hidden') context.document.hidden = true;
+    if (condition === 'network') { video.readyState = 2; player.bufferAhead = () => 0; }
+    if (condition === 'seeking') video.seeking = true;
+    if (condition === 'restoring') player.restoring = true;
+    if (condition === 'switching') player.switching = true;
     player.switchVariant = () => assert.fail(condition);
     player.showError = () => assert.fail(condition);
     player.startPlaybackWatch(1);

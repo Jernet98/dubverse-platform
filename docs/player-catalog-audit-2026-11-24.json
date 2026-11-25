@@ -439,6 +439,26 @@
       "episodeId": "black-butler-book-of-circus-s01-e001",
       "reportedResult": "supported=true, smooth=false, readyState=4, paused=false, currentTime=0, one total frame; stayed at zero without mediaError.",
       "status": "CLOCK_STALL_REPRODUCED; NEW_WATCHDOG_VERIFICATION_PENDING"
+    },
+    {
+      "device": "Infinix Note 50 Pro / Chrome",
+      "episodeIds": [
+        "black-butler-e1-h264-sample",
+        "black-butler-e4-h264-sample"
+      ],
+      "reportedResult": "Owner confirmed both real 12-second H.264 8-bit 1080p samples played successfully. Four successful tests across the two phones.",
+      "status": "PASSED_USER_REPORTED_SAMPLES",
+      "fullEpisodesValidated": false
+    },
+    {
+      "device": "iPhone / Safari",
+      "episodeIds": [
+        "black-butler-e1-h264-sample",
+        "black-butler-e4-h264-sample"
+      ],
+      "reportedResult": "Owner confirmed both real 12-second H.264 8-bit 1080p samples played successfully. Four successful tests across the two phones.",
+      "status": "PASSED_USER_REPORTED_SAMPLES",
+      "fullEpisodesValidated": false
     }
   ],
   "externalAudit": {
